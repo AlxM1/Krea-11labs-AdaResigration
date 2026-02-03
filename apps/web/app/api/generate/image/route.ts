@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { generateImage } from "@/lib/ai/providers";
+import { generateImage, AIProvider, enhancePrompt, generateNegativePrompt } from "@/lib/ai/providers";
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { rateLimit, rateLimitConfigs, rateLimitResponse, getClientIdentifier } from "@/lib/rate-limit";
 import { z } from "zod";
@@ -16,6 +16,11 @@ const generateSchema = z.object({
   cfgScale: z.number().min(1).max(20).default(7.5),
   seed: z.number().default(-1),
   batchSize: z.number().min(1).max(4).default(1),
+  // Provider selection
+  provider: z.enum(["fal", "replicate", "together", "comfyui"]).optional(),
+  // Prompt enhancement options
+  enhancePrompt: z.boolean().default(false),
+  autoNegative: z.boolean().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -63,13 +68,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Apply prompt enhancement if requested (using local Ollama)
+    let finalPrompt = params.prompt;
+    let finalNegativePrompt = params.negativePrompt;
+
+    if (params.enhancePrompt) {
+      try {
+        finalPrompt = await enhancePrompt(params.prompt);
+      } catch (error) {
+        console.warn("Prompt enhancement failed, using original:", error);
+      }
+    }
+
+    if (params.autoNegative && !finalNegativePrompt) {
+      try {
+        finalNegativePrompt = await generateNegativePrompt(finalPrompt);
+      } catch (error) {
+        console.warn("Negative prompt generation failed:", error);
+      }
+    }
+
+    // Determine provider (defaults to fal for cloud, comfyui for local)
+    const provider: AIProvider = params.provider || "fal";
+
     // Create generation record
     const generation = await prisma.generation.create({
       data: {
         userId: session.user.id,
         type: "TEXT_TO_IMAGE",
-        prompt: params.prompt,
-        negativePrompt: params.negativePrompt,
+        prompt: finalPrompt,
+        negativePrompt: finalNegativePrompt,
         model: params.model,
         width: params.width,
         height: params.height,
@@ -79,21 +107,26 @@ export async function POST(req: NextRequest) {
           cfgScale: params.cfgScale,
           seed: params.seed,
           batchSize: params.batchSize,
+          provider: provider,
+          originalPrompt: params.enhancePrompt ? params.prompt : undefined,
         },
       },
     });
 
     // Call AI provider
-    const aiResponse = await generateImage({
-      prompt: params.prompt,
-      negativePrompt: params.negativePrompt,
-      width: params.width,
-      height: params.height,
-      steps: params.steps,
-      cfgScale: params.cfgScale,
-      seed: params.seed > 0 ? params.seed : undefined,
-      model: params.model,
-    });
+    const aiResponse = await generateImage(
+      {
+        prompt: finalPrompt,
+        negativePrompt: finalNegativePrompt,
+        width: params.width,
+        height: params.height,
+        steps: params.steps,
+        cfgScale: params.cfgScale,
+        seed: params.seed > 0 ? params.seed : undefined,
+        model: params.model,
+      },
+      provider
+    );
 
     if (aiResponse.status === "failed" || !aiResponse.imageUrl) {
       // Update generation as failed
@@ -161,6 +194,9 @@ export async function POST(req: NextRequest) {
       imageUrl: finalImageUrl,
       seed: aiResponse.seed,
       creditsUsed: creditsNeeded,
+      provider: provider,
+      prompt: finalPrompt,
+      enhancedPrompt: params.enhancePrompt && finalPrompt !== params.prompt,
     });
   } catch (error) {
     console.error("Generation error:", error);

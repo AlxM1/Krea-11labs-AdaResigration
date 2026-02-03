@@ -1,9 +1,14 @@
 /**
  * AI Provider Integration Layer
  * Supports multiple providers: fal.ai, Replicate, Together AI, OpenAI
+ * And local providers: ComfyUI, Ollama
  */
 
-export type AIProvider = "fal" | "replicate" | "together" | "openai" | "local";
+import { ComfyUIProvider, checkComfyUIHealth, getComfyUIModels } from "./comfyui-provider";
+import { OllamaProvider, checkOllamaHealth, getOllamaModels } from "./ollama-provider";
+
+export type AIProvider = "fal" | "replicate" | "together" | "openai" | "comfyui" | "ollama";
+export type ProviderMode = "cloud" | "local";
 
 export interface GenerationRequest {
   prompt: string;
@@ -356,6 +361,30 @@ export class TogetherProvider extends BaseProvider {
 }
 
 /**
+ * Local ComfyUI Provider Wrapper (extends BaseProvider interface)
+ */
+class ComfyUIProviderWrapper extends BaseProvider {
+  private provider: ComfyUIProvider;
+
+  constructor() {
+    super(""); // No API key needed for local
+    this.provider = new ComfyUIProvider();
+  }
+
+  async generateImage(request: GenerationRequest): Promise<GenerationResponse> {
+    return this.provider.generateImage(request);
+  }
+
+  async generateVideo(request: VideoGenerationRequest): Promise<VideoGenerationResponse> {
+    return this.provider.generateVideo(request);
+  }
+
+  async getStatus(id: string): Promise<GenerationResponse> {
+    return this.provider.getStatus(id);
+  }
+}
+
+/**
  * Get AI provider instance
  */
 export function getAIProvider(provider: AIProvider = "fal"): BaseProvider {
@@ -366,9 +395,18 @@ export function getAIProvider(provider: AIProvider = "fal"): BaseProvider {
       return new ReplicateProvider(process.env.REPLICATE_API_TOKEN || "");
     case "together":
       return new TogetherProvider(process.env.TOGETHER_API_KEY || "");
+    case "comfyui":
+      return new ComfyUIProviderWrapper();
     default:
       return new FalProvider(process.env.FAL_KEY || "");
   }
+}
+
+/**
+ * Get Ollama provider instance for LLM operations
+ */
+export function getOllamaProvider(): OllamaProvider {
+  return new OllamaProvider();
 }
 
 /**
@@ -392,3 +430,151 @@ export async function generateVideo(
   const aiProvider = getAIProvider(provider);
   return aiProvider.generateVideo(request);
 }
+
+/**
+ * Provider health status
+ */
+export interface ProviderHealth {
+  provider: AIProvider;
+  available: boolean;
+  mode: "cloud" | "local";
+  models?: string[];
+  error?: string;
+}
+
+/**
+ * Check health of all providers
+ */
+export async function checkAllProvidersHealth(): Promise<ProviderHealth[]> {
+  const results: ProviderHealth[] = [];
+
+  // Check cloud providers (based on env vars)
+  if (process.env.FAL_KEY) {
+    results.push({
+      provider: "fal",
+      available: true,
+      mode: "cloud",
+    });
+  }
+
+  if (process.env.REPLICATE_API_TOKEN) {
+    results.push({
+      provider: "replicate",
+      available: true,
+      mode: "cloud",
+    });
+  }
+
+  if (process.env.TOGETHER_API_KEY) {
+    results.push({
+      provider: "together",
+      available: true,
+      mode: "cloud",
+    });
+  }
+
+  // Check local providers
+  const comfyUIAvailable = await checkComfyUIHealth();
+  if (comfyUIAvailable) {
+    const models = await getComfyUIModels();
+    results.push({
+      provider: "comfyui",
+      available: true,
+      mode: "local",
+      models: models.checkpoints,
+    });
+  } else {
+    results.push({
+      provider: "comfyui",
+      available: false,
+      mode: "local",
+      error: "ComfyUI not reachable",
+    });
+  }
+
+  const ollamaAvailable = await checkOllamaHealth();
+  if (ollamaAvailable) {
+    const models = await getOllamaModels();
+    results.push({
+      provider: "ollama",
+      available: true,
+      mode: "local",
+      models: models.map((m) => m.name),
+    });
+  } else {
+    results.push({
+      provider: "ollama",
+      available: false,
+      mode: "local",
+      error: "Ollama not reachable",
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Get best available provider based on mode preference
+ */
+export async function getBestProvider(
+  preferLocal: boolean = false
+): Promise<AIProvider> {
+  if (preferLocal) {
+    // Try local providers first
+    if (await checkComfyUIHealth()) {
+      return "comfyui";
+    }
+  }
+
+  // Fall back to cloud providers
+  if (process.env.FAL_KEY) return "fal";
+  if (process.env.REPLICATE_API_TOKEN) return "replicate";
+  if (process.env.TOGETHER_API_KEY) return "together";
+
+  // Last resort: try local even if not preferred
+  if (await checkComfyUIHealth()) {
+    return "comfyui";
+  }
+
+  return "fal"; // Default
+}
+
+/**
+ * Enhanced prompt using Ollama (if available)
+ */
+export async function enhancePrompt(prompt: string): Promise<string> {
+  try {
+    if (await checkOllamaHealth()) {
+      const ollama = getOllamaProvider();
+      return await ollama.enhancePrompt(prompt);
+    }
+  } catch (error) {
+    console.warn("Prompt enhancement failed:", error);
+  }
+  return prompt;
+}
+
+/**
+ * Generate negative prompt using Ollama (if available)
+ */
+export async function generateNegativePrompt(prompt: string): Promise<string | undefined> {
+  try {
+    if (await checkOllamaHealth()) {
+      const ollama = getOllamaProvider();
+      return await ollama.generateNegativePrompt(prompt);
+    }
+  } catch (error) {
+    console.warn("Negative prompt generation failed:", error);
+  }
+  return undefined;
+}
+
+// Re-export local provider utilities
+export {
+  checkComfyUIHealth,
+  getComfyUIModels,
+  checkOllamaHealth,
+  getOllamaModels,
+  ComfyUIProvider,
+  OllamaProvider,
+};
