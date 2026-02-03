@@ -1,39 +1,10 @@
 /**
  * Rate Limiting Module
- *
- * PRODUCTION NOTE: This implementation uses in-memory storage which:
- * - Does NOT work with multiple server instances (no shared state)
- * - Resets on server restart
- * - Is fine for single-instance deployments or development
- *
- * For production with multiple instances, replace with Redis:
- * 1. Add ioredis: npm install ioredis
- * 2. Replace rateLimitStore with Redis calls
- * 3. Use INCR with EXPIRE for atomic rate limiting
- *
- * Example Redis implementation:
- * ```
- * import Redis from 'ioredis';
- * const redis = new Redis(process.env.REDIS_URL);
- *
- * async function rateLimit(identifier: string, config: RateLimitConfig) {
- *   const key = `ratelimit:${identifier}`;
- *   const count = await redis.incr(key);
- *   if (count === 1) {
- *     await redis.expire(key, Math.ceil(config.interval / 1000));
- *   }
- *   const ttl = await redis.ttl(key);
- *   return {
- *     success: count <= config.maxRequests,
- *     limit: config.maxRequests,
- *     remaining: Math.max(0, config.maxRequests - count),
- *     reset: Date.now() + ttl * 1000,
- *   };
- * }
- * ```
+ * Supports both Redis (for production) and in-memory (for development/single instance)
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { getRedis } from "./redis";
 
 interface RateLimitConfig {
   interval: number; // Time window in milliseconds
@@ -47,18 +18,10 @@ interface RateLimitResult {
   reset: number;
 }
 
-// Warn about in-memory rate limiting in production
-if (process.env.NODE_ENV === "production" && !process.env.REDIS_URL) {
-  console.warn(
-    "[RATE LIMIT] Using in-memory rate limiting. This does not work with multiple server instances. " +
-    "Set REDIS_URL for production deployments with load balancing."
-  );
-}
-
-// In-memory store for rate limiting
+// In-memory fallback store
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
-// Clean up expired entries periodically
+// Clean up expired entries periodically (in-memory only)
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const now = Date.now();
@@ -67,20 +30,68 @@ if (typeof setInterval !== "undefined") {
         rateLimitStore.delete(key);
       }
     }
-  }, 60000); // Clean up every minute
+  }, 60000);
 }
 
-export function rateLimit(
+/**
+ * Rate limit using Redis (distributed, production-ready)
+ */
+async function rateLimitRedis(
+  identifier: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const redis = getRedis();
+  if (!redis) {
+    return rateLimitMemory(identifier, config);
+  }
+
+  const key = `ratelimit:${identifier}`;
+  const ttlSeconds = Math.ceil(config.interval / 1000);
+
+  try {
+    // Use Redis transaction for atomic operations
+    const multi = redis.multi();
+    multi.incr(key);
+    multi.ttl(key);
+    const results = await multi.exec();
+
+    if (!results) {
+      return rateLimitMemory(identifier, config);
+    }
+
+    const count = results[0][1] as number;
+    let ttl = results[1][1] as number;
+
+    // Set expiry if this is the first request in the window
+    if (ttl === -1) {
+      await redis.expire(key, ttlSeconds);
+      ttl = ttlSeconds;
+    }
+
+    return {
+      success: count <= config.maxRequests,
+      limit: config.maxRequests,
+      remaining: Math.max(0, config.maxRequests - count),
+      reset: Date.now() + ttl * 1000,
+    };
+  } catch (error) {
+    console.error("[RateLimit] Redis error, falling back to memory:", error);
+    return rateLimitMemory(identifier, config);
+  }
+}
+
+/**
+ * Rate limit using in-memory store (single instance only)
+ */
+function rateLimitMemory(
   identifier: string,
   config: RateLimitConfig
 ): RateLimitResult {
   const now = Date.now();
   const key = identifier;
-
   const current = rateLimitStore.get(key);
 
   if (!current || current.resetAt < now) {
-    // Start new window
     rateLimitStore.set(key, {
       count: 1,
       resetAt: now + config.interval,
@@ -114,39 +125,60 @@ export function rateLimit(
   };
 }
 
+/**
+ * Main rate limit function - uses Redis if available, falls back to memory
+ */
+export async function rateLimit(
+  identifier: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const redis = getRedis();
+  if (redis) {
+    return rateLimitRedis(identifier, config);
+  }
+
+  // Log warning in production without Redis
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[RateLimit] Using in-memory rate limiting. Set REDIS_URL for distributed rate limiting."
+    );
+  }
+
+  return rateLimitMemory(identifier, config);
+}
+
+/**
+ * Synchronous rate limit (memory only) - for use in sync contexts
+ */
+export function rateLimitSync(
+  identifier: string,
+  config: RateLimitConfig
+): RateLimitResult {
+  return rateLimitMemory(identifier, config);
+}
+
 // Rate limit configurations for different endpoints
 export const rateLimitConfigs = {
-  // Auth endpoints
   auth: {
     interval: 60 * 1000, // 1 minute
     maxRequests: 10,
   },
-
-  // Generation endpoints (per user)
   generation: {
-    interval: 60 * 1000, // 1 minute
+    interval: 60 * 1000,
     maxRequests: 30,
   },
-
-  // Enhancement endpoints
   enhance: {
     interval: 60 * 1000,
     maxRequests: 20,
   },
-
-  // Training endpoints
   training: {
     interval: 60 * 60 * 1000, // 1 hour
     maxRequests: 5,
   },
-
-  // General API endpoints
   api: {
     interval: 60 * 1000,
     maxRequests: 100,
   },
-
-  // Strict rate limit for expensive operations
   expensive: {
     interval: 60 * 1000,
     maxRequests: 5,
@@ -155,30 +187,12 @@ export const rateLimitConfigs = {
 
 // Tier-based rate limits
 export const tierRateLimits: Record<string, RateLimitConfig> = {
-  FREE: {
-    interval: 60 * 1000,
-    maxRequests: 10,
-  },
-  BASIC: {
-    interval: 60 * 1000,
-    maxRequests: 30,
-  },
-  PRO: {
-    interval: 60 * 1000,
-    maxRequests: 60,
-  },
-  MAX: {
-    interval: 60 * 1000,
-    maxRequests: 120,
-  },
-  TEAM: {
-    interval: 60 * 1000,
-    maxRequests: 200,
-  },
-  ENTERPRISE: {
-    interval: 60 * 1000,
-    maxRequests: 500,
-  },
+  FREE: { interval: 60 * 1000, maxRequests: 10 },
+  BASIC: { interval: 60 * 1000, maxRequests: 30 },
+  PRO: { interval: 60 * 1000, maxRequests: 60 },
+  MAX: { interval: 60 * 1000, maxRequests: 120 },
+  TEAM: { interval: 60 * 1000, maxRequests: 200 },
+  ENTERPRISE: { interval: 60 * 1000, maxRequests: 500 },
 };
 
 export function getRateLimitForTier(tier: string): RateLimitConfig {
@@ -221,7 +235,6 @@ export function getClientIdentifier(req: NextRequest, userId?: string): string {
     return `user:${userId}`;
   }
 
-  // Fall back to IP address
   const forwarded = req.headers.get("x-forwarded-for");
   const ip = forwarded ? forwarded.split(",")[0].trim() : "unknown";
   return `ip:${ip}`;

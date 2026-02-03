@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   images: {
@@ -15,6 +16,18 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "avatars.githubusercontent.com",
       },
+      {
+        protocol: "https",
+        hostname: "*.fal.media",
+      },
+      {
+        protocol: "https",
+        hostname: "*.replicate.delivery",
+      },
+      {
+        protocol: "https",
+        hostname: "api.dicebear.com",
+      },
     ],
   },
   experimental: {
@@ -22,6 +35,41 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // Output standalone build for Docker
+  output: "standalone",
 };
 
-export default nextConfig;
+// Sentry configuration
+const sentryConfig = {
+  // Suppress source map upload warnings
+  silent: true,
+
+  // Organization and project (set via env vars)
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Upload source maps only in production
+  widenClientFileUpload: true,
+
+  // Transpile SDK to be compatible with IE11
+  transpileClientSDK: true,
+
+  // Route browser requests to Sentry through a Next.js rewrite
+  tunnelRoute: "/monitoring",
+
+  // Hide source maps from generated client bundles
+  hideSourceMaps: true,
+
+  // Disable logger in production
+  disableLogger: true,
+
+  // Automatically tree-shake Sentry logger statements
+  automaticVercelMonitors: true,
+};
+
+// Only wrap with Sentry if DSN is configured
+const config = process.env.SENTRY_DSN
+  ? withSentryConfig(nextConfig, sentryConfig)
+  : nextConfig;
+
+export default config;
