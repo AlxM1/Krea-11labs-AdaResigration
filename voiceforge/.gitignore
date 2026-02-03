@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.venv/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+*.egg-info/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Storage
+storage/
+uploads/
+*.mp3
+*.wav
+*.flac
+*.ogg
+*.m4a
+
+# AI Models cache
+*.pt
+*.pth
+*.onnx
+*.bin
+models/
+
+# Docker
+docker/ssl/
+
+# Misc
+*.bak
+*.tmp
+.cache/
