@@ -174,34 +174,34 @@ export default function VoiceCloningPage() {
   const totalDuration = files.reduce((acc, f) => acc + (f.duration || 0), 0) + recordingTime
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-6">
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-4 sm:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">Voice Cloning</h1>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-bold">Voice Cloning</h1>
           <p className="text-[#a1a1a1] text-sm mt-1">
             Create a digital copy of a voice from audio samples
           </p>
         </div>
 
         {/* Clone Type Selector */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <button
             onClick={() => setCloneType('instant')}
-            className={`p-6 rounded-xl border-2 transition text-left ${
+            className={`p-4 sm:p-6 rounded-xl border-2 transition text-left touch-manipulation ${
               cloneType === 'instant'
                 ? 'border-[#7c3aed] bg-[#7c3aed]/10'
-                : 'border-[#2f2f2f] hover:border-[#3f3f3f]'
+                : 'border-[#2f2f2f] hover:border-[#3f3f3f] active:border-[#3f3f3f]'
             }`}
           >
-            <div className="flex items-center gap-3 mb-3">
-              <Zap className="w-6 h-6 text-[#7c3aed]" />
-              <h3 className="font-semibold text-lg">Instant Voice Cloning</h3>
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-[#7c3aed] flex-shrink-0" />
+              <h3 className="font-semibold text-base sm:text-lg">Instant Voice Cloning</h3>
             </div>
-            <p className="text-[#a1a1a1] text-sm mb-3">
+            <p className="text-[#a1a1a1] text-xs sm:text-sm mb-2 sm:mb-3">
               Create a voice clone instantly from a few samples. Best for quick results.
             </p>
-            <ul className="text-sm text-[#a1a1a1] space-y-1">
+            <ul className="text-xs sm:text-sm text-[#a1a1a1] space-y-1">
               <li>• 1-2 minutes of audio</li>
               <li>• Instant results</li>
               <li>• Good quality</li>
@@ -210,21 +210,21 @@ export default function VoiceCloningPage() {
 
           <button
             onClick={() => setCloneType('professional')}
-            className={`p-6 rounded-xl border-2 transition text-left ${
+            className={`p-4 sm:p-6 rounded-xl border-2 transition text-left touch-manipulation ${
               cloneType === 'professional'
                 ? 'border-[#7c3aed] bg-[#7c3aed]/10'
-                : 'border-[#2f2f2f] hover:border-[#3f3f3f]'
+                : 'border-[#2f2f2f] hover:border-[#3f3f3f] active:border-[#3f3f3f]'
             }`}
           >
-            <div className="flex items-center gap-3 mb-3">
-              <Sparkles className="w-6 h-6 text-[#db2777]" />
-              <h3 className="font-semibold text-lg">Professional Voice Cloning</h3>
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 flex-wrap">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-[#db2777] flex-shrink-0" />
+              <h3 className="font-semibold text-base sm:text-lg">Professional Voice Cloning</h3>
               <span className="px-2 py-0.5 text-xs bg-[#7c3aed] rounded-full">PRO</span>
             </div>
-            <p className="text-[#a1a1a1] text-sm mb-3">
+            <p className="text-[#a1a1a1] text-xs sm:text-sm mb-2 sm:mb-3">
               High-fidelity voice clone trained on your voice data.
             </p>
-            <ul className="text-sm text-[#a1a1a1] space-y-1">
+            <ul className="text-xs sm:text-sm text-[#a1a1a1] space-y-1">
               <li>• 30 min - 3 hours of audio</li>
               <li>• Takes a few hours</li>
               <li>• Best quality</li>
@@ -260,9 +260,9 @@ export default function VoiceCloningPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Left Column - Audio Upload */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Upload Area */}
             <div className="bg-[#1f1f1f] rounded-xl border border-[#2f2f2f] overflow-hidden">
               <div className="p-4 border-b border-[#2f2f2f]">
@@ -368,8 +368,8 @@ export default function VoiceCloningPage() {
           </div>
 
           {/* Right Column - Voice Details */}
-          <div className="space-y-6">
-            <div className="bg-[#1f1f1f] rounded-xl border border-[#2f2f2f] p-6 space-y-4">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-[#1f1f1f] rounded-xl border border-[#2f2f2f] p-4 sm:p-6 space-y-4">
               <h3 className="font-semibold">Voice Details</h3>
 
               <div>
@@ -381,7 +381,7 @@ export default function VoiceCloningPage() {
                   value={voiceName}
                   onChange={(e) => setVoiceName(e.target.value)}
                   placeholder="e.g., My Voice Clone"
-                  className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#2f2f2f] rounded-lg focus:outline-none focus:border-[#7c3aed]"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-[#0a0a0a] border border-[#2f2f2f] rounded-lg focus:outline-none focus:border-[#7c3aed] text-base"
                 />
               </div>
 
@@ -391,17 +391,17 @@ export default function VoiceCloningPage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the voice characteristics..."
-                  className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#2f2f2f] rounded-lg h-24 resize-none focus:outline-none focus:border-[#7c3aed]"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-[#0a0a0a] border border-[#2f2f2f] rounded-lg h-24 resize-none focus:outline-none focus:border-[#7c3aed] text-base"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Gender</label>
                   <select
                     value={labels.gender}
                     onChange={(e) => setLabels(prev => ({ ...prev, gender: e.target.value }))}
-                    className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#2f2f2f] rounded-lg focus:outline-none focus:border-[#7c3aed]"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-[#0a0a0a] border border-[#2f2f2f] rounded-lg focus:outline-none focus:border-[#7c3aed] text-base"
                   >
                     <option value="">Select...</option>
                     <option value="male">Male</option>
@@ -414,7 +414,7 @@ export default function VoiceCloningPage() {
                   <select
                     value={labels.age}
                     onChange={(e) => setLabels(prev => ({ ...prev, age: e.target.value }))}
-                    className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#2f2f2f] rounded-lg focus:outline-none focus:border-[#7c3aed]"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-[#0a0a0a] border border-[#2f2f2f] rounded-lg focus:outline-none focus:border-[#7c3aed] text-base"
                   >
                     <option value="">Select...</option>
                     <option value="young">Young</option>
@@ -426,14 +426,14 @@ export default function VoiceCloningPage() {
             </div>
 
             {/* Terms */}
-            <label className="flex items-start gap-3 p-4 bg-[#1f1f1f] rounded-xl border border-[#2f2f2f] cursor-pointer">
+            <label className="flex items-start gap-3 p-3 sm:p-4 bg-[#1f1f1f] rounded-xl border border-[#2f2f2f] cursor-pointer touch-manipulation">
               <input
                 type="checkbox"
                 checked={agreedToTerms}
                 onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-1"
+                className="mt-0.5 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
               />
-              <span className="text-sm text-[#a1a1a1]">
+              <span className="text-xs sm:text-sm text-[#a1a1a1]">
                 I confirm that I have the right to use this voice and that its use complies with the{' '}
                 <a href="/terms" className="text-[#7c3aed] hover:underline">Terms of Service</a>
               </span>
@@ -459,17 +459,17 @@ export default function VoiceCloningPage() {
             <button
               onClick={handleCreate}
               disabled={!voiceName.trim() || (files.length === 0 && !audioBlob) || !agreedToTerms || isCreating}
-              className="w-full py-4 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-lg transition flex items-center justify-center gap-3"
+              className="w-full py-3.5 sm:py-4 bg-[#7c3aed] hover:bg-[#6d28d9] active:bg-[#5b21b6] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-base sm:text-lg transition flex items-center justify-center gap-2 sm:gap-3 touch-manipulation"
             >
               {isCreating ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Creating Voice...
+                  <span>Creating Voice...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  Create Voice Clone
+                  <span>Create Voice Clone</span>
                 </>
               )}
             </button>
