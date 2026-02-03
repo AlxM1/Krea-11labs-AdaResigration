@@ -7,15 +7,15 @@ services:
     container_name: krya-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-krya}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-krya_password}
-      POSTGRES_DB: ${POSTGRES_DB:-krya}
+      POSTGRES_USER: krya
+      POSTGRES_PASSWORD: krya_dev_password
+      POSTGRES_DB: krya
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-krya}"]
+      test: ["CMD-SHELL", "pg_isready -U krya"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,11 +29,61 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # MinIO for local S3-compatible storage (optional)
+  minio:
+    image: minio/minio:latest
+    container_name: krya-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    profiles:
+      - storage
+
+  # Redis Commander - Redis GUI (optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: krya-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    profiles:
+      - tools
+
+  # pgAdmin - PostgreSQL GUI (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: krya-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@krya.ai
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+    profiles:
+      - tools
 
   # Next.js Web Application
   web:
@@ -44,25 +94,12 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-krya}:${POSTGRES_PASSWORD:-krya_password}@db:5432/${POSTGRES_DB:-krya}
+      - DATABASE_URL=postgresql://krya:krya_dev_password@db:5432/krya
       - REDIS_URL=redis://redis:6379
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
-      - AUTH_SECRET=${AUTH_SECRET}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-      - FAL_KEY=${FAL_KEY}
-      - REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN}
-      - TOGETHER_API_KEY=${TOGETHER_API_KEY}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - S3_BUCKET=${S3_BUCKET}
     depends_on:
       db:
         condition: service_healthy
@@ -77,7 +114,7 @@ services:
       target: builder
     container_name: krya-migrate
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-krya}:${POSTGRES_PASSWORD:-krya_password}@db:5432/${POSTGRES_DB:-krya}
+      - DATABASE_URL=postgresql://krya:krya_dev_password@db:5432/krya
     command: npx prisma migrate deploy
     depends_on:
       db:
@@ -86,6 +123,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  minio_data:
+  pgadmin_data:
 
 networks:
   default:
