@@ -205,8 +205,23 @@ export async function POST(req: NextRequest) {
 
     const { generationId, videoId, workflowId, modelId } = validated.data;
 
-    // Update user favorites
-    if (generationId) {
+    // Get current user favorites to prevent duplicates
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        favoriteGenerations: true,
+        favoriteVideos: true,
+        favoriteWorkflows: true,
+        favoriteModels: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Update user favorites (with duplicate prevention)
+    if (generationId && !user.favoriteGenerations.includes(generationId)) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
@@ -215,7 +230,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (videoId) {
+    if (videoId && !user.favoriteVideos.includes(videoId)) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
@@ -224,7 +239,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (workflowId) {
+    if (workflowId && !user.favoriteWorkflows.includes(workflowId)) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
@@ -233,7 +248,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (modelId) {
+    if (modelId && !user.favoriteModels.includes(modelId)) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {

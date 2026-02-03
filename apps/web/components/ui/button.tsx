@@ -1,16 +1,18 @@
 "use client";
 
-import { forwardRef, ButtonHTMLAttributes } from "react";
+import { forwardRef, ButtonHTMLAttributes, ReactElement } from "react";
+import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "default" | "secondary" | "outline" | "ghost" | "destructive" | "gradient";
   size?: "sm" | "md" | "lg" | "icon";
   isLoading?: boolean;
+  asChild?: boolean;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "md", isLoading, children, disabled, ...props }, ref) => {
+  ({ className, variant = "default", size = "md", isLoading, asChild = false, children, disabled, ...props }, ref) => {
     const variants = {
       default: "bg-primary text-primary-foreground hover:bg-primary/90",
       secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
@@ -27,17 +29,33 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       icon: "h-10 w-10 rounded-lg",
     };
 
+    const buttonClassName = cn(
+      "inline-flex items-center justify-center font-medium transition-all duration-200",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      "disabled:pointer-events-none disabled:opacity-50",
+      "active:scale-[0.98]",
+      variants[variant],
+      sizes[size],
+      className
+    );
+
+    const Comp = asChild ? Slot : "button";
+
+    if (asChild) {
+      return (
+        <Comp
+          className={buttonClassName}
+          ref={ref}
+          {...props}
+        >
+          {children}
+        </Comp>
+      );
+    }
+
     return (
       <button
-        className={cn(
-          "inline-flex items-center justify-center font-medium transition-all duration-200",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "disabled:pointer-events-none disabled:opacity-50",
-          "active:scale-[0.98]",
-          variants[variant],
-          sizes[size],
-          className
-        )}
+        className={buttonClassName}
         ref={ref}
         disabled={disabled || isLoading}
         {...props}

@@ -461,3 +461,299 @@ export function useLikeItem() {
     { body: { generationId: string; action: "like" | "unlike" } }
   >("/api/gallery", (url, { arg }) => mutationFetcher(url, { body: arg.body }));
 }
+
+// ============ Favorites Hooks ============
+
+export interface FavoriteItem {
+  id: string;
+  type: "generation" | "video" | "workflow" | "model";
+  item: Generation | Video | Workflow | TrainedModel;
+  favoritedAt: string;
+}
+
+export interface FavoritesResponse {
+  favorites: FavoriteItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export function useFavorites(
+  params?: { limit?: number; offset?: number; type?: string },
+  config?: SWRConfiguration
+) {
+  const searchParams = new URLSearchParams();
+  if (params?.limit) searchParams.set("limit", params.limit.toString());
+  if (params?.offset) searchParams.set("offset", params.offset.toString());
+  if (params?.type) searchParams.set("type", params.type);
+
+  const url = `/api/favorites?${searchParams.toString()}`;
+  return useSWR<FavoritesResponse>(url, fetcher, config);
+}
+
+export function useAddFavorite() {
+  return useSWRMutation<
+    { success: boolean },
+    Error,
+    string,
+    {
+      body: {
+        generationId?: string;
+        videoId?: string;
+        workflowId?: string;
+        modelId?: string;
+      };
+    }
+  >("/api/favorites", (url, { arg }) => mutationFetcher(url, { body: arg.body }));
+}
+
+export function useRemoveFavorite() {
+  return useSWRMutation<
+    { success: boolean },
+    Error,
+    string,
+    {
+      generationId?: string;
+      videoId?: string;
+      workflowId?: string;
+      modelId?: string;
+    }
+  >("/api/favorites", (url, { arg }) => {
+    const params = new URLSearchParams();
+    if (arg.generationId) params.set("generationId", arg.generationId);
+    if (arg.videoId) params.set("videoId", arg.videoId);
+    if (arg.workflowId) params.set("workflowId", arg.workflowId);
+    if (arg.modelId) params.set("modelId", arg.modelId);
+    return mutationFetcher(`${url}?${params.toString()}`, { method: "DELETE" });
+  });
+}
+
+// ============ Projects Hooks ============
+
+export interface Project {
+  id: string;
+  name: string;
+  type: "CANVAS" | "VIDEO" | "WORKFLOW" | "COLLECTION";
+  data: Record<string, unknown>;
+  thumbnail: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export function useProjects(
+  params?: { limit?: number; offset?: number; type?: string },
+  config?: SWRConfiguration
+) {
+  const searchParams = new URLSearchParams();
+  if (params?.limit) searchParams.set("limit", params.limit.toString());
+  if (params?.offset) searchParams.set("offset", params.offset.toString());
+  if (params?.type) searchParams.set("type", params.type);
+
+  const url = `/api/projects?${searchParams.toString()}`;
+  return useSWR<ProjectsResponse>(url, fetcher, config);
+}
+
+export function useProject(id: string | null, config?: SWRConfiguration) {
+  return useSWR<Project>(id ? `/api/projects/${id}` : null, fetcher, config);
+}
+
+export function useCreateProject() {
+  return useSWRMutation<
+    Project,
+    Error,
+    string,
+    {
+      body: {
+        name: string;
+        type?: "CANVAS" | "VIDEO" | "WORKFLOW" | "COLLECTION";
+        data?: Record<string, unknown>;
+      };
+    }
+  >("/api/projects", (url, { arg }) => mutationFetcher(url, { body: arg.body }));
+}
+
+export function useUpdateProject(id: string) {
+  return useSWRMutation<
+    Project,
+    Error,
+    string,
+    {
+      body: Partial<{
+        name: string;
+        data: Record<string, unknown>;
+        thumbnail: string;
+      }>;
+    }
+  >(`/api/projects/${id}`, (url, { arg }) =>
+    mutationFetcher(url, { method: "PATCH", body: arg.body })
+  );
+}
+
+export function useDeleteProject(id: string) {
+  return useSWRMutation<{ success: boolean }, Error, string, void>(
+    `/api/projects/${id}`,
+    (url) => mutationFetcher(url, { method: "DELETE" })
+  );
+}
+
+// ============ History Hooks ============
+
+export interface HistoryItem {
+  id: string;
+  type: "generation" | "video" | "enhancement" | "training";
+  action: string;
+  metadata: Record<string, unknown>;
+  creditsUsed: number;
+  createdAt: string;
+  item?: Generation | Video | TrainedModel;
+}
+
+export interface HistoryResponse {
+  history: HistoryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export function useHistory(
+  params?: { limit?: number; offset?: number; type?: string },
+  config?: SWRConfiguration
+) {
+  const searchParams = new URLSearchParams();
+  if (params?.limit) searchParams.set("limit", params.limit.toString());
+  if (params?.offset) searchParams.set("offset", params.offset.toString());
+  if (params?.type) searchParams.set("type", params.type);
+
+  const url = `/api/history?${searchParams.toString()}`;
+  return useSWR<HistoryResponse>(url, fetcher, config);
+}
+
+// ============ Search Hooks ============
+
+export interface SearchResult {
+  id: string;
+  type: "generation" | "video" | "workflow" | "model";
+  title: string;
+  description: string | null;
+  thumbnail: string | null;
+  createdAt: string;
+  score: number;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  total: number;
+  query: string;
+}
+
+export function useSearch(
+  query: string | null,
+  params?: { type?: string; limit?: number },
+  config?: SWRConfiguration
+) {
+  const searchParams = new URLSearchParams();
+  if (query) searchParams.set("q", query);
+  if (params?.type) searchParams.set("type", params.type);
+  if (params?.limit) searchParams.set("limit", params.limit.toString());
+
+  const url = query ? `/api/search?${searchParams.toString()}` : null;
+  return useSWR<SearchResponse>(url, fetcher, {
+    revalidateOnFocus: false,
+    ...config,
+  });
+}
+
+// ============ AI Models Hooks ============
+
+export interface AIModel {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  provider: string;
+  type: string;
+  category: string;
+  isActive: boolean;
+  isPremium: boolean;
+  parameters: Record<string, unknown>;
+}
+
+export interface AIModelsResponse {
+  models: AIModel[];
+  total: number;
+}
+
+export function useAIModels(
+  params?: { type?: string; category?: string },
+  config?: SWRConfiguration
+) {
+  const searchParams = new URLSearchParams();
+  if (params?.type) searchParams.set("type", params.type);
+  if (params?.category) searchParams.set("category", params.category);
+
+  const url = `/api/models?${searchParams.toString()}`;
+  return useSWR<AIModelsResponse>(url, fetcher, {
+    revalidateOnFocus: false,
+    ...config,
+  });
+}
+
+// ============ Upload Hooks ============
+
+export interface UploadResponse {
+  uploadUrl: string;
+  key: string;
+  publicUrl: string;
+}
+
+export function useGetUploadUrl() {
+  return useSWRMutation<
+    UploadResponse,
+    Error,
+    string,
+    { body: { filename: string; contentType: string } }
+  >("/api/upload", (url, { arg }) => mutationFetcher(url, { body: arg.body }));
+}
+
+// ============ Notifications Hooks ============
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  data: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  notifications: Notification[];
+  total: number;
+  unreadCount: number;
+}
+
+export function useNotifications(config?: SWRConfiguration) {
+  return useSWR<NotificationsResponse>("/api/notifications", fetcher, {
+    refreshInterval: 30000, // Refresh every 30 seconds
+    ...config,
+  });
+}
+
+export function useMarkNotificationRead() {
+  return useSWRMutation<
+    { success: boolean },
+    Error,
+    string,
+    { body: { notificationId: string } }
+  >("/api/notifications", (url, { arg }) =>
+    mutationFetcher(url, { method: "PATCH", body: arg.body })
+  );
+}

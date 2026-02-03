@@ -3,12 +3,13 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import Google from "next-auth/providers/google";
 import GitHub from "next-auth/providers/github";
 import Credentials from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
 import { prisma } from "./db";
 import { z } from "zod";
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -37,21 +38,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const validated = loginSchema.safeParse(credentials);
         if (!validated.success) return null;
 
-        const { email } = validated.data;
+        const { email, password } = validated.data;
 
-        // For demo purposes, create or find user
-        // In production, implement proper password hashing with bcrypt
-        let user = await prisma.user.findUnique({
+        // Find user with password
+        const user = await prisma.user.findUnique({
           where: { email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            image: true,
+            password: true,
+          },
         });
 
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              email,
-              name: email.split("@")[0],
-            },
-          });
+        // User must exist and have a password set
+        if (!user || !user.password) {
+          return null;
+        }
+
+        // Verify password
+        const isValidPassword = await compare(password, user.password);
+        if (!isValidPassword) {
+          return null;
         }
 
         return {

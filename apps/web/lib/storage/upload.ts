@@ -200,16 +200,125 @@ export async function getPresignedDownloadUrl(key: string): Promise<string> {
 }
 
 /**
+ * Validate URL to prevent SSRF attacks
+ */
+function isAllowedUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+
+    // Only allow HTTPS (and HTTP in development only)
+    const allowedProtocols = process.env.NODE_ENV === "development"
+      ? ["https:", "http:"]
+      : ["https:"];
+    if (!allowedProtocols.includes(url.protocol)) {
+      return false;
+    }
+
+    // Block private/internal IP ranges
+    const hostname = url.hostname.toLowerCase();
+
+    // Block localhost and common internal hostnames
+    const blockedHostnames = [
+      "localhost",
+      "127.0.0.1",
+      "0.0.0.0",
+      "[::1]",
+      "metadata.google.internal",
+      "169.254.169.254", // AWS/GCP metadata
+      "metadata.azure.internal",
+    ];
+    if (blockedHostnames.includes(hostname)) {
+      return false;
+    }
+
+    // Block internal/private IP ranges
+    const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4Match) {
+      const [, a, b, c] = ipv4Match.map(Number);
+      // 10.0.0.0/8
+      if (a === 10) return false;
+      // 172.16.0.0/12
+      if (a === 172 && b >= 16 && b <= 31) return false;
+      // 192.168.0.0/16
+      if (a === 192 && b === 168) return false;
+      // 169.254.0.0/16 (link-local)
+      if (a === 169 && b === 254) return false;
+      // 127.0.0.0/8 (loopback)
+      if (a === 127) return false;
+    }
+
+    // Whitelist of allowed domains for AI provider images
+    const allowedDomains = [
+      "fal.media",
+      "replicate.delivery",
+      "replicate.com",
+      "oaidalleapiprodscus.blob.core.windows.net", // OpenAI DALL-E
+      "pbxt.replicate.delivery",
+      "together.ai",
+      "api.together.xyz",
+    ];
+
+    const isAllowedDomain = allowedDomains.some(
+      domain => hostname === domain || hostname.endsWith(`.${domain}`)
+    );
+
+    if (!isAllowedDomain) {
+      console.warn(`[SSRF] Blocked fetch to non-whitelisted domain: ${hostname}`);
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Upload image from URL to storage (for caching external images)
+ * Protected against SSRF attacks
  */
 export async function uploadFromUrl(
   imageUrl: string,
   userId: string
 ): Promise<UploadResult> {
-  const response = await fetch(imageUrl);
+  // Validate URL to prevent SSRF
+  if (!isAllowedUrl(imageUrl)) {
+    throw new Error("URL not allowed: must be HTTPS from a whitelisted AI provider domain");
+  }
+
+  const response = await fetch(imageUrl, {
+    headers: {
+      "User-Agent": "Krya/1.0",
+    },
+    redirect: "follow",
+    signal: AbortSignal.timeout(30000), // 30 second timeout
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status}`);
+  }
+
+  // Validate content type
+  const contentType = response.headers.get("content-type") || "";
+  const allowedContentTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+  if (!allowedContentTypes.some(t => contentType.startsWith(t))) {
+    throw new Error(`Invalid content type: ${contentType}`);
+  }
+
+  // Limit file size (50MB max)
+  const contentLength = response.headers.get("content-length");
+  if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+    throw new Error("File too large (max 50MB)");
+  }
+
   const buffer = Buffer.from(await response.arrayBuffer());
-  const contentType = response.headers.get("content-type") || "image/png";
-  const ext = contentType.split("/")[1] || "png";
+
+  // Double check size after download
+  if (buffer.length > 50 * 1024 * 1024) {
+    throw new Error("File too large (max 50MB)");
+  }
+
+  const ext = contentType.split("/")[1]?.split(";")[0] || "png";
 
   return uploadFile(buffer, userId, `image.${ext}`, contentType, "generations");
 }

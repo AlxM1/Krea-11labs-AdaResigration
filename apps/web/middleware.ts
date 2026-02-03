@@ -95,10 +95,23 @@ export async function middleware(request: NextRequest) {
 
   // Add CORS headers for API routes
   if (pathname.startsWith("/api")) {
-    response.headers.set(
-      "Access-Control-Allow-Origin",
-      process.env.NEXT_PUBLIC_APP_URL || "*"
-    );
+    // Secure CORS: Only allow configured origins, never wildcard in production
+    const allowedOrigins = [
+      process.env.NEXT_PUBLIC_APP_URL,
+      process.env.NEXTAUTH_URL,
+      "http://localhost:3000",
+      "http://localhost:3001",
+    ].filter(Boolean) as string[];
+
+    const origin = request.headers.get("origin");
+    if (origin && allowedOrigins.includes(origin)) {
+      response.headers.set("Access-Control-Allow-Origin", origin);
+    } else if (process.env.NODE_ENV === "development") {
+      // Only allow any origin in development mode
+      response.headers.set("Access-Control-Allow-Origin", origin || "http://localhost:3000");
+    }
+    // In production with no matching origin, don't set the header (blocks CORS)
+
     response.headers.set(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, PATCH, DELETE, OPTIONS"
@@ -107,6 +120,7 @@ export async function middleware(request: NextRequest) {
       "Access-Control-Allow-Headers",
       "Content-Type, Authorization"
     );
+    response.headers.set("Access-Control-Allow-Credentials", "true");
   }
 
   return response;

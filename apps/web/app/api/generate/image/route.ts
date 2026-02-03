@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateImage } from "@/lib/ai/providers";
 import { uploadFromUrl } from "@/lib/storage/upload";
+import { rateLimit, rateLimitConfigs, rateLimitResponse, getClientIdentifier } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const generateSchema = z.object({
@@ -23,6 +24,13 @@ export async function POST(req: NextRequest) {
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Apply rate limiting
+    const identifier = getClientIdentifier(req, session.user.id);
+    const rateLimitResult = rateLimit(identifier, rateLimitConfigs.generation);
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
     }
 
     const body = await req.json();
@@ -109,7 +117,7 @@ export async function POST(req: NextRequest) {
     // Upload generated image to storage (optional - can also use provider URL directly)
     let finalImageUrl = aiResponse.imageUrl;
     try {
-      const uploadResult = await uploadFromUrl(aiResponse.imageUrl, session.user.id, "generations");
+      const uploadResult = await uploadFromUrl(aiResponse.imageUrl, session.user.id);
       finalImageUrl = uploadResult.url;
     } catch (uploadError) {
       // If upload fails, use the original URL
