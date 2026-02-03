@@ -17,7 +17,7 @@ const generateSchema = z.object({
   seed: z.number().default(-1),
   batchSize: z.number().min(1).max(4).default(1),
   // Provider selection
-  provider: z.enum(["fal", "replicate", "together", "comfyui"]).optional(),
+  provider: z.enum(["fal", "replicate", "together", "google", "comfyui"]).optional(),
   // Prompt enhancement options
   enhancePrompt: z.boolean().default(false),
   autoNegative: z.boolean().default(false),

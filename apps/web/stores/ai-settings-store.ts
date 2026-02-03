@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type ProviderMode = "cloud" | "local";
-export type AIProvider = "fal" | "replicate" | "together" | "comfyui" | "ollama";
+export type AIProvider = "fal" | "replicate" | "together" | "google" | "comfyui" | "ollama";
 
 interface AISettingsState {
   // Provider mode (cloud or local)

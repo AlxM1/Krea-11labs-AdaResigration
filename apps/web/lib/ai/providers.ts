@@ -1,13 +1,14 @@
 /**
  * AI Provider Integration Layer
- * Supports multiple providers: fal.ai, Replicate, Together AI, OpenAI
+ * Supports multiple providers: fal.ai, Replicate, Together AI, OpenAI, Google
  * And local providers: ComfyUI, Ollama
  */
 
 import { ComfyUIProvider, checkComfyUIHealth, getComfyUIModels } from "./comfyui-provider";
 import { OllamaProvider, checkOllamaHealth, getOllamaModels } from "./ollama-provider";
+import { GoogleAIProvider, checkGoogleAIHealth, getGoogleAIModels } from "./google-provider";
 
-export type AIProvider = "fal" | "replicate" | "together" | "openai" | "comfyui" | "ollama";
+export type AIProvider = "fal" | "replicate" | "together" | "openai" | "google" | "comfyui" | "ollama";
 export type ProviderMode = "cloud" | "local";
 
 export interface GenerationRequest {
@@ -385,6 +386,30 @@ class ComfyUIProviderWrapper extends BaseProvider {
 }
 
 /**
+ * Google AI Provider Wrapper (Imagen 4 + Veo 3.1)
+ */
+class GoogleAIProviderWrapper extends BaseProvider {
+  private provider: GoogleAIProvider;
+
+  constructor(apiKey: string) {
+    super(apiKey);
+    this.provider = new GoogleAIProvider({ apiKey });
+  }
+
+  async generateImage(request: GenerationRequest): Promise<GenerationResponse> {
+    return this.provider.generateImage(request);
+  }
+
+  async generateVideo(request: VideoGenerationRequest): Promise<VideoGenerationResponse> {
+    return this.provider.generateVideo(request);
+  }
+
+  async getStatus(id: string): Promise<GenerationResponse> {
+    return this.provider.getStatus(id);
+  }
+}
+
+/**
  * Get AI provider instance
  */
 export function getAIProvider(provider: AIProvider = "fal"): BaseProvider {
@@ -395,6 +420,8 @@ export function getAIProvider(provider: AIProvider = "fal"): BaseProvider {
       return new ReplicateProvider(process.env.REPLICATE_API_TOKEN || "");
     case "together":
       return new TogetherProvider(process.env.TOGETHER_API_KEY || "");
+    case "google":
+      return new GoogleAIProviderWrapper(process.env.GOOGLE_AI_API_KEY || "");
     case "comfyui":
       return new ComfyUIProviderWrapper();
     default:
@@ -473,6 +500,27 @@ export async function checkAllProvidersHealth(): Promise<ProviderHealth[]> {
     });
   }
 
+  // Check Google AI (Imagen 4 + Veo 3.1)
+  if (process.env.GOOGLE_AI_API_KEY) {
+    const googleAvailable = await checkGoogleAIHealth();
+    if (googleAvailable) {
+      const models = await getGoogleAIModels();
+      results.push({
+        provider: "google",
+        available: true,
+        mode: "cloud",
+        models: models,
+      });
+    } else {
+      results.push({
+        provider: "google",
+        available: false,
+        mode: "cloud",
+        error: "Google AI API not reachable",
+      });
+    }
+  }
+
   // Check local providers
   const comfyUIAvailable = await checkComfyUIHealth();
   if (comfyUIAvailable) {
@@ -528,6 +576,7 @@ export async function getBestProvider(
 
   // Fall back to cloud providers
   if (process.env.FAL_KEY) return "fal";
+  if (process.env.GOOGLE_AI_API_KEY) return "google";
   if (process.env.REPLICATE_API_TOKEN) return "replicate";
   if (process.env.TOGETHER_API_KEY) return "together";
 
@@ -569,12 +618,15 @@ export async function generateNegativePrompt(prompt: string): Promise<string | u
   return undefined;
 }
 
-// Re-export local provider utilities
+// Re-export provider utilities
 export {
   checkComfyUIHealth,
   getComfyUIModels,
   checkOllamaHealth,
   getOllamaModels,
+  checkGoogleAIHealth,
+  getGoogleAIModels,
   ComfyUIProvider,
   OllamaProvider,
+  GoogleAIProvider,
 };

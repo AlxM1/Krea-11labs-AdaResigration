@@ -44,6 +44,11 @@ const PROVIDER_INFO: Record<string, { name: string; description: string; icon: s
     description: "Distributed AI inference platform",
     icon: "🤝",
   },
+  google: {
+    name: "Google AI",
+    description: "Imagen 4 (images) + Veo 3.1 (4K video with audio)",
+    icon: "🎨",
+  },
   comfyui: {
     name: "ComfyUI",
     description: "Local image/video generation with your GPU",
