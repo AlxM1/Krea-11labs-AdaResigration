@@ -61,6 +61,12 @@ model User {
   creditsRemaining  Int              @default(50)
   creditsResetAt    DateTime?
 
+  // Favorites (stored as arrays of IDs)
+  favoriteGenerations String[] @default([])
+  favoriteVideos      String[] @default([])
+  favoriteWorkflows   String[] @default([])
+  favoriteModels      String[] @default([])
+
   // Relations
   accounts          Account[]
   sessions          Session[]
@@ -88,6 +94,8 @@ enum SubscriptionTier {
 model Generation {
   id              String           @id @default(cuid())
   userId          String
+  projectId       String?
+  modelId         String?          // Reference to custom trained model
   type            GenerationType   @default(TEXT_TO_IMAGE)
   prompt          String           @db.Text
   negativePrompt  String?          @db.Text
@@ -99,12 +107,16 @@ model Generation {
   width           Int              @default(1024)
   height          Int              @default(1024)
   seed            BigInt?
+  likes           Int              @default(0)
   isPublic        Boolean          @default(false)
   createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([projectId])
   @@index([createdAt(sort: Desc)])
   @@index([isPublic])
 }
@@ -116,6 +128,7 @@ enum GenerationType {
   OUTPAINTING
   UPSCALE
   EDIT
+  THREE_D @map("3D")
 }
 
 enum GenerationStatus {
@@ -129,6 +142,7 @@ enum GenerationStatus {
 model Video {
   id              String           @id @default(cuid())
   userId          String
+  projectId       String?
   type            VideoType        @default(TEXT_TO_VIDEO)
   prompt          String?          @db.Text
   model           String
@@ -141,10 +155,13 @@ model Video {
   height          Int              @default(720)
   isPublic        Boolean          @default(false)
   createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([projectId])
   @@index([createdAt(sort: Desc)])
 }
 
@@ -164,23 +181,31 @@ model TrainedModel {
   userId          String
   name            String
   description     String?            @db.Text
-  type            TrainedModelType   @default(STYLE)
+  type            TrainedModelType   @default(LORA)
   status          TrainingStatus     @default(PENDING)
   baseModel       String             @default("flux-dev")
   trainingImages  Json               @default("[]")
+  trainingConfig  Json               @default("{}")
   modelUrl        String?
   triggerWord     String?
+  previewImages   String[]           @default([])
   steps           Int                @default(1000)
   isPublic        Boolean            @default(false)
   createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
   completedAt     DateTime?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations Generation[]
 
   @@index([userId])
+  @@index([status])
 }
 
 enum TrainedModelType {
+  LORA
+  DREAMBOOTH
+  TEXTUAL_INVERSION
   FACE
   STYLE
   PRODUCT
@@ -205,6 +230,7 @@ model Workflow {
   nodes       Json     @default("[]")
   connections Json     @default("[]")
   thumbnail   String?
+  runCount    Int      @default(0)
   isPublic    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -212,6 +238,7 @@ model Workflow {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([isPublic])
 }
 
 // Projects (Canvas States, etc.)
