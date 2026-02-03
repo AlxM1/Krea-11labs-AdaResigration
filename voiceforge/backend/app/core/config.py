@@ -87,6 +87,14 @@ class Settings(BaseSettings):
     MODELS_PATH: str = "./models"
 
     # ==========================================
+    # Distributed GPU Worker (for Linux VM + Windows GPU setup)
+    # ==========================================
+    GPU_WORKER_MODE: str = "local"  # local, remote
+    GPU_WORKER_URL: str = "http://localhost:8001"  # Windows GPU worker URL
+    GPU_WORKER_TIMEOUT: float = 300.0  # 5 minutes for long tasks
+    GPU_WORKER_RETRY: int = 3
+
+    # ==========================================
     # Rate Limiting
     # ==========================================
     RATE_LIMIT_ENABLED: bool = True
