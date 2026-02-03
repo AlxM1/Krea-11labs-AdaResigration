@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { generateImage } from "@/lib/ai/providers";
+import { uploadFromUrl } from "@/lib/storage/upload";
 import { z } from "zod";
 
 const generateSchema = z.object({
@@ -63,7 +65,7 @@ export async function POST(req: NextRequest) {
         model: params.model,
         width: params.width,
         height: params.height,
-        status: "PENDING",
+        status: "PROCESSING",
         parameters: {
           steps: params.steps,
           cfgScale: params.cfgScale,
@@ -73,33 +75,84 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // In production, this would call an AI inference API (fal.ai, Replicate, etc.)
-    // For now, we'll simulate the generation with a placeholder
-
-    // Simulate API call to AI provider
-    // const aiResponse = await fetch("https://api.fal.ai/...", { ... });
-
-    // For demo purposes, return a placeholder response
-    // In production, you would:
-    // 1. Queue the job with BullMQ
-    // 2. Call the AI inference API
-    // 3. Upload the result to storage
-    // 4. Update the generation record
-    // 5. Deduct credits
-
-    // Simulate processing
-    await prisma.generation.update({
-      where: { id: generation.id },
-      data: { status: "PROCESSING" },
+    // Call AI provider
+    const aiResponse = await generateImage({
+      prompt: params.prompt,
+      negativePrompt: params.negativePrompt,
+      width: params.width,
+      height: params.height,
+      steps: params.steps,
+      cfgScale: params.cfgScale,
+      seed: params.seed > 0 ? params.seed : undefined,
+      model: params.model,
     });
 
-    // In a real implementation, this would be handled by a background worker
-    // For now, return the pending generation
+    if (aiResponse.status === "failed" || !aiResponse.imageUrl) {
+      // Update generation as failed
+      await prisma.generation.update({
+        where: { id: generation.id },
+        data: {
+          status: "FAILED",
+          parameters: {
+            ...(generation.parameters as object),
+            error: aiResponse.error || "Generation failed",
+          },
+        },
+      });
+
+      return NextResponse.json(
+        { error: aiResponse.error || "Generation failed", id: generation.id },
+        { status: 500 }
+      );
+    }
+
+    // Upload generated image to storage (optional - can also use provider URL directly)
+    let finalImageUrl = aiResponse.imageUrl;
+    try {
+      const uploadResult = await uploadFromUrl(aiResponse.imageUrl, session.user.id, "generations");
+      finalImageUrl = uploadResult.url;
+    } catch (uploadError) {
+      // If upload fails, use the original URL
+      console.error("Failed to upload to storage, using provider URL:", uploadError);
+    }
+
+    // Update generation record with result
+    await prisma.generation.update({
+      where: { id: generation.id },
+      data: {
+        status: "COMPLETED",
+        imageUrl: finalImageUrl,
+        thumbnailUrl: finalImageUrl, // Could generate a thumbnail separately
+        seed: aiResponse.seed ? BigInt(aiResponse.seed) : null,
+      },
+    });
+
+    // Deduct credits
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { creditsRemaining: { decrement: creditsNeeded } },
+    });
+
+    // Log usage
+    await prisma.usageLog.create({
+      data: {
+        userId: session.user.id,
+        actionType: "IMAGE_GENERATION",
+        creditsUsed: creditsNeeded,
+        metadata: {
+          generationId: generation.id,
+          model: params.model,
+          steps: params.steps,
+        },
+      },
+    });
+
     return NextResponse.json({
       id: generation.id,
-      status: "processing",
-      message: "Generation started. Poll /api/generate/image/:id for status.",
-      estimatedTime: params.steps <= 4 ? 3 : 10,
+      status: "completed",
+      imageUrl: finalImageUrl,
+      seed: aiResponse.seed,
+      creditsUsed: creditsNeeded,
     });
   } catch (error) {
     console.error("Generation error:", error);

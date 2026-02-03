@@ -12,9 +12,13 @@ import {
   Clock,
   Star,
   TrendingUp,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUser, useGenerations, useUsage } from "@/hooks/use-api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatDistanceToNow } from "date-fns";
 
 const quickActions = [
   {
@@ -47,18 +51,50 @@ const quickActions = [
   },
 ];
 
-const recentGenerations = [
-  { id: 1, type: "image", prompt: "A futuristic city at sunset", time: "2 hours ago" },
-  { id: 2, type: "video", prompt: "Ocean waves on a beach", time: "5 hours ago" },
-  { id: 3, type: "image", prompt: "Portrait of a cyberpunk character", time: "1 day ago" },
-];
+function StatsCard({
+  icon: Icon,
+  label,
+  value,
+  isLoading,
+}: {
+  icon: typeof ImageIcon;
+  label: string;
+  value: string | number;
+  isLoading: boolean;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-6 flex items-center gap-4">
+        <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Icon className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          {isLoading ? (
+            <Skeleton className="h-8 w-16" />
+          ) : (
+            <p className="text-2xl font-bold">{value}</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
+  const { data: user, isLoading: userLoading } = useUser();
+  const { data: usage, isLoading: usageLoading } = useUsage();
+  const { data: generations, isLoading: generationsLoading } = useGenerations({ limit: 5 });
+
+  const isLoading = userLoading || usageLoading;
+
   return (
     <div className="p-6 space-y-8">
       {/* Welcome Section */}
       <div>
-        <h1 className="text-3xl font-bold mb-2">Welcome back!</h1>
+        <h1 className="text-3xl font-bold mb-2">
+          Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!
+        </h1>
         <p className="text-muted-foreground">
           What would you like to create today?
         </p>
@@ -92,41 +128,24 @@ export default function DashboardPage() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <ImageIcon className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Images Generated</p>
-              <p className="text-2xl font-bold">0</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Credits Remaining</p>
-              <p className="text-2xl font-bold">50</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Star className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Favorites</p>
-              <p className="text-2xl font-bold">0</p>
-            </div>
-          </CardContent>
-        </Card>
+        <StatsCard
+          icon={ImageIcon}
+          label="Images Generated"
+          value={user?.stats?.generations ?? 0}
+          isLoading={isLoading}
+        />
+        <StatsCard
+          icon={TrendingUp}
+          label="Credits Remaining"
+          value={usage?.credits?.remaining ?? user?.creditsRemaining ?? 0}
+          isLoading={isLoading}
+        />
+        <StatsCard
+          icon={Star}
+          label="Subscription"
+          value={user?.subscriptionTier ?? "FREE"}
+          isLoading={isLoading}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -145,25 +164,51 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            {recentGenerations.length > 0 ? (
+            {generationsLoading ? (
               <div className="space-y-4">
-                {recentGenerations.map((gen) => (
-                  <div
-                    key={gen.id}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                      {gen.type === "image" ? (
-                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                      ) : (
-                        <Video className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{gen.prompt}</p>
-                      <p className="text-sm text-muted-foreground">{gen.time}</p>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-4 p-3">
+                    <Skeleton className="h-12 w-12 rounded-lg" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-3/4 mb-2" />
+                      <Skeleton className="h-3 w-1/4" />
                     </div>
                   </div>
+                ))}
+              </div>
+            ) : generations?.generations && generations.generations.length > 0 ? (
+              <div className="space-y-4">
+                {generations.generations.map((gen) => (
+                  <Link
+                    key={gen.id}
+                    href={`/image?id=${gen.id}`}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    {gen.thumbnailUrl || gen.imageUrl ? (
+                      <img
+                        src={gen.thumbnailUrl || gen.imageUrl || ""}
+                        alt={gen.prompt}
+                        className="h-12 w-12 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                        {gen.type?.includes("VIDEO") ? (
+                          <Video className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{gen.prompt}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDistanceToNow(new Date(gen.createdAt), { addSuffix: true })}
+                      </p>
+                    </div>
+                    <div className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                      {gen.status?.toLowerCase()}
+                    </div>
+                  </Link>
                 ))}
               </div>
             ) : (
