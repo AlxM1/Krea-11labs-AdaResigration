@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: voiceforge-ingress
+  namespace: voiceforge
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/websocket-services: "voiceforge-backend"
+spec:
+  tls:
+    - hosts:
+        - voiceforge.ai
+        - api.voiceforge.ai
+      secretName: voiceforge-tls
+  rules:
+    - host: voiceforge.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: voiceforge-frontend
+                port:
+                  number: 3000
+    - host: api.voiceforge.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: voiceforge-backend
+                port:
+                  number: 8000

@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voiceforge-gpu-worker
+  namespace: voiceforge
+  labels:
+    app: voiceforge
+    component: gpu-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: voiceforge
+      component: gpu-worker
+  template:
+    metadata:
+      labels:
+        app: voiceforge
+        component: gpu-worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/voiceforge/backend:latest
+          imagePullPolicy: Always
+          command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "tts,stt,voice,sfx"]
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: DEVICE
+              value: "cuda"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: voiceforge-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: voiceforge-secrets
+                  key: redis-url
+            - name: STORAGE_TYPE
+              value: "s3"
+            - name: S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: voiceforge-config
+                  key: s3-bucket
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: voiceforge-secrets
+                  key: aws-access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: voiceforge-secrets
+                  key: aws-secret-key
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: voiceforge-secrets
+                  key: hf-token
+                  optional: true
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "16Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8000m"
+              memory: "32Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache
+            - name: tmp
+              mountPath: /tmp
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: model-cache-pvc
+        - name: tmp
+          emptyDir: {}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+      nodeSelector:
+        nvidia.com/gpu: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache-pvc
+  namespace: voiceforge
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 100Gi
