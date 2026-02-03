@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth.js Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// User Model
+model User {
+  id                String    @id @default(cuid())
+  name              String?
+  email             String?   @unique
+  emailVerified     DateTime?
+  image             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Subscription
+  subscriptionTier  SubscriptionTier @default(FREE)
+  creditsRemaining  Int              @default(50)
+  creditsResetAt    DateTime?
+
+  // Relations
+  accounts          Account[]
+  sessions          Session[]
+  generations       Generation[]
+  videos            Video[]
+  trainedModels     TrainedModel[]
+  workflows         Workflow[]
+  projects          Project[]
+  subscription      Subscription?
+  usageLogs         UsageLog[]
+
+  @@index([email])
+}
+
+enum SubscriptionTier {
+  FREE
+  BASIC
+  PRO
+  MAX
+  TEAM
+  ENTERPRISE
+}
+
+// Image Generations
+model Generation {
+  id              String           @id @default(cuid())
+  userId          String
+  type            GenerationType   @default(TEXT_TO_IMAGE)
+  prompt          String           @db.Text
+  negativePrompt  String?          @db.Text
+  model           String
+  parameters      Json             @default("{}")
+  status          GenerationStatus @default(PENDING)
+  imageUrl        String?
+  thumbnailUrl    String?
+  width           Int              @default(1024)
+  height          Int              @default(1024)
+  seed            BigInt?
+  isPublic        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@index([isPublic])
+}
+
+enum GenerationType {
+  TEXT_TO_IMAGE
+  IMAGE_TO_IMAGE
+  INPAINTING
+  OUTPAINTING
+  UPSCALE
+  EDIT
+}
+
+enum GenerationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Video Generations
+model Video {
+  id              String           @id @default(cuid())
+  userId          String
+  type            VideoType        @default(TEXT_TO_VIDEO)
+  prompt          String?          @db.Text
+  model           String
+  parameters      Json             @default("{}")
+  status          GenerationStatus @default(PENDING)
+  videoUrl        String?
+  thumbnailUrl    String?
+  durationSeconds Float?
+  width           Int              @default(1280)
+  height          Int              @default(720)
+  isPublic        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+}
+
+enum VideoType {
+  TEXT_TO_VIDEO
+  IMAGE_TO_VIDEO
+  VIDEO_EXTENSION
+  LIPSYNC
+  MOTION_TRANSFER
+  RESTYLE
+  UPSCALE
+}
+
+// Custom Trained Models (LoRA)
+model TrainedModel {
+  id              String             @id @default(cuid())
+  userId          String
+  name            String
+  description     String?            @db.Text
+  type            TrainedModelType   @default(STYLE)
+  status          TrainingStatus     @default(PENDING)
+  baseModel       String             @default("flux-dev")
+  trainingImages  Json               @default("[]")
+  modelUrl        String?
+  triggerWord     String?
+  steps           Int                @default(1000)
+  isPublic        Boolean            @default(false)
+  createdAt       DateTime           @default(now())
+  completedAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum TrainedModelType {
+  FACE
+  STYLE
+  PRODUCT
+  OBJECT
+  CHARACTER
+}
+
+enum TrainingStatus {
+  PENDING
+  QUEUED
+  TRAINING
+  COMPLETED
+  FAILED
+}
+
+// Workflow Nodes
+model Workflow {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?  @db.Text
+  nodes       Json     @default("[]")
+  connections Json     @default("[]")
+  thumbnail   String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Projects (Canvas States, etc.)
+model Project {
+  id        String      @id @default(cuid())
+  userId    String
+  name      String
+  type      ProjectType @default(CANVAS)
+  data      Json        @default("{}")
+  thumbnail String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum ProjectType {
+  CANVAS
+  VIDEO
+  WORKFLOW
+  COLLECTION
+}
+
+// Subscriptions
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String             @unique
+  tier                  SubscriptionTier   @default(FREE)
+  stripeCustomerId      String?            @unique
+  stripeSubscriptionId  String?            @unique
+  stripePriceId         String?
+  status                SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  UNPAID
+  TRIALING
+}
+
+// Usage Tracking
+model UsageLog {
+  id          String    @id @default(cuid())
+  userId      String
+  actionType  String
+  creditsUsed Int       @default(1)
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Model Catalog (available AI models)
+model AIModel {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  description  String?   @db.Text
+  provider     String
+  type         String    // image, video, 3d, upscale
+  category     String    // fast, quality, realtime
+  isActive     Boolean   @default(true)
+  isPremium    Boolean   @default(false)
+  parameters   Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+}
