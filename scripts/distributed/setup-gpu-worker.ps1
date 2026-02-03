@@ -40,21 +40,20 @@ $OLLAMA_MODELS = @(
     @{ Name = "minicpm-v"; Description = "Efficient vision model"; Required = $false }
 )
 
-# ComfyUI models to download
-$COMFYUI_MODELS = @(
+# ComfyUI models to download - Organized by category
+# ===========================================
+# IMAGE MODELS
+# ===========================================
+$COMFYUI_IMAGE_MODELS = @(
+    # --- FLUX Models (Best Quality) ---
     @{
-        Name = "sd_xl_base_1.0.safetensors"
-        Url = "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors"
+        Name = "flux1-dev.safetensors"
+        Url = "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/flux1-dev.safetensors"
         Path = "checkpoints"
-        Size = "6.94 GB"
+        Size = "23.8 GB"
         Required = $true
-    },
-    @{
-        Name = "sd_xl_refiner_1.0.safetensors"
-        Url = "https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/resolve/main/sd_xl_refiner_1.0.safetensors"
-        Path = "checkpoints"
-        Size = "6.08 GB"
-        Required = $false
+        Description = "FLUX.1 Dev - Near cloud quality, best open-source image model"
+        Category = "Image - Premium"
     },
     @{
         Name = "flux1-schnell.safetensors"
@@ -62,6 +61,46 @@ $COMFYUI_MODELS = @(
         Path = "checkpoints"
         Size = "23.8 GB"
         Required = $false
+        Description = "FLUX.1 Schnell - Faster generation, slightly lower quality"
+        Category = "Image - Premium"
+    },
+    @{
+        Name = "ae.safetensors"
+        Url = "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safetensors"
+        Path = "vae"
+        Size = "335 MB"
+        Required = $true
+        Description = "FLUX VAE - Required for FLUX models"
+        Category = "Image - Premium"
+    },
+    # --- SD3 Medium (Good Text Rendering) ---
+    @{
+        Name = "sd3_medium_incl_clips_t5xxlfp8.safetensors"
+        Url = "https://huggingface.co/stabilityai/stable-diffusion-3-medium/resolve/main/sd3_medium_incl_clips_t5xxlfp8.safetensors"
+        Path = "checkpoints"
+        Size = "5.5 GB"
+        Required = $false
+        Description = "SD3 Medium - Excellent text rendering in images"
+        Category = "Image - Premium"
+    },
+    # --- SDXL (Versatile, Large Ecosystem) ---
+    @{
+        Name = "sd_xl_base_1.0.safetensors"
+        Url = "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors"
+        Path = "checkpoints"
+        Size = "6.94 GB"
+        Required = $true
+        Description = "SDXL Base - Versatile, huge LoRA ecosystem"
+        Category = "Image - Standard"
+    },
+    @{
+        Name = "sd_xl_refiner_1.0.safetensors"
+        Url = "https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/resolve/main/sd_xl_refiner_1.0.safetensors"
+        Path = "checkpoints"
+        Size = "6.08 GB"
+        Required = $false
+        Description = "SDXL Refiner - Enhances SDXL base output"
+        Category = "Image - Standard"
     },
     @{
         Name = "sdxl_vae.safetensors"
@@ -69,16 +108,121 @@ $COMFYUI_MODELS = @(
         Path = "vae"
         Size = "335 MB"
         Required = $true
+        Description = "SDXL VAE - Required for SDXL models"
+        Category = "Image - Standard"
     },
+    # --- Playground v2.5 (Aesthetic) ---
+    @{
+        Name = "playground-v2.5-1024px-aesthetic.fp16.safetensors"
+        Url = "https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic/resolve/main/playground-v2.5-1024px-aesthetic.fp16.safetensors"
+        Path = "checkpoints"
+        Size = "5.7 GB"
+        Required = $false
+        Description = "Playground v2.5 - Excellent aesthetic quality"
+        Category = "Image - Standard"
+    }
+)
+
+# ===========================================
+# VIDEO MODELS
+# ===========================================
+$COMFYUI_VIDEO_MODELS = @(
+    # --- CogVideoX (Best Open-Source Video) ---
+    @{
+        Name = "CogVideoX-5b-I2V.safetensors"
+        Url = "https://huggingface.co/THUDM/CogVideoX-5b-I2V/resolve/main/CogVideoX-5b-I2V.safetensors"
+        Path = "checkpoints/cogvideo"
+        Size = "20.8 GB"
+        Required = $false
+        Description = "CogVideoX 5B I2V - Best open-source video, image-to-video"
+        Category = "Video - Premium"
+    },
+    @{
+        Name = "CogVideoX-5b.safetensors"
+        Url = "https://huggingface.co/THUDM/CogVideoX-5b/resolve/main/CogVideoX-5b.safetensors"
+        Path = "checkpoints/cogvideo"
+        Size = "20.8 GB"
+        Required = $false
+        Description = "CogVideoX 5B T2V - Text-to-video generation"
+        Category = "Video - Premium"
+    },
+    # --- Hunyuan Video (High Quality, Full VRAM) ---
+    @{
+        Name = "hunyuan_video_720_cfgdistill_fp8_e4m3fn.safetensors"
+        Url = "https://huggingface.co/Kijai/HunyuanVideo_comfy/resolve/main/hunyuan_video_720_cfgdistill_fp8_e4m3fn.safetensors"
+        Path = "checkpoints/hunyuan"
+        Size = "13.2 GB"
+        Required = $false
+        Description = "Hunyuan Video 720p FP8 - High quality, optimized for RTX"
+        Category = "Video - Premium"
+    },
+    @{
+        Name = "hunyuan_video_vae_fp32.safetensors"
+        Url = "https://huggingface.co/Kijai/HunyuanVideo_comfy/resolve/main/hunyuan_video_vae_fp32.safetensors"
+        Path = "vae"
+        Size = "982 MB"
+        Required = $false
+        Description = "Hunyuan Video VAE - Required for Hunyuan Video"
+        Category = "Video - Premium"
+    },
+    # --- Mochi (Good Balance) ---
+    @{
+        Name = "mochi_preview_bf16.safetensors"
+        Url = "https://huggingface.co/Kijai/Mochi_preview_comfy/resolve/main/mochi_preview_bf16.safetensors"
+        Path = "checkpoints/mochi"
+        Size = "20.4 GB"
+        Required = $false
+        Description = "Mochi 1 Preview - Good balance of quality and speed"
+        Category = "Video - Standard"
+    },
+    # --- Stable Video Diffusion (Reliable) ---
     @{
         Name = "svd_xt_1_1.safetensors"
         Url = "https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt-1-1/resolve/main/svd_xt_1_1.safetensors"
         Path = "checkpoints"
         Size = "9.56 GB"
+        Required = $true
+        Description = "SVD XT 1.1 - Reliable image-to-video, well supported"
+        Category = "Video - Standard"
+    },
+    # --- LTX Video (Fast) ---
+    @{
+        Name = "ltx-video-2b-v0.9.safetensors"
+        Url = "https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.safetensors"
+        Path = "checkpoints/ltx"
+        Size = "8.1 GB"
         Required = $false
-        Description = "Stable Video Diffusion for image-to-video"
+        Description = "LTX Video 2B - Fast video generation"
+        Category = "Video - Standard"
     }
 )
+
+# ===========================================
+# CLIP/TEXT ENCODERS (Required for models)
+# ===========================================
+$COMFYUI_CLIP_MODELS = @(
+    @{
+        Name = "clip_l.safetensors"
+        Url = "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors"
+        Path = "clip"
+        Size = "246 MB"
+        Required = $true
+        Description = "CLIP-L - Required for FLUX and SD3"
+        Category = "Text Encoder"
+    },
+    @{
+        Name = "t5xxl_fp8_e4m3fn.safetensors"
+        Url = "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn.safetensors"
+        Path = "clip"
+        Size = "4.89 GB"
+        Required = $true
+        Description = "T5-XXL FP8 - Required for FLUX (memory efficient)"
+        Category = "Text Encoder"
+    }
+)
+
+# Combine all models
+$COMFYUI_MODELS = $COMFYUI_IMAGE_MODELS + $COMFYUI_VIDEO_MODELS + $COMFYUI_CLIP_MODELS
 
 # ===========================================
 # Helper Functions
@@ -274,12 +418,26 @@ function Install-ComfyUI {
     Pop-Location
 
     # Create model directories
-    $modelDirs = @("checkpoints", "vae", "loras", "controlnet", "upscale_models", "embeddings")
+    # Create model directories including subdirs for video models
+    $modelDirs = @(
+        "checkpoints",
+        "checkpoints/cogvideo",
+        "checkpoints/hunyuan",
+        "checkpoints/mochi",
+        "checkpoints/ltx",
+        "vae",
+        "clip",
+        "loras",
+        "controlnet",
+        "upscale_models",
+        "embeddings"
+    )
     foreach ($dir in $modelDirs) {
         Ensure-Directory "$COMFYUI_PATH\models\$dir"
     }
 
     Write-Success "ComfyUI installed at $COMFYUI_PATH"
+    Write-Info "RTX 5090 optimized - ready for Flux, CogVideoX, Hunyuan Video"
 }
 
 # ===========================================
@@ -430,33 +588,60 @@ function Download-OllamaModels {
 # Download ComfyUI Models
 # ===========================================
 function Download-ComfyUIModels {
-    Write-Header "Downloading ComfyUI Models"
+    Write-Header "Downloading ComfyUI Models for RTX 5090"
 
     if (-not (Test-Path $COMFYUI_PATH)) {
         Write-Err "ComfyUI not installed. Run with -InstallComfyUI first."
         return
     }
 
+    # Group models by category
+    $categories = $COMFYUI_MODELS | Group-Object -Property { $_.Category } | Sort-Object Name
+
     Write-Host ""
-    Write-Host "Available models:" -ForegroundColor White
+    Write-Host "Available models (optimized for RTX 5090 32GB):" -ForegroundColor White
     Write-Host ""
 
     $i = 1
-    foreach ($model in $COMFYUI_MODELS) {
-        $required = if ($model.Required) { "[REQUIRED]" } else { "[Optional]" }
-        $color = if ($model.Required) { "Yellow" } else { "Gray" }
-        $exists = Test-Path "$COMFYUI_PATH\models\$($model.Path)\$($model.Name)"
-        $status = if ($exists) { "[Installed]" } else { "" }
-        Write-Host "  $i. $($model.Name)" -ForegroundColor $color -NoNewline
-        Write-Host " ($($model.Size)) $required $status" -ForegroundColor Gray
-        if ($model.Description) {
-            Write-Host "     $($model.Description)" -ForegroundColor DarkGray
+    $modelIndex = @{}
+
+    foreach ($category in $categories) {
+        Write-Host "  --- $($category.Name) ---" -ForegroundColor Cyan
+        foreach ($model in $category.Group) {
+            $modelIndex[$i] = $model
+            $required = if ($model.Required) { "[REQUIRED]" } else { "" }
+            $color = if ($model.Required) { "Yellow" } else { "Gray" }
+            $exists = Test-Path "$COMFYUI_PATH\models\$($model.Path)\$($model.Name)"
+            $status = if ($exists) { "[Installed]" } else { "" }
+
+            Write-Host "  $i. " -NoNewline -ForegroundColor White
+            Write-Host "$($model.Name)" -ForegroundColor $color -NoNewline
+            Write-Host " ($($model.Size)) $required $status" -ForegroundColor DarkGray
+
+            if ($model.Description) {
+                Write-Host "      $($model.Description)" -ForegroundColor DarkGray
+            }
+            $i++
         }
-        $i++
+        Write-Host ""
     }
 
+    # Calculate total size for required models
+    $requiredSize = ($COMFYUI_MODELS | Where-Object { $_.Required } | ForEach-Object {
+        $size = $_.Size -replace '[^\d.]', ''
+        if ($_.Size -match 'GB') { [float]$size } else { [float]$size / 1024 }
+    } | Measure-Object -Sum).Sum
+    Write-Host "  Total size for required models: ~$([math]::Round($requiredSize, 1)) GB" -ForegroundColor Yellow
+
     Write-Host ""
-    $choice = Read-Host "Install (A)ll required, (S)elect models, (M)issing only, or (C)ancel? [A/S/M/C]"
+    Write-Host "  Options:" -ForegroundColor White
+    Write-Host "    A = All required (essential for operation)" -ForegroundColor Gray
+    Write-Host "    P = Premium pack (FLUX + CogVideoX + Hunyuan)" -ForegroundColor Gray
+    Write-Host "    S = Select specific models" -ForegroundColor Gray
+    Write-Host "    M = Missing only (skip installed)" -ForegroundColor Gray
+    Write-Host "    C = Cancel" -ForegroundColor Gray
+    Write-Host ""
+    $choice = Read-Host "Choose option [A/P/S/M/C]"
 
     $modelsToInstall = @()
 
@@ -464,11 +649,27 @@ function Download-ComfyUIModels {
         "A" {
             $modelsToInstall = $COMFYUI_MODELS | Where-Object { $_.Required }
         }
+        "P" {
+            # Premium pack: Best image model (FLUX) + Best video models
+            $premiumModels = @(
+                "flux1-dev.safetensors",
+                "ae.safetensors",
+                "clip_l.safetensors",
+                "t5xxl_fp8_e4m3fn.safetensors",
+                "CogVideoX-5b-I2V.safetensors",
+                "CogVideoX-5b.safetensors",
+                "hunyuan_video_720_cfgdistill_fp8_e4m3fn.safetensors",
+                "hunyuan_video_vae_fp32.safetensors"
+            )
+            $modelsToInstall = $COMFYUI_MODELS | Where-Object { $premiumModels -contains $_.Name }
+            Write-Info "Premium pack selected: FLUX.1 Dev + CogVideoX + Hunyuan Video"
+            Write-Info "Total download: ~83 GB"
+        }
         "S" {
             Write-Host "Enter model numbers separated by commas (e.g., 1,2,4):"
             $selection = Read-Host
-            $indices = $selection -split "," | ForEach-Object { [int]$_.Trim() - 1 }
-            $modelsToInstall = $indices | ForEach-Object { $COMFYUI_MODELS[$_] } | Where-Object { $_ -ne $null }
+            $indices = $selection -split "," | ForEach-Object { [int]$_.Trim() }
+            $modelsToInstall = $indices | ForEach-Object { $modelIndex[$_] } | Where-Object { $_ -ne $null }
         }
         "M" {
             $modelsToInstall = $COMFYUI_MODELS | Where-Object {
