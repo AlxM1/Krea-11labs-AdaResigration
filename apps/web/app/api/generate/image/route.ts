@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     // Apply rate limiting
     const identifier = getClientIdentifier(req, session.user.id);
-    const rateLimitResult = rateLimit(identifier, rateLimitConfigs.generation);
+    const rateLimitResult = await rateLimit(identifier, rateLimitConfigs.generation);
     if (!rateLimitResult.success) {
       return rateLimitResponse(rateLimitResult);
     }

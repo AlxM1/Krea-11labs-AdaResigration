@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     // Apply rate limiting (strict for registration)
     const identifier = getClientIdentifier(req);
-    const rateLimitResult = rateLimit(identifier, rateLimitConfigs.auth);
+    const rateLimitResult = await rateLimit(identifier, rateLimitConfigs.auth);
     if (!rateLimitResult.success) {
       return rateLimitResponse(rateLimitResult);
     }

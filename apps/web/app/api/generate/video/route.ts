@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { generateVideo } from "@/lib/ai/providers";
+import { generateVideo, AIProvider } from "@/lib/ai/providers";
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { z } from "zod";
 
@@ -11,6 +11,8 @@ const videoGenerateSchema = z.object({
   model: z.string().default("kling-2.5"),
   duration: z.number().min(2).max(10).default(5),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
+  // Provider selection (google for Veo 3.1, fal for Runway, comfyui for local SVD)
+  provider: z.enum(["fal", "google", "comfyui"]).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -51,6 +53,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Determine provider (defaults to fal, use google for Veo 3.1)
+    const provider: AIProvider = params.provider || "fal";
+
     // Create video record
     const video = await prisma.video.create({
       data: {
@@ -62,18 +67,22 @@ export async function POST(req: NextRequest) {
         parameters: {
           duration: params.duration,
           aspectRatio: params.aspectRatio,
+          provider: provider,
         },
       },
     });
 
     // Generate video (in production, queue this with BullMQ)
-    const result = await generateVideo({
-      prompt: params.prompt,
-      imageUrl: params.imageUrl,
-      duration: params.duration,
-      aspectRatio: params.aspectRatio,
-      model: params.model,
-    });
+    const result = await generateVideo(
+      {
+        prompt: params.prompt,
+        imageUrl: params.imageUrl,
+        duration: params.duration,
+        aspectRatio: params.aspectRatio,
+        model: params.model,
+      },
+      provider
+    );
 
     if (result.status === "failed") {
       await prisma.video.update({
@@ -116,6 +125,7 @@ export async function POST(req: NextRequest) {
       id: video.id,
       status: result.status,
       videoUrl,
+      provider: provider,
     });
   } catch (error) {
     console.error("Video generation error:", error);
