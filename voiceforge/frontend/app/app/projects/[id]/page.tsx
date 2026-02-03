@@ -53,7 +53,7 @@ export default function ProjectEditorPage({ params }: { params: { id: string } }
     {
       id: '1',
       type: 'text',
-      content: 'Welcome to the VoiceForge Studio. This is where you can create long-form audio content with multiple voices.',
+      content: 'Welcome to the 11labs Studio. This is where you can create long-form audio content with multiple voices.',
       voiceId: '1',
       voiceName: 'Rachel'
     },

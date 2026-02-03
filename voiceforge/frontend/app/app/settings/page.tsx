@@ -308,7 +308,7 @@ export default function SettingsPage() {
                     <label className="flex items-center justify-between p-4 bg-[#0a0a0a] rounded-xl cursor-pointer hover:bg-[#151515] transition">
                       <div>
                         <p className="font-medium">Share Usage Data</p>
-                        <p className="text-sm text-[#666]">Help improve VoiceForge by sharing anonymous usage data</p>
+                        <p className="text-sm text-[#666]">Help improve 11labs by sharing anonymous usage data</p>
                       </div>
                       <input
                         type="checkbox"

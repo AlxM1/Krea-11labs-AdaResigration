@@ -1,5 +1,5 @@
 """
-VoiceForge Configuration
+11labs Configuration
 Production-ready settings with environment variable support
 """
 from pydantic_settings import BaseSettings
@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # ==========================================
     # Application
     # ==========================================
-    APP_NAME: str = "VoiceForge"
+    APP_NAME: str = "11labs"
     VERSION: str = "1.0.0"
     ENVIRONMENT: str = "development"  # development, staging, production
     DEBUG: bool = False
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # ==========================================
     # Database
     # ==========================================
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/voiceforge"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/elevenlabs"
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 10
     DATABASE_ECHO: bool = False

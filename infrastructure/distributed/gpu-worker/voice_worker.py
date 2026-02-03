@@ -1,5 +1,5 @@
 """
-VoiceForge GPU Worker
+11labs GPU Worker
 Runs on Windows PC with RTX 5090 to handle voice AI processing
 Exposes HTTP API for the Linux VM to call
 
@@ -166,13 +166,13 @@ class HealthResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
-    logger.info(f"Starting VoiceForge GPU Worker on {config.DEVICE}")
+    logger.info(f"Starting 11labs GPU Worker on {config.DEVICE}")
     logger.info(f"GPU Info: {models.get_gpu_info()}")
     yield
-    logger.info("Shutting down VoiceForge GPU Worker")
+    logger.info("Shutting down 11labs GPU Worker")
 
 app = FastAPI(
-    title="VoiceForge GPU Worker",
+    title="11labs GPU Worker",
     description="GPU-accelerated voice AI processing service",
     version="1.0.0",
     lifespan=lifespan

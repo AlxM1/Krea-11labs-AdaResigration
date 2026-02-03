@@ -36,7 +36,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: voiceforge_test
+          POSTGRES_DB: elevenlabs_test
         ports:
           - 5432:5432
         options: >-
@@ -56,28 +56,28 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
-        working-directory: ./voiceforge/backend
+        working-directory: ./elevenlabs/backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov httpx fakeredis
 
       - name: Run linting
-        working-directory: ./voiceforge/backend
+        working-directory: ./elevenlabs/backend
         run: |
           pip install ruff
           ruff check app/
 
       - name: Run type checking
-        working-directory: ./voiceforge/backend
+        working-directory: ./elevenlabs/backend
         run: |
           pip install mypy
           mypy app/ --ignore-missing-imports || true
 
       - name: Run tests
-        working-directory: ./voiceforge/backend
+        working-directory: ./elevenlabs/backend
         env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/voiceforge_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/elevenlabs_test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key
           ENVIRONMENT: test
@@ -87,7 +87,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
-          files: ./voiceforge/backend/coverage.xml
+          files: ./elevenlabs/backend/coverage.xml
           flags: backend
           fail_ci_if_error: false
 
@@ -106,26 +106,26 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
-          cache-dependency-path: voiceforge/frontend/package-lock.json
+          cache-dependency-path: elevenlabs/frontend/package-lock.json
 
       - name: Install dependencies
-        working-directory: ./voiceforge/frontend
+        working-directory: ./elevenlabs/frontend
         run: npm ci
 
       - name: Run linting
-        working-directory: ./voiceforge/frontend
+        working-directory: ./elevenlabs/frontend
         run: npm run lint || true
 
       - name: Run type checking
-        working-directory: ./voiceforge/frontend
+        working-directory: ./elevenlabs/frontend
         run: npm run type-check || true
 
       - name: Run tests
-        working-directory: ./voiceforge/frontend
+        working-directory: ./elevenlabs/frontend
         run: npm test -- --coverage --watchAll=false || true
 
       - name: Build
-        working-directory: ./voiceforge/frontend
+        working-directory: ./elevenlabs/frontend
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
         run: npm run build
@@ -144,7 +144,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: "fs"
-          scan-ref: "./voiceforge"
+          scan-ref: "./elevenlabs"
           format: "sarif"
           output: "trivy-results.sarif"
 
@@ -192,8 +192,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./voiceforge
-          file: ./voiceforge/docker/Dockerfile.backend
+          context: ./elevenlabs
+          file: ./elevenlabs/docker/Dockerfile.backend
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -235,8 +235,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./voiceforge
-          file: ./voiceforge/docker/Dockerfile.frontend
+          context: ./elevenlabs
+          file: ./elevenlabs/docker/Dockerfile.frontend
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

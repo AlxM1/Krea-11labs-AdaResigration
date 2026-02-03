@@ -1,6 +1,6 @@
-# Unified AI Platform: VoiceForge + Krya
+# Unified AI Platform: 11labs + Krya
 
-A distributed deployment architecture for running VoiceForge (Voice AI) and Krya (Image/Video AI) together, sharing infrastructure and GPU resources.
+A distributed deployment architecture for running 11labs (Voice AI) and Krya (Image/Video AI) together, sharing infrastructure and GPU resources.
 
 ## Architecture Overview
 
@@ -15,7 +15,7 @@ A distributed deployment architecture for running VoiceForge (Voice AI) and Krya
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    ││
 │  │                                                                          ││
 │  │  ┌─────────────────────────────┐  ┌─────────────────────────────┐       ││
-│  │  │      VoiceForge             │  │         Krya                │       ││
+│  │  │      11labs             │  │         Krya                │       ││
 │  │  │  ┌─────────┐ ┌─────────┐   │  │  ┌─────────────────────┐   │       ││
 │  │  │  │ FastAPI │ │ Next.js │   │  │  │      Next.js        │   │       ││
 │  │  │  │  :8000  │ │  :3000  │   │  │  │       :3001         │   │       ││
@@ -35,7 +35,7 @@ A distributed deployment architecture for running VoiceForge (Voice AI) and Krya
 │  ┌─────────────────────────────────────────────────────────────────────────┐│
 │  │                        GPU Services                                      ││
 │  │  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────┐ ││
-│  │  │  VoiceForge Worker  │  │      ComfyUI        │  │     Ollama      │ ││
+│  │  │  11labs Worker  │  │      ComfyUI        │  │     Ollama      │ ││
 │  │  │      :8001          │  │       :8188         │  │     :11434      │ ││
 │  │  │                     │  │                     │  │                 │ ││
 │  │  │  - TTS (XTTS v2)    │  │  - Stable Diffusion │  │  - LLaMA 3.1    │ ││
@@ -53,12 +53,12 @@ A distributed deployment architecture for running VoiceForge (Voice AI) and Krya
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| PostgreSQL | 5432 | Database for both VoiceForge and Krya |
+| PostgreSQL | 5432 | Database for both 11labs and Krya |
 | Redis | 6379 | Caching, job queues, sessions |
 | MinIO | 9000/9001 | S3-compatible object storage |
 | Nginx | 80/443 | Reverse proxy, SSL termination |
 
-### VoiceForge (Voice AI)
+### 11labs (Voice AI)
 
 | Component | Port | Purpose |
 |-----------|------|---------|
@@ -91,7 +91,7 @@ A distributed deployment architecture for running VoiceForge (Voice AI) and Krya
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| VoiceForge Worker | 8001 | Voice AI processing |
+| 11labs Worker | 8001 | Voice AI processing |
 | ComfyUI | 8188 | Image/Video generation |
 | Ollama | 11434 | Local LLM inference |
 
@@ -134,10 +134,10 @@ cd gpu-worker
 
 ```bash
 # On Linux VM
-docker compose -f docker-compose.unified.yml up -d voiceforge-api voiceforge-frontend
+docker compose -f docker-compose.unified.yml up -d elevenlabs-api elevenlabs-frontend
 
 # Access applications:
-# VoiceForge: http://localhost:3000
+# 11labs: http://localhost:3000
 # MinIO Console: http://localhost:9001
 ```
 
@@ -161,13 +161,13 @@ MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=secure-password
 
 # Secrets
-VOICEFORGE_SECRET_KEY=your-secret-key
+ELEVENLABS_SECRET_KEY=your-secret-key
 KRYA_NEXTAUTH_SECRET=your-nextauth-secret
 ```
 
 ### GPU Worker Configuration
 
-The VoiceForge backend can run in two modes:
+The 11labs backend can run in two modes:
 
 1. **Local Mode** (default): AI models run on the same machine
    ```env
@@ -188,7 +188,7 @@ Ensure these ports are accessible between machines:
 
 | From | To | Port | Purpose |
 |------|-----|------|---------|
-| Linux VM | Windows PC | 8001 | VoiceForge GPU Worker |
+| Linux VM | Windows PC | 8001 | 11labs GPU Worker |
 | Linux VM | Windows PC | 8188 | ComfyUI API |
 | Linux VM | Windows PC | 11434 | Ollama API |
 
@@ -197,7 +197,7 @@ Ensure these ports are accessible between machines:
 The setup script automatically creates firewall rules. To do manually:
 
 ```powershell
-New-NetFirewallRule -DisplayName "VoiceForge GPU" -Direction Inbound -Protocol TCP -LocalPort 8001 -Action Allow
+New-NetFirewallRule -DisplayName "11labs GPU" -Direction Inbound -Protocol TCP -LocalPort 8001 -Action Allow
 New-NetFirewallRule -DisplayName "ComfyUI" -Direction Inbound -Protocol TCP -LocalPort 8188 -Action Allow
 New-NetFirewallRule -DisplayName "Ollama" -Direction Inbound -Protocol TCP -LocalPort 11434 -Action Allow
 ```
@@ -208,8 +208,8 @@ MinIO automatically creates these buckets:
 
 | Bucket | Purpose |
 |--------|---------|
-| voiceforge-audio | Generated audio files |
-| voiceforge-models | Voice models and references |
+| elevenlabs-audio | Generated audio files |
+| elevenlabs-models | Voice models and references |
 | krya-images | Generated images |
 | krya-videos | Generated videos |
 | krya-models | LoRA and other models |
@@ -246,7 +246,7 @@ Models are downloaded automatically on first use:
 
 ```bash
 # Check all services
-curl http://localhost:8000/health          # VoiceForge API
+curl http://localhost:8000/health          # 11labs API
 curl http://192.168.1.200:8001/health      # GPU Worker
 curl http://192.168.1.200:8188/system_stats # ComfyUI
 curl http://192.168.1.200:11434/api/tags    # Ollama
@@ -259,7 +259,7 @@ curl http://192.168.1.200:11434/api/tags    # Ollama
 docker compose -f docker-compose.unified.yml logs -f
 
 # Specific service
-docker compose -f docker-compose.unified.yml logs -f voiceforge-api
+docker compose -f docker-compose.unified.yml logs -f elevenlabs-api
 ```
 
 ## Troubleshooting

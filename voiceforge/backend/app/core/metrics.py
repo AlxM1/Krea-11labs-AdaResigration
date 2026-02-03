@@ -25,7 +25,7 @@ else:
 
 # HTTP request counter
 http_requests_total = Counter(
-    "voiceforge_http_requests_total",
+    "elevenlabs_http_requests_total",
     "Total HTTP requests",
     ["method", "endpoint", "status"],
     registry=registry
@@ -33,7 +33,7 @@ http_requests_total = Counter(
 
 # HTTP request latency
 http_request_duration_seconds = Histogram(
-    "voiceforge_http_request_duration_seconds",
+    "elevenlabs_http_request_duration_seconds",
     "HTTP request latency in seconds",
     ["method", "endpoint"],
     buckets=[0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0],
@@ -45,7 +45,7 @@ http_request_duration_seconds = Histogram(
 
 # TTS generation counter
 tts_generations_total = Counter(
-    "voiceforge_tts_generations_total",
+    "elevenlabs_tts_generations_total",
     "Total TTS generations",
     ["model", "voice_type", "status"],
     registry=registry
@@ -53,7 +53,7 @@ tts_generations_total = Counter(
 
 # TTS generation latency
 tts_generation_duration_seconds = Histogram(
-    "voiceforge_tts_generation_duration_seconds",
+    "elevenlabs_tts_generation_duration_seconds",
     "TTS generation latency in seconds",
     ["model"],
     buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0],
@@ -62,7 +62,7 @@ tts_generation_duration_seconds = Histogram(
 
 # TTS characters processed
 tts_characters_total = Counter(
-    "voiceforge_tts_characters_total",
+    "elevenlabs_tts_characters_total",
     "Total characters processed by TTS",
     ["model"],
     registry=registry
@@ -70,7 +70,7 @@ tts_characters_total = Counter(
 
 # STT transcription counter
 stt_transcriptions_total = Counter(
-    "voiceforge_stt_transcriptions_total",
+    "elevenlabs_stt_transcriptions_total",
     "Total STT transcriptions",
     ["model", "language", "status"],
     registry=registry
@@ -78,7 +78,7 @@ stt_transcriptions_total = Counter(
 
 # STT transcription latency
 stt_transcription_duration_seconds = Histogram(
-    "voiceforge_stt_transcription_duration_seconds",
+    "elevenlabs_stt_transcription_duration_seconds",
     "STT transcription latency in seconds",
     ["model"],
     buckets=[0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0],
@@ -87,7 +87,7 @@ stt_transcription_duration_seconds = Histogram(
 
 # Audio duration processed
 stt_audio_duration_seconds = Counter(
-    "voiceforge_stt_audio_duration_seconds_total",
+    "elevenlabs_stt_audio_duration_seconds_total",
     "Total audio duration processed by STT",
     ["model"],
     registry=registry
@@ -95,7 +95,7 @@ stt_audio_duration_seconds = Counter(
 
 # Voice cloning counter
 voice_clones_total = Counter(
-    "voiceforge_voice_clones_total",
+    "elevenlabs_voice_clones_total",
     "Total voice clones created",
     ["type", "status"],
     registry=registry
@@ -103,7 +103,7 @@ voice_clones_total = Counter(
 
 # Sound effects generation counter
 sfx_generations_total = Counter(
-    "voiceforge_sfx_generations_total",
+    "elevenlabs_sfx_generations_total",
     "Total sound effects generated",
     ["status"],
     registry=registry
@@ -114,7 +114,7 @@ sfx_generations_total = Counter(
 
 # Active model instances
 active_models = Gauge(
-    "voiceforge_active_models",
+    "elevenlabs_active_models",
     "Number of active AI model instances",
     ["model_type"],
     registry=registry
@@ -122,7 +122,7 @@ active_models = Gauge(
 
 # GPU memory usage (if available)
 gpu_memory_usage_bytes = Gauge(
-    "voiceforge_gpu_memory_usage_bytes",
+    "elevenlabs_gpu_memory_usage_bytes",
     "GPU memory usage in bytes",
     ["device"],
     registry=registry
@@ -130,7 +130,7 @@ gpu_memory_usage_bytes = Gauge(
 
 # Queue depth
 task_queue_depth = Gauge(
-    "voiceforge_task_queue_depth",
+    "elevenlabs_task_queue_depth",
     "Number of tasks in queue",
     ["queue"],
     registry=registry
@@ -138,7 +138,7 @@ task_queue_depth = Gauge(
 
 # Active connections
 active_connections = Gauge(
-    "voiceforge_active_connections",
+    "elevenlabs_active_connections",
     "Number of active connections",
     ["type"],
     registry=registry
@@ -149,7 +149,7 @@ active_connections = Gauge(
 
 # Credits used
 credits_used_total = Counter(
-    "voiceforge_credits_used_total",
+    "elevenlabs_credits_used_total",
     "Total credits used",
     ["user_plan", "feature"],
     registry=registry
@@ -157,7 +157,7 @@ credits_used_total = Counter(
 
 # Active users
 active_users = Gauge(
-    "voiceforge_active_users",
+    "elevenlabs_active_users",
     "Number of active users",
     ["plan"],
     registry=registry
@@ -165,7 +165,7 @@ active_users = Gauge(
 
 # API key usage
 api_key_requests_total = Counter(
-    "voiceforge_api_key_requests_total",
+    "elevenlabs_api_key_requests_total",
     "Total API key requests",
     ["key_id"],
     registry=registry

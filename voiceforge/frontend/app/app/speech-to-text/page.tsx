@@ -134,13 +134,13 @@ export default function SpeechToTextPage() {
       // Sample result
       const transcriptionResult: TranscriptionResult = {
         id: Date.now().toString(),
-        text: 'This is a sample transcription result. The actual transcription would appear here based on the audio content. VoiceForge uses state-of-the-art AI models to accurately transcribe speech to text in multiple languages.',
+        text: 'This is a sample transcription result. The actual transcription would appear here based on the audio content. 11labs uses state-of-the-art AI models to accurately transcribe speech to text in multiple languages.',
         language: 'English',
         duration: 45,
         timestamps: [
           { start: 0, end: 3.5, text: 'This is a sample transcription result.' },
           { start: 3.5, end: 8.2, text: 'The actual transcription would appear here based on the audio content.' },
-          { start: 8.2, end: 15, text: 'VoiceForge uses state-of-the-art AI models to accurately transcribe speech to text in multiple languages.' }
+          { start: 8.2, end: 15, text: '11labs uses state-of-the-art AI models to accurately transcribe speech to text in multiple languages.' }
         ],
         createdAt: new Date()
       }
@@ -153,7 +153,7 @@ export default function SpeechToTextPage() {
           },
           {
             speaker: 'Speaker 2',
-            segments: [{ start: 8.2, end: 15, text: 'VoiceForge uses state-of-the-art AI models to accurately transcribe speech to text in multiple languages.' }]
+            segments: [{ start: 8.2, end: 15, text: '11labs uses state-of-the-art AI models to accurately transcribe speech to text in multiple languages.' }]
           }
         ]
       }

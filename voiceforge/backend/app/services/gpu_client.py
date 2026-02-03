@@ -1,6 +1,6 @@
 """
 Remote GPU Worker Client
-Allows VoiceForge backend to communicate with GPU worker running on Windows PC
+Allows 11labs backend to communicate with GPU worker running on Windows PC
 
 This enables distributed deployment:
 - Linux VM: Runs API server, Celery workers (CPU tasks)

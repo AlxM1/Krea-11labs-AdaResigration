@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: voiceforge-gpu-worker
-  namespace: voiceforge
+  name: elevenlabs-gpu-worker
+  namespace: elevenlabs
   labels:
-    app: voiceforge
+    app: elevenlabs
     component: gpu-worker
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: voiceforge
+      app: elevenlabs
       component: gpu-worker
   template:
     metadata:
       labels:
-        app: voiceforge
+        app: elevenlabs
         component: gpu-worker
     spec:
       containers:
         - name: worker
-          image: ghcr.io/voiceforge/backend:latest
+          image: ghcr.io/elevenlabs/backend:latest
           imagePullPolicy: Always
           command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "tts,stt,voice,sfx"]
           env:
@@ -31,34 +31,34 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: database-url
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: redis-url
             - name: STORAGE_TYPE
               value: "s3"
             - name: S3_BUCKET
               valueFrom:
                 configMapKeyRef:
-                  name: voiceforge-config
+                  name: elevenlabs-config
                   key: s3-bucket
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: aws-access-key
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: aws-secret-key
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: hf-token
                   optional: true
           resources:
@@ -98,7 +98,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: model-cache-pvc
-  namespace: voiceforge
+  namespace: elevenlabs
 spec:
   accessModes:
     - ReadWriteMany

@@ -111,7 +111,7 @@ export default function SpeechSynthesisPage() {
     if (!generatedAudio) return
     const a = document.createElement('a')
     a.href = generatedAudio
-    a.download = `voiceforge-${Date.now()}.mp3`
+    a.download = `elevenlabs-${Date.now()}.mp3`
     a.click()
   }
 

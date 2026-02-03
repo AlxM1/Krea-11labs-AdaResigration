@@ -1,5 +1,5 @@
 # ============================================
-# VoiceForge + Krya - Windows GPU Setup Script
+# 11labs + Krya - Windows GPU Setup Script
 # Run this on your Windows PC with RTX 5090
 # ============================================
 
@@ -14,7 +14,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " VoiceForge + Krya GPU Setup" -ForegroundColor Cyan
+Write-Host " 11labs + Krya GPU Setup" -ForegroundColor Cyan
 Write-Host " Windows PC Configuration" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
@@ -143,10 +143,10 @@ if (-not $SkipComfyUI) {
 Write-Host ""
 
 # ============================================
-# Step 4: Setup VoiceForge GPU Worker
+# Step 4: Setup 11labs GPU Worker
 # ============================================
 if (-not $SkipVoiceWorker) {
-    Write-Host "Step 4: Setting up VoiceForge GPU Worker..." -ForegroundColor Green
+    Write-Host "Step 4: Setting up 11labs GPU Worker..." -ForegroundColor Green
 
     if (-not (Test-Path $GpuWorkerDir)) {
         Write-Host "  ERROR: GPU worker directory not found: $GpuWorkerDir" -ForegroundColor Red
@@ -163,7 +163,7 @@ if (-not $SkipVoiceWorker) {
     }
 
     # Activate and install dependencies
-    Write-Host "  Installing VoiceForge dependencies..."
+    Write-Host "  Installing 11labs dependencies..."
     Write-Host "  This may take 10-20 minutes for first-time setup..." -ForegroundColor Yellow
     $pipExe = Join-Path $venvPath "Scripts\pip.exe"
 
@@ -176,9 +176,9 @@ if (-not $SkipVoiceWorker) {
     $requirementsPath = Join-Path $GpuWorkerDir "requirements.txt"
     & $pipExe install -r $requirementsPath
 
-    Write-Host "  VoiceForge GPU Worker setup complete!" -ForegroundColor Green
+    Write-Host "  11labs GPU Worker setup complete!" -ForegroundColor Green
 } else {
-    Write-Host "Step 4: Skipping VoiceForge GPU Worker setup" -ForegroundColor Yellow
+    Write-Host "Step 4: Skipping 11labs GPU Worker setup" -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -189,7 +189,7 @@ Write-Host ""
 Write-Host "Step 5: Configuring Windows Firewall..." -ForegroundColor Green
 
 $firewallRules = @(
-    @{Name="VoiceForge GPU Worker"; Port=8001},
+    @{Name="11labs GPU Worker"; Port=8001},
     @{Name="ComfyUI"; Port=8188},
     @{Name="Ollama"; Port=11434}
 )
@@ -235,7 +235,7 @@ Write-Host " Setup Complete!" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "GPU Services installed:" -ForegroundColor White
-Write-Host "  - VoiceForge GPU Worker (TTS, STT, SFX, Voice Isolation)"
+Write-Host "  - 11labs GPU Worker (TTS, STT, SFX, Voice Isolation)"
 if (-not $SkipComfyUI) {
     Write-Host "  - ComfyUI (Image/Video Generation)"
 }
@@ -248,7 +248,7 @@ Write-Host "  cd $GpuWorkerDir" -ForegroundColor White
 Write-Host "  .\start_all_gpu_services.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Or start individual services:" -ForegroundColor Yellow
-Write-Host "  VoiceForge: .\start_worker.bat" -ForegroundColor White
+Write-Host "  11labs: .\start_worker.bat" -ForegroundColor White
 Write-Host "  ComfyUI: python $ComfyUIPath\main.py --listen 0.0.0.0" -ForegroundColor White
 Write-Host "  Ollama: ollama serve" -ForegroundColor White
 Write-Host ""

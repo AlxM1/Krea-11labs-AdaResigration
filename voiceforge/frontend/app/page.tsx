@@ -25,7 +25,7 @@ export default function Home() {
             <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
               <Volume2 className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-xl">VoiceForge</span>
+            <span className="font-bold text-xl">11labs</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
@@ -246,7 +246,7 @@ export default function Home() {
                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <Volume2 className="w-5 h-5 text-white" />
                 </div>
-                <span className="font-bold text-xl">VoiceForge</span>
+                <span className="font-bold text-xl">11labs</span>
               </div>
               <p className="text-muted-foreground text-sm">
                 The most advanced AI voice platform for creators and developers.
@@ -283,7 +283,7 @@ export default function Home() {
           </div>
 
           <div className="border-t border-border mt-12 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} VoiceForge. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} 11labs. All rights reserved.</p>
           </div>
         </div>
       </footer>

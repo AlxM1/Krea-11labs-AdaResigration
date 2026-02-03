@@ -1,4 +1,4 @@
-# VoiceForge + Krya GPU Services - Windows PowerShell Script
+# 11labs + Krya GPU Services - Windows PowerShell Script
 # Starts all GPU services for the integrated AI platform
 
 param(
@@ -11,7 +11,7 @@ param(
 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host " Unified AI GPU Services Launcher" -ForegroundColor Cyan
-Write-Host " VoiceForge + Krya" -ForegroundColor Cyan
+Write-Host " 11labs + Krya" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -85,7 +85,7 @@ if (-not $VoiceOnly) {
 }
 
 # ============================================
-# Start VoiceForge GPU Worker
+# Start 11labs GPU Worker
 # ============================================
 if (-not $ImageOnly) {
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -101,11 +101,11 @@ if (-not $ImageOnly) {
         }
 
         $processes += Start-ServiceInNewTerminal `
-            -Name "VoiceForge GPU Worker" `
+            -Name "11labs GPU Worker" `
             -Command "`"$venvPath\Scripts\python.exe`" voice_worker.py" `
             -WorkingDir $scriptDir `
             -Color "Green"
-        Write-Host "  VoiceForge: http://${localIP}:8001" -ForegroundColor Gray
+        Write-Host "  11labs: http://${localIP}:8001" -ForegroundColor Gray
     } else {
         Write-Host "Voice worker not found at $voiceWorker" -ForegroundColor Red
     }

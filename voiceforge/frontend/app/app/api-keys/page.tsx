@@ -214,7 +214,7 @@ export default function ApiKeysPage() {
             </div>
             <h3 className="text-lg font-medium mb-2">No API keys yet</h3>
             <p className="text-[#a1a1a1] mb-4">
-              Create an API key to start using VoiceForge programmatically
+              Create an API key to start using 11labs programmatically
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -230,7 +230,7 @@ export default function ApiKeysPage() {
         <div className="mt-8 p-6 bg-[#1f1f1f] rounded-2xl border border-[#2f2f2f]">
           <h3 className="font-semibold mb-2">API Documentation</h3>
           <p className="text-sm text-[#a1a1a1] mb-4">
-            Learn how to integrate VoiceForge into your applications with our comprehensive API documentation.
+            Learn how to integrate 11labs into your applications with our comprehensive API documentation.
           </p>
           <a
             href="/docs/api"

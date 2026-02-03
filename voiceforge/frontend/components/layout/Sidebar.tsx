@@ -93,7 +93,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           {!collapsed && (
-            <span className="font-semibold text-base sm:text-lg text-white">VoiceForge</span>
+            <span className="font-semibold text-base sm:text-lg text-white">11labs</span>
           )}
         </Link>
         {/* Mobile close button */}

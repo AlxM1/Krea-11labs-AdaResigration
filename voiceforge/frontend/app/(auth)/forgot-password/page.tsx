@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
         <div className="mb-8">
           <Link href="/" className="flex items-center gap-2 mb-8">
             <Sparkles className="w-8 h-8 text-[#7c3aed]" />
-            <span className="text-2xl font-bold text-white">VoiceForge</span>
+            <span className="text-2xl font-bold text-white">11labs</span>
           </Link>
 
           {isSubmitted ? (

@@ -1,13 +1,13 @@
 #!/bin/bash
 # ============================================
-# VoiceForge + Krya - Linux VM Setup Script
+# 11labs + Krya - Linux VM Setup Script
 # Run this on your Linux VM that will host the web apps
 # ============================================
 
 set -e
 
 echo "=========================================="
-echo " VoiceForge + Krya Unified Setup"
+echo " 11labs + Krya Unified Setup"
 echo " Linux VM Configuration"
 echo "=========================================="
 echo ""
@@ -126,22 +126,22 @@ echo ""
 # ============================================
 echo -e "${GREEN}Step 5: Building application images...${NC}"
 
-# Build VoiceForge
-if [ -d "$PROJECT_ROOT/voiceforge" ]; then
-    echo "  Building VoiceForge backend..."
+# Build 11labs
+if [ -d "$PROJECT_ROOT/elevenlabs" ]; then
+    echo "  Building 11labs backend..."
     # Check if Dockerfile exists
-    if [ -f "$PROJECT_ROOT/voiceforge/docker/Dockerfile.backend" ]; then
-        docker build -t voiceforge-backend -f "$PROJECT_ROOT/voiceforge/docker/Dockerfile.backend" "$PROJECT_ROOT/voiceforge" || {
-            echo -e "${YELLOW}  VoiceForge backend build skipped (Dockerfile may need configuration)${NC}"
+    if [ -f "$PROJECT_ROOT/elevenlabs/docker/Dockerfile.backend" ]; then
+        docker build -t elevenlabs-backend -f "$PROJECT_ROOT/elevenlabs/docker/Dockerfile.backend" "$PROJECT_ROOT/elevenlabs" || {
+            echo -e "${YELLOW}  11labs backend build skipped (Dockerfile may need configuration)${NC}"
         }
     else
-        echo -e "${YELLOW}  VoiceForge Dockerfile not found, skipping build${NC}"
+        echo -e "${YELLOW}  11labs Dockerfile not found, skipping build${NC}"
     fi
 
-    echo "  Building VoiceForge frontend..."
-    if [ -f "$PROJECT_ROOT/voiceforge/docker/Dockerfile.frontend" ]; then
-        docker build -t voiceforge-frontend -f "$PROJECT_ROOT/voiceforge/docker/Dockerfile.frontend" "$PROJECT_ROOT/voiceforge" || {
-            echo -e "${YELLOW}  VoiceForge frontend build skipped${NC}"
+    echo "  Building 11labs frontend..."
+    if [ -f "$PROJECT_ROOT/elevenlabs/docker/Dockerfile.frontend" ]; then
+        docker build -t elevenlabs-frontend -f "$PROJECT_ROOT/elevenlabs/docker/Dockerfile.frontend" "$PROJECT_ROOT/elevenlabs" || {
+            echo -e "${YELLOW}  11labs frontend build skipped${NC}"
         }
     fi
 fi
@@ -231,10 +231,10 @@ echo "   ./start_all_gpu_services.ps1"
 echo ""
 echo "2. Start application services:"
 echo "   cd $SCRIPT_DIR"
-echo "   docker compose -f docker-compose.unified.yml up -d voiceforge-api voiceforge-frontend"
+echo "   docker compose -f docker-compose.unified.yml up -d elevenlabs-api elevenlabs-frontend"
 echo ""
 echo "3. Access the applications:"
-echo "   - VoiceForge: http://localhost:3000"
+echo "   - 11labs: http://localhost:3000"
 echo "   - Krya: http://localhost:3001 (when enabled)"
 echo "   - MinIO: http://localhost:9001"
 echo ""

@@ -79,7 +79,7 @@ export default function SignupPage() {
         <div>
           <Link href="/" className="flex items-center gap-2">
             <Sparkles className="w-8 h-8 text-white" />
-            <span className="text-2xl font-bold text-white">VoiceForge</span>
+            <span className="text-2xl font-bold text-white">11labs</span>
           </Link>
         </div>
 
@@ -101,7 +101,7 @@ export default function SignupPage() {
 
         <div className="bg-white/10 rounded-2xl p-6 backdrop-blur">
           <p className="text-white/90 mb-4">
-            "VoiceForge has transformed how we create content. The voice quality is incredible!"
+            "11labs has transformed how we create content. The voice quality is incredible!"
           </p>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/20" />
@@ -119,7 +119,7 @@ export default function SignupPage() {
           <div className="lg:hidden mb-8">
             <Link href="/" className="flex items-center gap-2">
               <Sparkles className="w-8 h-8 text-[#7c3aed]" />
-              <span className="text-2xl font-bold text-white">VoiceForge</span>
+              <span className="text-2xl font-bold text-white">11labs</span>
             </Link>
           </div>
 

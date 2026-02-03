@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: voiceforge-ingress
-  namespace: voiceforge
+  name: elevenlabs-ingress
+  namespace: elevenlabs
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -10,31 +10,31 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
-    nginx.ingress.kubernetes.io/websocket-services: "voiceforge-backend"
+    nginx.ingress.kubernetes.io/websocket-services: "elevenlabs-backend"
 spec:
   tls:
     - hosts:
-        - voiceforge.ai
-        - api.voiceforge.ai
-      secretName: voiceforge-tls
+        - elevenlabs.ai
+        - api.elevenlabs.ai
+      secretName: elevenlabs-tls
   rules:
-    - host: voiceforge.ai
+    - host: elevenlabs.ai
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: voiceforge-frontend
+                name: elevenlabs-frontend
                 port:
                   number: 3000
-    - host: api.voiceforge.ai
+    - host: api.elevenlabs.ai
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: voiceforge-backend
+                name: elevenlabs-backend
                 port:
                   number: 8000

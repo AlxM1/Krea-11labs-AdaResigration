@@ -1,9 +1,9 @@
 @echo off
-REM VoiceForge GPU Worker - Windows Startup Script
+REM 11labs GPU Worker - Windows Startup Script
 REM Run this on your Windows PC with RTX 5090
 
 echo ==========================================
-echo  VoiceForge GPU Worker
+echo  11labs GPU Worker
 echo  Starting voice AI processing service
 echo ==========================================
 echo.
@@ -50,7 +50,7 @@ REM Create models directory
 if not exist "models" mkdir models
 
 echo.
-echo Starting VoiceForge GPU Worker on port %PORT%...
+echo Starting 11labs GPU Worker on port %PORT%...
 echo Access from Linux VM: http://<this-pc-ip>:%PORT%
 echo.
 

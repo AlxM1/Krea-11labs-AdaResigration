@@ -1,5 +1,5 @@
 /**
- * VoiceForge API Client
+ * Elevenlabs API Client
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -35,7 +35,7 @@ interface SFXOptions {
   outputFormat?: 'mp3' | 'wav';
 }
 
-class VoiceForgeAPI {
+class ElevenlabsAPI {
   private baseUrl: string;
   private token: string | null = null;
 
@@ -317,7 +317,7 @@ class VoiceForgeAPI {
 }
 
 // Export singleton instance
-export const api = new VoiceForgeAPI();
+export const api = new ElevenlabsAPI();
 
 // Export class for custom instances
-export { VoiceForgeAPI };
+export { ElevenlabsAPI };

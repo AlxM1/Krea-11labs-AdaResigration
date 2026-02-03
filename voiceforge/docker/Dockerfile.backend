@@ -1,4 +1,4 @@
-# VoiceForge Backend Dockerfile
+# 11labs Backend Dockerfile
 FROM nvidia/cuda:12.1-runtime-ubuntu22.04
 
 # Set environment variables
@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN useradd -m -u 1000 voiceforge
+RUN useradd -m -u 1000 elevenlabs
 WORKDIR /app
 
 # Create and activate virtual environment
@@ -43,10 +43,10 @@ COPY backend/app ./app
 
 # Create storage directories
 RUN mkdir -p /app/storage/voices /app/storage/generations /app/storage/temp \
-    && chown -R voiceforge:voiceforge /app
+    && chown -R elevenlabs:elevenlabs /app
 
 # Switch to non-root user
-USER voiceforge
+USER elevenlabs
 
 # Expose port
 EXPOSE 8000

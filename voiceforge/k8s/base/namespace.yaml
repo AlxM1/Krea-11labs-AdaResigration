@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: voiceforge
+  name: elevenlabs
   labels:
-    app: voiceforge
+    app: elevenlabs
     environment: production

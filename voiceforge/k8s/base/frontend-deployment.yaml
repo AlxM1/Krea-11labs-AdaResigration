@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: voiceforge-frontend
-  namespace: voiceforge
+  name: elevenlabs-frontend
+  namespace: elevenlabs
   labels:
-    app: voiceforge
+    app: elevenlabs
     component: frontend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: voiceforge
+      app: elevenlabs
       component: frontend
   template:
     metadata:
       labels:
-        app: voiceforge
+        app: elevenlabs
         component: frontend
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/voiceforge/frontend:latest
+          image: ghcr.io/elevenlabs/frontend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -29,7 +29,7 @@ spec:
             - name: NEXT_PUBLIC_API_URL
               valueFrom:
                 configMapKeyRef:
-                  name: voiceforge-config
+                  name: elevenlabs-config
                   key: api-url
           resources:
             requests:
@@ -54,10 +54,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: voiceforge-frontend
-  namespace: voiceforge
+  name: elevenlabs-frontend
+  namespace: elevenlabs
   labels:
-    app: voiceforge
+    app: elevenlabs
     component: frontend
 spec:
   type: ClusterIP
@@ -67,5 +67,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: voiceforge
+    app: elevenlabs
     component: frontend

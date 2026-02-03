@@ -124,7 +124,7 @@ class RequestLogger:
 
     def __init__(self, app):
         self.app = app
-        self.logger = get_logger("voiceforge.requests")
+        self.logger = get_logger("elevenlabs.requests")
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":

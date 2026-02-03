@@ -6,20 +6,20 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
-    container_name: voiceforge-backend
+    container_name: elevenlabs-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
       - DEBUG=false
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/voiceforge
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/elevenlabs
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_PATH=/app/storage
       - DEVICE=cuda  # Change to 'cpu' if no GPU
     volumes:
-      - voiceforge-storage:/app/storage
-      - voiceforge-models:/root/.cache  # Cache for AI models
+      - elevenlabs-storage:/app/storage
+      - elevenlabs-models:/root/.cache  # Cache for AI models
     depends_on:
       - db
       - redis
@@ -42,7 +42,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-    container_name: voiceforge-frontend
+    container_name: elevenlabs-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -59,14 +59,14 @@ services:
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
-    container_name: voiceforge-db
+    container_name: elevenlabs-db
     restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=voiceforge
+      - POSTGRES_DB=elevenlabs
     volumes:
-      - voiceforge-db:/var/lib/postgresql/data
+      - elevenlabs-db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -76,11 +76,11 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: voiceforge-redis
+    container_name: elevenlabs-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
-      - voiceforge-redis:/data
+      - elevenlabs-redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -90,7 +90,7 @@ services:
   # Nginx Reverse Proxy (Production)
   nginx:
     image: nginx:alpine
-    container_name: voiceforge-nginx
+    container_name: elevenlabs-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -109,18 +109,18 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
-    container_name: voiceforge-worker
+    container_name: elevenlabs-worker
     restart: unless-stopped
     command: celery -A app.worker worker --loglevel=info
     environment:
       - DEBUG=false
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/voiceforge
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/elevenlabs
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_PATH=/app/storage
       - DEVICE=cuda
     volumes:
-      - voiceforge-storage:/app/storage
-      - voiceforge-models:/root/.cache
+      - elevenlabs-storage:/app/storage
+      - elevenlabs-models:/root/.cache
     depends_on:
       - db
       - redis
@@ -135,11 +135,11 @@ services:
       - workers
 
 volumes:
-  voiceforge-db:
-  voiceforge-redis:
-  voiceforge-storage:
-  voiceforge-models:
+  elevenlabs-db:
+  elevenlabs-redis:
+  elevenlabs-storage:
+  elevenlabs-models:
 
 networks:
   default:
-    name: voiceforge-network
+    name: elevenlabs-network

@@ -1,8 +1,8 @@
-# VoiceForge Production Readiness Checklist
+# 11labs Production Readiness Checklist
 
 ## Overview
 
-This document outlines everything needed to take VoiceForge from MVP to production-ready status.
+This document outlines everything needed to take 11labs from MVP to production-ready status.
 
 ---
 

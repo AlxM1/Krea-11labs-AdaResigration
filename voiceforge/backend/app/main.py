@@ -1,5 +1,5 @@
 """
-VoiceForge - Production-Ready AI Voice Platform
+11labs - Production-Ready AI Voice Platform
 Main FastAPI Application
 """
 from fastapi import FastAPI, Request, status
@@ -118,7 +118,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="""
-## VoiceForge API
+## 11labs API
 
 A comprehensive AI voice platform providing:
 
@@ -148,8 +148,8 @@ Use either:
 
 ### SDKs
 
-- Python: `pip install voiceforge`
-- JavaScript: `npm install @voiceforge/sdk`
+- Python: `pip install elevenlabs`
+- JavaScript: `npm install @elevenlabs/sdk`
     """,
     version=settings.VERSION,
     docs_url="/docs" if settings.DEBUG or settings.ENVIRONMENT != "production" else None,
@@ -158,11 +158,11 @@ Use either:
     lifespan=lifespan,
     license_info={
         "name": "Proprietary",
-        "url": "https://voiceforge.ai/terms",
+        "url": "https://elevenlabs.io/terms",
     },
     contact={
-        "name": "VoiceForge Support",
-        "email": "support@voiceforge.ai",
+        "name": "11labs Support",
+        "email": "support@elevenlabs.io",
     },
 )
 

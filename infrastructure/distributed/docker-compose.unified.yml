@@ -1,4 +1,4 @@
-# Unified Infrastructure for VoiceForge + Krya
+# Unified Infrastructure for 11labs + Krya
 # This runs shared services on the Linux VM
 # GPU workers (ComfyUI, Ollama, Voice AI) run on Windows PC
 
@@ -15,7 +15,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_MULTIPLE_DATABASES: voiceforge,krya
+      POSTGRES_MULTIPLE_DATABASES: elevenlabs,krya
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init-scripts/create-databases.sh:/docker-entrypoint-initdb.d/create-databases.sh:ro
@@ -83,12 +83,12 @@ services:
     entrypoint: >
       /bin/sh -c "
       mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
-      mc mb myminio/voiceforge-audio --ignore-existing;
-      mc mb myminio/voiceforge-models --ignore-existing;
+      mc mb myminio/elevenlabs-audio --ignore-existing;
+      mc mb myminio/elevenlabs-models --ignore-existing;
       mc mb myminio/krya-images --ignore-existing;
       mc mb myminio/krya-videos --ignore-existing;
       mc mb myminio/krya-models --ignore-existing;
-      mc anonymous set download myminio/voiceforge-audio;
+      mc anonymous set download myminio/elevenlabs-audio;
       mc anonymous set download myminio/krya-images;
       mc anonymous set download myminio/krya-videos;
       echo 'Buckets initialized successfully';
@@ -97,23 +97,23 @@ services:
       - unified-network
 
   # ============================================
-  # VOICEFORGE - Backend API (FastAPI)
+  # 11LABS - Backend API (FastAPI)
   # ============================================
-  voiceforge-api:
+  elevenlabs-api:
     build:
       context: ../../voiceforge
       dockerfile: docker/Dockerfile.backend
-    container_name: voiceforge-api
+    container_name: elevenlabs-api
     restart: unless-stopped
     environment:
       - ENVIRONMENT=production
       - DEBUG=false
-      - SECRET_KEY=${VOICEFORGE_SECRET_KEY:-change-in-production}
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/voiceforge
+      - SECRET_KEY=${ELEVENLABS_SECRET_KEY:-change-in-production}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/elevenlabs
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_TYPE=s3
       - S3_ENDPOINT_URL=http://minio:9000
-      - S3_BUCKET=voiceforge-audio
+      - S3_BUCKET=elevenlabs-audio
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minioadmin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       # Remote GPU Worker Configuration
@@ -136,38 +136,38 @@ services:
     networks:
       - unified-network
 
-  # VoiceForge Frontend
-  voiceforge-frontend:
+  # 11labs Frontend
+  elevenlabs-frontend:
     build:
       context: ../../voiceforge
       dockerfile: docker/Dockerfile.frontend
-    container_name: voiceforge-frontend
+    container_name: elevenlabs-frontend
     restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=http://voiceforge-api:8000
+      - NEXT_PUBLIC_API_URL=http://elevenlabs-api:8000
       - NEXT_PUBLIC_MINIO_URL=http://${HOST_IP:-localhost}:9000
     ports:
       - "3000:3000"
     depends_on:
-      - voiceforge-api
+      - elevenlabs-api
     networks:
       - unified-network
 
-  # VoiceForge Celery Worker (runs on Linux, dispatches to GPU worker)
-  voiceforge-worker:
+  # 11labs Celery Worker (runs on Linux, dispatches to GPU worker)
+  elevenlabs-worker:
     build:
       context: ../../voiceforge
       dockerfile: docker/Dockerfile.backend
-    container_name: voiceforge-worker
+    container_name: elevenlabs-worker
     restart: unless-stopped
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=4
     environment:
       - DEBUG=false
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/voiceforge
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/elevenlabs
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_TYPE=s3
       - S3_ENDPOINT_URL=http://minio:9000
-      - S3_BUCKET=voiceforge-audio
+      - S3_BUCKET=elevenlabs-audio
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minioadmin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - GPU_WORKER_MODE=remote
@@ -230,7 +230,7 @@ services:
       - "80:80"
       - "443:443"
     depends_on:
-      - voiceforge-frontend
+      - elevenlabs-frontend
       - krya-web
     networks:
       - unified-network
@@ -252,8 +252,8 @@ services:
         curl -s -o /dev/null -w '%{http_code}' http://${WINDOWS_GPU_HOST}:8188/system_stats || echo 'ComfyUI: OFFLINE' ;
         echo 'Checking Ollama...' ;
         curl -s -o /dev/null -w '%{http_code}' http://${WINDOWS_GPU_HOST}:11434/api/tags || echo 'Ollama: OFFLINE' ;
-        echo 'Checking VoiceForge GPU Worker...' ;
-        curl -s -o /dev/null -w '%{http_code}' http://${WINDOWS_GPU_HOST}:8001/health || echo 'VoiceForge GPU: OFFLINE' ;
+        echo 'Checking 11labs GPU Worker...' ;
+        curl -s -o /dev/null -w '%{http_code}' http://${WINDOWS_GPU_HOST}:8001/health || echo '11labs GPU: OFFLINE' ;
         echo '===============================' ;
         sleep 60 ;
       done

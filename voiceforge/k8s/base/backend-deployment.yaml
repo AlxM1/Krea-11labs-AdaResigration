@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: voiceforge-backend
-  namespace: voiceforge
+  name: elevenlabs-backend
+  namespace: elevenlabs
   labels:
-    app: voiceforge
+    app: elevenlabs
     component: backend
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: voiceforge
+      app: elevenlabs
       component: backend
   template:
     metadata:
       labels:
-        app: voiceforge
+        app: elevenlabs
         component: backend
       annotations:
         prometheus.io/scrape: "true"
@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/voiceforge/backend:latest
+          image: ghcr.io/elevenlabs/backend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -37,49 +37,49 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: database-url
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: redis-url
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: secret-key
             - name: STRIPE_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: stripe-secret-key
             - name: SENTRY_DSN
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: sentry-dsn
             - name: STORAGE_TYPE
               value: "s3"
             - name: S3_BUCKET
               valueFrom:
                 configMapKeyRef:
-                  name: voiceforge-config
+                  name: elevenlabs-config
                   key: s3-bucket
             - name: S3_REGION
               valueFrom:
                 configMapKeyRef:
-                  name: voiceforge-config
+                  name: elevenlabs-config
                   key: s3-region
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: aws-access-key
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: voiceforge-secrets
+                  name: elevenlabs-secrets
                   key: aws-secret-key
           resources:
             requests:
@@ -117,17 +117,17 @@ spec:
               podAffinityTerm:
                 labelSelector:
                   matchLabels:
-                    app: voiceforge
+                    app: elevenlabs
                     component: backend
                 topologyKey: kubernetes.io/hostname
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: voiceforge-backend
-  namespace: voiceforge
+  name: elevenlabs-backend
+  namespace: elevenlabs
   labels:
-    app: voiceforge
+    app: elevenlabs
     component: backend
 spec:
   type: ClusterIP
@@ -137,5 +137,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: voiceforge
+    app: elevenlabs
     component: backend

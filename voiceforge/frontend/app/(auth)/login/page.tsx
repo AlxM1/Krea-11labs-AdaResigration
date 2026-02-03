@@ -51,7 +51,7 @@ export default function LoginPage() {
         <div>
           <Link href="/" className="flex items-center gap-2">
             <Sparkles className="w-8 h-8 text-white" />
-            <span className="text-2xl font-bold text-white">VoiceForge</span>
+            <span className="text-2xl font-bold text-white">11labs</span>
           </Link>
         </div>
 
@@ -60,7 +60,7 @@ export default function LoginPage() {
             Create stunning AI voices in seconds
           </h1>
           <p className="text-white/80 text-lg">
-            Join thousands of creators using VoiceForge to bring their content to life
+            Join thousands of creators using 11labs to bring their content to life
             with realistic AI-generated voices.
           </p>
         </div>
@@ -75,7 +75,7 @@ export default function LoginPage() {
             ))}
           </div>
           <p className="text-white/80 text-sm">
-            <span className="font-semibold text-white">10,000+</span> creators already using VoiceForge
+            <span className="font-semibold text-white">10,000+</span> creators already using 11labs
           </p>
         </div>
       </div>
@@ -86,7 +86,7 @@ export default function LoginPage() {
           <div className="lg:hidden mb-8">
             <Link href="/" className="flex items-center gap-2">
               <Sparkles className="w-8 h-8 text-[#7c3aed]" />
-              <span className="text-2xl font-bold text-white">VoiceForge</span>
+              <span className="text-2xl font-bold text-white">11labs</span>
             </Link>
           </div>
 

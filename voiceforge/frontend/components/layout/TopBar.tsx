@@ -68,7 +68,7 @@ export default function TopBar({
           <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-[#7c3aed] to-[#db2777] rounded-lg flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-sm sm:text-base text-white hidden xs:inline">VoiceForge</span>
+          <span className="font-semibold text-sm sm:text-base text-white hidden xs:inline">11labs</span>
         </Link>
       </div>
 

@@ -1,6 +1,6 @@
-# VoiceForge - AI Voice Platform
+# 11labs - AI Voice Platform
 
-An open-source alternative to ElevenLabs with text-to-speech, voice cloning, speech-to-text, sound effects generation, and voice isolation capabilities.
+An open-source AI voice platform with text-to-speech, voice cloning, speech-to-text, sound effects generation, and voice isolation capabilities.
 
 ## Features
 
@@ -64,8 +64,8 @@ An open-source alternative to ElevenLabs with text-to-speech, voice cloning, spe
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/voiceforge.git
-cd voiceforge
+git clone https://github.com/yourusername/elevenlabs.git
+cd elevenlabs
 ```
 
 2. Copy environment configuration:
@@ -108,7 +108,7 @@ npm run dev
 curl -X POST "http://localhost:8000/api/v1/text-to-speech/rachel/stream" \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Hello, welcome to VoiceForge!",
+    "text": "Hello, welcome to 11labs!",
     "model_id": "eleven_multilingual_v2",
     "output_format": "mp3"
   }' \
@@ -148,7 +148,7 @@ curl -X POST "http://localhost:8000/api/v1/audio-isolation/stream" \
 ## Project Structure
 
 ```
-voiceforge/
+elevenlabs/
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/endpoints/    # API routes

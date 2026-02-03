@@ -1,4 +1,4 @@
-# VoiceForge GPU Worker Requirements
+# 11labs GPU Worker Requirements
 # For Windows PC with RTX 5090
 
 # Core
