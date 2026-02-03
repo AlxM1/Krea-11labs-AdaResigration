@@ -1,3 +1,38 @@
+/**
+ * Rate Limiting Module
+ *
+ * PRODUCTION NOTE: This implementation uses in-memory storage which:
+ * - Does NOT work with multiple server instances (no shared state)
+ * - Resets on server restart
+ * - Is fine for single-instance deployments or development
+ *
+ * For production with multiple instances, replace with Redis:
+ * 1. Add ioredis: npm install ioredis
+ * 2. Replace rateLimitStore with Redis calls
+ * 3. Use INCR with EXPIRE for atomic rate limiting
+ *
+ * Example Redis implementation:
+ * ```
+ * import Redis from 'ioredis';
+ * const redis = new Redis(process.env.REDIS_URL);
+ *
+ * async function rateLimit(identifier: string, config: RateLimitConfig) {
+ *   const key = `ratelimit:${identifier}`;
+ *   const count = await redis.incr(key);
+ *   if (count === 1) {
+ *     await redis.expire(key, Math.ceil(config.interval / 1000));
+ *   }
+ *   const ttl = await redis.ttl(key);
+ *   return {
+ *     success: count <= config.maxRequests,
+ *     limit: config.maxRequests,
+ *     remaining: Math.max(0, config.maxRequests - count),
+ *     reset: Date.now() + ttl * 1000,
+ *   };
+ * }
+ * ```
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 
 interface RateLimitConfig {
@@ -12,18 +47,28 @@ interface RateLimitResult {
   reset: number;
 }
 
-// In-memory store for rate limiting (use Redis in production)
+// Warn about in-memory rate limiting in production
+if (process.env.NODE_ENV === "production" && !process.env.REDIS_URL) {
+  console.warn(
+    "[RATE LIMIT] Using in-memory rate limiting. This does not work with multiple server instances. " +
+    "Set REDIS_URL for production deployments with load balancing."
+  );
+}
+
+// In-memory store for rate limiting
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
 // Clean up expired entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of rateLimitStore.entries()) {
-    if (value.resetAt < now) {
-      rateLimitStore.delete(key);
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of rateLimitStore.entries()) {
+      if (value.resetAt < now) {
+        rateLimitStore.delete(key);
+      }
     }
-  }
-}, 60000); // Clean up every minute
+  }, 60000); // Clean up every minute
+}
 
 export function rateLimit(
   identifier: string,

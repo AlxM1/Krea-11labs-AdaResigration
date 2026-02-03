@@ -84,7 +84,9 @@ export async function middleware(request: NextRequest) {
 
   // Add security headers to all responses
   const response = NextResponse.next();
+  const isProduction = process.env.NODE_ENV === "production";
 
+  // Basic security headers
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -92,23 +94,58 @@ export async function middleware(request: NextRequest) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()"
   );
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+
+  // HSTS - Strict Transport Security (only in production with HTTPS)
+  if (isProduction) {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload"
+    );
+  }
+
+  // Content Security Policy
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Next.js dev
+    "style-src 'self' 'unsafe-inline'", // unsafe-inline needed for Tailwind
+    "img-src 'self' data: blob: https://*.fal.media https://*.replicate.delivery https://*.dicebear.com https://*.blob.core.windows.net",
+    "font-src 'self' data:",
+    "connect-src 'self' https://*.fal.ai https://*.replicate.com https://api.stripe.com wss://*",
+    "media-src 'self' blob: https://*.fal.media https://*.replicate.delivery",
+    "frame-src 'self' https://js.stripe.com",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "upgrade-insecure-requests",
+  ];
+
+  // Relaxed CSP in development for hot reload
+  if (!isProduction) {
+    cspDirectives[1] = "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
+    cspDirectives.push("connect-src 'self' ws://localhost:* http://localhost:* https://*.fal.ai https://*.replicate.com wss://*");
+  }
+
+  response.headers.set("Content-Security-Policy", cspDirectives.join("; "));
 
   // Add CORS headers for API routes
   if (pathname.startsWith("/api")) {
-    // Secure CORS: Only allow configured origins, never wildcard in production
-    const allowedOrigins = [
-      process.env.NEXT_PUBLIC_APP_URL,
-      process.env.NEXTAUTH_URL,
-      "http://localhost:3000",
-      "http://localhost:3001",
-    ].filter(Boolean) as string[];
+    // Secure CORS: Only allow configured origins
+    const allowedOrigins = isProduction
+      ? [process.env.NEXT_PUBLIC_APP_URL, process.env.NEXTAUTH_URL].filter(Boolean) as string[]
+      : [
+          process.env.NEXT_PUBLIC_APP_URL,
+          process.env.NEXTAUTH_URL,
+          "http://localhost:3000",
+          "http://localhost:3001",
+        ].filter(Boolean) as string[];
 
     const origin = request.headers.get("origin");
     if (origin && allowedOrigins.includes(origin)) {
       response.headers.set("Access-Control-Allow-Origin", origin);
-    } else if (process.env.NODE_ENV === "development") {
+    } else if (!isProduction && origin) {
       // Only allow any origin in development mode
-      response.headers.set("Access-Control-Allow-Origin", origin || "http://localhost:3000");
+      response.headers.set("Access-Control-Allow-Origin", origin);
     }
     // In production with no matching origin, don't set the header (blocks CORS)
 
