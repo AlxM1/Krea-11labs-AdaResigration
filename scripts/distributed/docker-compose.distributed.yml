@@ -1,0 +1,203 @@
+# ===========================================
+# Krya Distributed Setup - Linux VM
+# ===========================================
+# This docker-compose is for the Linux VM that runs the web app
+# while connecting to a Windows PC with GPU for inference
+# ===========================================
+#
+# Before running:
+# 1. Set up GPU worker on Windows PC (run setup-gpu-worker.ps1)
+# 2. Copy .env.distributed.example to .env and configure
+# 3. Run: docker compose -f docker-compose.distributed.yml up -d
+# ===========================================
+
+version: "3.8"
+
+services:
+  # ===========================================
+  # Web Application
+  # ===========================================
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SECRET=${AUTH_SECRET}
+      # Cloud providers (optional - can use local GPU instead)
+      - FAL_KEY=${FAL_KEY:-}
+      - REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN:-}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+      # Local GPU Worker (Windows PC on network)
+      - COMFYUI_URL=${COMFYUI_URL}
+      - COMFYUI_OUTPUT_URL=${COMFYUI_OUTPUT_URL}
+      - OLLAMA_URL=${OLLAMA_URL}
+      # Default to local mode for distributed setup
+      - DEFAULT_PROVIDER_MODE=local
+      - DEFAULT_IMAGE_PROVIDER=comfyui
+      - DEFAULT_LLM_PROVIDER=ollama
+      # Sentry (optional)
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - krya-network
+
+  # ===========================================
+  # Background Worker (BullMQ)
+  # ===========================================
+  worker:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    command: ["node", "dist/worker.js"]
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+      # Local GPU Worker
+      - COMFYUI_URL=${COMFYUI_URL}
+      - COMFYUI_OUTPUT_URL=${COMFYUI_OUTPUT_URL}
+      - OLLAMA_URL=${OLLAMA_URL}
+      # Cloud providers (fallback)
+      - FAL_KEY=${FAL_KEY:-}
+      - REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN:-}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+    depends_on:
+      - web
+      - redis
+    restart: unless-stopped
+    networks:
+      - krya-network
+
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-krya}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-krya}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-krya} -d ${POSTGRES_DB:-krya}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - krya-network
+
+  # ===========================================
+  # Redis (Rate Limiting, Queues, Cache)
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - krya-network
+
+  # ===========================================
+  # MinIO (S3-compatible storage)
+  # ===========================================
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - krya-network
+
+  # ===========================================
+  # Nginx Reverse Proxy
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+    networks:
+      - krya-network
+
+  # ===========================================
+  # GPU Worker Health Monitor
+  # ===========================================
+  gpu-monitor:
+    image: curlimages/curl:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          echo "=== GPU Worker Health Check ==="
+          echo -n "ComfyUI: "
+          if curl -sf "${COMFYUI_URL}/system_stats" > /dev/null 2>&1; then
+            echo "OK"
+          else
+            echo "OFFLINE - Check Windows PC"
+          fi
+          echo -n "Ollama: "
+          if curl -sf "${OLLAMA_URL}/api/tags" > /dev/null 2>&1; then
+            echo "OK"
+          else
+            echo "OFFLINE - Check Windows PC"
+          fi
+          sleep 60
+        done
+    environment:
+      - COMFYUI_URL=${COMFYUI_URL}
+      - OLLAMA_URL=${OLLAMA_URL}
+    restart: unless-stopped
+    networks:
+      - krya-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  krya-network:
+    driver: bridge
