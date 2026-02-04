@@ -1,0 +1,24 @@
+# Requirements for Voice Library Downloader
+# Install with: pip install -r requirements-downloader.txt
+
+# HuggingFace datasets for downloading voice corpora
+datasets>=2.14.0
+
+# Audio file handling
+soundfile>=0.12.0
+librosa>=0.10.0
+
+# Numerical processing
+numpy>=1.24.0
+
+# Progress bars
+tqdm>=4.65.0
+
+# HTTP requests (fallback downloads)
+requests>=2.28.0
+aiohttp>=3.8.0
+aiofiles>=23.0.0
+
+# Optional: For extracting speaker embeddings
+# torch>=2.0.0
+# transformers>=4.30.0
