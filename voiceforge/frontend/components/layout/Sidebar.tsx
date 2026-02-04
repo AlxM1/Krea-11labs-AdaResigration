@@ -20,7 +20,8 @@ import {
   Zap,
   Crown,
   X,
-  Menu
+  Menu,
+  Database
 } from 'lucide-react'
 
 interface NavItem {
@@ -33,13 +34,14 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { name: 'Speech Synthesis', href: '/app/speech-synthesis', icon: Volume2 },
   { name: 'Projects', href: '/app/projects', icon: FolderOpen },
-  { name: 'Voice Library', href: '/app/voices', icon: Library },
-  { name: 'Voice Cloning', href: '/app/voice-cloning', icon: Mic, badge: 'NEW' },
+  { name: 'My Voices', href: '/app/voices', icon: Library },
+  { name: 'Voice Library', href: '/app/voice-library', icon: Database, badge: '220+' },
+  { name: 'Voice Cloning', href: '/app/voice-cloning', icon: Mic },
   { name: 'Speech to Text', href: '/app/speech-to-text', icon: FileAudio },
   { name: 'Sound Effects', href: '/app/sound-effects', icon: Wand2 },
   { name: 'Dubbing', href: '/app/dubbing', icon: Languages, badge: 'BETA' },
   { name: 'Voice Isolator', href: '/app/voice-isolator', icon: Headphones },
-  { name: 'Conversational AI', href: '/app/agents', icon: MessageSquare, badge: 'NEW' },
+  { name: 'Conversational AI', href: '/app/agents', icon: MessageSquare },
 ]
 
 const bottomNavItems: NavItem[] = [

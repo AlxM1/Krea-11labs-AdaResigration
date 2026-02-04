@@ -3,7 +3,7 @@ API v1 Router - combines all endpoint routers
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import tts, voices, stt, sound_effects, audio_tools, auth, websocket
+from app.api.v1.endpoints import tts, voices, stt, sound_effects, audio_tools, auth, websocket, voice_library
 
 api_router = APIRouter()
 
@@ -32,6 +32,15 @@ api_router.include_router(
     voices.router,
     prefix="/voices",
     tags=["Voices"]
+)
+
+# ==========================================
+# Voice Library (Free Voices)
+# ==========================================
+api_router.include_router(
+    voice_library.router,
+    prefix="/voice-library",
+    tags=["Voice Library"]
 )
 
 # ==========================================
