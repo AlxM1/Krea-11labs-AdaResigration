@@ -29,11 +29,14 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
+        redirect: false,
         callbackUrl,
       });
 
       if (result?.error) {
         toast.error("Invalid credentials");
+      } else if (result?.ok) {
+        window.location.href = callbackUrl;
       }
     } catch {
       toast.error("Something went wrong");
