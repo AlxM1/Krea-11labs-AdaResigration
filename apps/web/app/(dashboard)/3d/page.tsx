@@ -106,19 +106,21 @@ export default function ThreeDPage() {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Input Type Tabs */}
-          <Tabs defaultValue="image" className="w-full">
+          <Tabs
+            value={generationType}
+            onValueChange={(value) => setGenerationType(value as "text" | "image")}
+            className="w-full"
+          >
             <TabsList className="w-full">
               <TabsTrigger
                 value="image"
                 className="flex-1"
-                onClick={() => setGenerationType("image")}
               >
                 Image to 3D
               </TabsTrigger>
               <TabsTrigger
                 value="text"
                 className="flex-1"
-                onClick={() => setGenerationType("text")}
               >
                 Text to 3D
               </TabsTrigger>
