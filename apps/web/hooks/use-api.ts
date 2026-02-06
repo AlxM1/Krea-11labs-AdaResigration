@@ -100,6 +100,7 @@ export interface Generation {
   type: string;
   prompt: string;
   imageUrl: string | null;
+  thumbnailUrl: string | null;
   width: number | null;
   height: number | null;
   model: string;
