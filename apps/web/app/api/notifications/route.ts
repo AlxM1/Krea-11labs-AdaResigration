@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
-// Notification types
-export const NotificationTypes = {
+// Notification types - not exported from route file (Next.js 15 restriction)
+const NotificationTypes = {
   GENERATION_COMPLETE: "generation_complete",
   GENERATION_FAILED: "generation_failed",
   TRAINING_COMPLETE: "training_complete",
