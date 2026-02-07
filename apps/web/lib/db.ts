@@ -1,13 +1,16 @@
 /**
  * Prisma Database Client
- * Configured with connection pooling and proper error handling
+ * Configured with pg driver adapter (no native binaries required)
  */
 
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Prisma } from "@prisma/client";
 
 // Extend the global object type
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  pool: Pool | undefined;
 };
 
 // Configure Prisma logging based on environment
@@ -16,15 +19,25 @@ const logConfig: Prisma.LogLevel[] =
     ? ["query", "error", "warn"]
     : ["error"];
 
-// Create Prisma client with optimized settings
+// Create Prisma client with pg driver adapter
 function createPrismaClient(): PrismaClient {
-  return new PrismaClient({
+  const connectionString = process.env.DATABASE_URL;
+
+  // Create pg Pool (reuse if already exists in global)
+  const pool = globalForPrisma.pool ?? new Pool({ connectionString });
+  globalForPrisma.pool = pool;
+
+  // Create Prisma adapter
+  const adapter = new PrismaPg(pool);
+
+  // Use type assertion for adapter - Prisma 7.x with driver adapters
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new (PrismaClient as any)({
+    adapter,
     log: logConfig.map((level) => ({
       emit: "event" as const,
       level,
     })),
-    // Connection pool settings are configured via DATABASE_URL
-    // Example: postgresql://user:pass@host:5432/db?connection_limit=10&pool_timeout=20
   });
 }
 

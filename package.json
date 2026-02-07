@@ -17,7 +17,7 @@
     "db:studio": "prisma studio"
   },
   "devDependencies": {
-    "typescript": "^5.3.3",
-    "prisma": "^5.10.0"
+    "prisma": "^7.3.0",
+    "typescript": "^5.3.3"
   }
 }
