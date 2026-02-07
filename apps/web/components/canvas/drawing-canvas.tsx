@@ -1,7 +1,11 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from "react";
 import { useCanvasStore } from "@/stores/canvas-store";
+
+export interface DrawingCanvasHandle {
+  clear: () => void;
+}
 
 interface DrawingCanvasProps {
   onCanvasUpdate?: (imageData: ImageData) => void;
@@ -9,12 +13,9 @@ interface DrawingCanvasProps {
   height?: number;
 }
 
-export function DrawingCanvas({
-  onCanvasUpdate,
-  width = 512,
-  height = 512,
-}: DrawingCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
+  function DrawingCanvas({ onCanvasUpdate, width = 512, height = 512 }, ref) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null);
 
@@ -169,12 +170,9 @@ export function DrawingCanvas({
   }, [pushUndo, onCanvasUpdate]);
 
   // Expose clear function via ref
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      (canvas as HTMLCanvasElement & { clear: () => void }).clear = clearCanvas;
-    }
-  }, [clearCanvas]);
+  useImperativeHandle(ref, () => ({
+    clear: clearCanvas,
+  }), [clearCanvas]);
 
   return (
     <canvas
@@ -192,4 +190,4 @@ export function DrawingCanvas({
       onTouchEnd={handleEnd}
     />
   );
-}
+});

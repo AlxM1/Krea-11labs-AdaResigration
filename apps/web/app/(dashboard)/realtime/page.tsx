@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { DrawingCanvas, AICanvas, Toolbar, LayerPanel } from "@/components/canvas";
+import { DrawingCanvas, AICanvas, Toolbar, LayerPanel, type DrawingCanvasHandle } from "@/components/canvas";
 import { useCanvasStore } from "@/stores/canvas-store";
 import { useRealtime } from "@/hooks/use-realtime";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ const realtimeModels = [
 ];
 
 export default function RealtimePage() {
-  const canvasRef = useRef<HTMLCanvasElement & { clear?: () => void }>(null);
+  const canvasRef = useRef<DrawingCanvasHandle>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [inputSource, setInputSource] = useState<"draw" | "webcam" | "screen">("draw");
 
@@ -272,7 +272,7 @@ export default function RealtimePage() {
             <div className="flex flex-col gap-2">
               <p className="text-sm text-muted-foreground text-center">Your Canvas</p>
               <DrawingCanvas
-                ref={canvasRef as React.RefObject<HTMLCanvasElement>}
+                ref={canvasRef}
                 onCanvasUpdate={handleCanvasUpdate}
                 width={512}
                 height={512}
