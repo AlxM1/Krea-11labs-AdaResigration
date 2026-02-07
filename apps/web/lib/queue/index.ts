@@ -206,11 +206,11 @@ export function getQueueEvents(queueName: QueueName): QueueEvents | null {
 export async function closeAll(): Promise<void> {
   const closePromises: Promise<void>[] = [];
 
-  for (const worker of workers.values()) {
+  for (const worker of Array.from(workers.values())) {
     closePromises.push(worker.close());
   }
 
-  for (const queue of queues.values()) {
+  for (const queue of Array.from(queues.values())) {
     closePromises.push(queue.close());
   }
 

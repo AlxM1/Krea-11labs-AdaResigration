@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({
-      projects: projects.map(p => ({
+      projects: projects.map((p: typeof projects[number]) => ({
         ...p,
         itemCount: p._count.generations + p._count.videos,
       })),

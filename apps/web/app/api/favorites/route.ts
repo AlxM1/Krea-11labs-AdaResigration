@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      favorites.push(...generations.map(g => ({
+      favorites.push(...generations.map((g: typeof generations[number]) => ({
         id: g.id,
         type: "generation",
         item: g,
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      favorites.push(...videos.map(v => ({
+      favorites.push(...videos.map((v: typeof videos[number]) => ({
         id: v.id,
         type: "video",
         item: v,
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      favorites.push(...workflows.map(w => ({
+      favorites.push(...workflows.map((w: typeof workflows[number]) => ({
         id: w.id,
         type: "workflow",
         item: w,
@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      favorites.push(...models.map(m => ({
+      favorites.push(...models.map((m: typeof models[number]) => ({
         id: m.id,
         type: "model",
         item: m,
@@ -309,7 +309,7 @@ export async function DELETE(req: NextRequest) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
-          favoriteGenerations: user.favoriteGenerations.filter(id => id !== generationId),
+          favoriteGenerations: user.favoriteGenerations.filter((id: string) => id !== generationId),
         },
       });
     }
@@ -318,7 +318,7 @@ export async function DELETE(req: NextRequest) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
-          favoriteVideos: user.favoriteVideos.filter(id => id !== videoId),
+          favoriteVideos: user.favoriteVideos.filter((id: string) => id !== videoId),
         },
       });
     }
@@ -327,7 +327,7 @@ export async function DELETE(req: NextRequest) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
-          favoriteWorkflows: user.favoriteWorkflows.filter(id => id !== workflowId),
+          favoriteWorkflows: user.favoriteWorkflows.filter((id: string) => id !== workflowId),
         },
       });
     }
@@ -336,7 +336,7 @@ export async function DELETE(req: NextRequest) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
-          favoriteModels: user.favoriteModels.filter(id => id !== modelId),
+          favoriteModels: user.favoriteModels.filter((id: string) => id !== modelId),
         },
       });
     }

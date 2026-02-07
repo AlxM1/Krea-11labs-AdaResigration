@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     // Update all to processing
     await prisma.generation.updateMany({
       where: {
-        id: { in: generations.map(g => g.id) },
+        id: { in: generations.map((g: { id: string }) => g.id) },
       },
       data: { status: "PROCESSING" },
     });
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       batchId,
-      generations: generations.map(g => ({
+      generations: generations.map((g: { id: string; prompt: string }) => ({
         id: g.id,
         prompt: g.prompt,
         status: "processing",
@@ -175,11 +175,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: {
-        parameters: {
-          // @ts-expect-error - Prisma JSON sorting
-          path: ["batchIndex"],
-          sort: "asc",
-        },
+        createdAt: "asc",
       },
       select: {
         id: true,
@@ -201,9 +197,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const completed = generations.filter(g => g.status === "COMPLETED").length;
-    const failed = generations.filter(g => g.status === "FAILED").length;
-    const processing = generations.filter(g => g.status === "PROCESSING" || g.status === "PENDING").length;
+    const completed = generations.filter((g: { status: string }) => g.status === "COMPLETED").length;
+    const failed = generations.filter((g: { status: string }) => g.status === "FAILED").length;
+    const processing = generations.filter((g: { status: string }) => g.status === "PROCESSING" || g.status === "PENDING").length;
 
     return NextResponse.json({
       batchId,

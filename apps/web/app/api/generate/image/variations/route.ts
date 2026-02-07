@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
     // Update all to processing
     await prisma.generation.updateMany({
       where: {
-        id: { in: generations.map(g => g.id) },
+        id: { in: generations.map((g: { id: string }) => g.id) },
       },
       data: { status: "PROCESSING" },
     });
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
         url: sourceImage.url,
         prompt: sourceImage.prompt,
       },
-      variations: generations.map((g, index) => ({
+      variations: generations.map((g: { id: string }, index: number) => ({
         id: g.id,
         index,
         status: "processing",
@@ -232,15 +232,16 @@ export async function GET(req: NextRequest) {
     }
 
     // Sort by variation index
-    const sorted = generations.sort((a, b) => {
+    type GenerationType = typeof generations[number];
+    const sorted = generations.sort((a: GenerationType, b: GenerationType) => {
       const aIndex = (a.parameters as Record<string, number>)?.variationIndex || 0;
       const bIndex = (b.parameters as Record<string, number>)?.variationIndex || 0;
       return aIndex - bIndex;
     });
 
-    const completed = sorted.filter(g => g.status === "COMPLETED").length;
-    const failed = sorted.filter(g => g.status === "FAILED").length;
-    const processing = sorted.filter(g => g.status === "PROCESSING" || g.status === "PENDING").length;
+    const completed = sorted.filter((g: GenerationType) => g.status === "COMPLETED").length;
+    const failed = sorted.filter((g: GenerationType) => g.status === "FAILED").length;
+    const processing = sorted.filter((g: GenerationType) => g.status === "PROCESSING" || g.status === "PENDING").length;
 
     return NextResponse.json({
       variationSetId,
@@ -249,7 +250,7 @@ export async function GET(req: NextRequest) {
       failed,
       processing,
       isComplete: processing === 0,
-      variations: sorted.map((g, index) => ({
+      variations: sorted.map((g: GenerationType, index: number) => ({
         id: g.id,
         index,
         status: g.status.toLowerCase(),

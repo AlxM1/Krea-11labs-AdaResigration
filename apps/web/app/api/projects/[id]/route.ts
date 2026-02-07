@@ -81,8 +81,8 @@ export async function GET(
 
     // Combine and sort items by date
     const allItems = [
-      ...project.generations.map(g => ({ ...g, itemType: "generation" })),
-      ...project.videos.map(v => ({ ...v, itemType: "video" })),
+      ...project.generations.map((g: typeof project.generations[number]) => ({ ...g, itemType: "generation" })),
+      ...project.videos.map((v: typeof project.videos[number]) => ({ ...v, itemType: "video" })),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json({

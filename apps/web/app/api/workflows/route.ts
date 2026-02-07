@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Add node count manually from JSON
-    const workflowsWithCounts = workflows.map(w => ({
+    const workflowsWithCounts = workflows.map((w: typeof workflows[number]) => ({
       ...w,
       nodeCount: 0, // Would parse from nodes JSON in real implementation
     }));

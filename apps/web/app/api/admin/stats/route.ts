@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
       prisma.usageLog.groupBy({
         by: ["userId"],
         where: dateFilter ? { createdAt: dateFilter } : undefined,
-      }).then(r => r.length),
+      }).then((r: unknown[]) => r.length),
 
       // Total generations
       prisma.generation.count(),
@@ -152,7 +152,7 @@ export async function GET(req: NextRequest) {
       },
       usage: {
         creditsUsed: usageStats._sum.creditsUsed || 0,
-        topModels: topModels.map(m => ({
+        topModels: topModels.map((m: { model: string; _count: number }) => ({
           model: m.model,
           count: m._count,
         })),

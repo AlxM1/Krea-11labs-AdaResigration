@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
       // For now, we'll skip this
     }
 
-    const items = generations.map(g => ({
+    const items = generations.map((g: typeof generations[number]) => ({
       ...g,
       isLiked: likedIds.has(g.id),
     }));

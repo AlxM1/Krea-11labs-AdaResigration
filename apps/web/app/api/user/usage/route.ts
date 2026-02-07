@@ -80,7 +80,8 @@ export async function GET() {
       ENTERPRISE: { daily: -1, monthly: -1, images: -1, videos: -1 },
     };
 
-    const limits = tierLimits[user.subscriptionTier] || tierLimits.FREE;
+    const tier = user.subscriptionTier as keyof typeof tierLimits;
+    const limits = tierLimits[tier] || tierLimits.FREE;
 
     return NextResponse.json({
       credits: {
@@ -90,15 +91,15 @@ export async function GET() {
       tier: user.subscriptionTier,
       limits,
       usage: {
-        today: todayUsage.reduce((acc, u) => ({
+        today: todayUsage.reduce((acc: Record<string, number>, u: typeof todayUsage[number]) => ({
           ...acc,
           [u.actionType]: u._sum.creditsUsed || 0,
         }), {}),
-        month: monthUsage.reduce((acc, u) => ({
+        month: monthUsage.reduce((acc: Record<string, number>, u: typeof monthUsage[number]) => ({
           ...acc,
           [u.actionType]: u._sum.creditsUsed || 0,
         }), {}),
-        generations: generationCounts.reduce((acc, g) => ({
+        generations: generationCounts.reduce((acc: Record<string, number>, g: typeof generationCounts[number]) => ({
           ...acc,
           [g.type]: g._count,
         }), {}),

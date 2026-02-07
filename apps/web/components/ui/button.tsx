@@ -5,7 +5,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive" | "gradient";
+  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive" | "gradient" | "link";
   size?: "sm" | "md" | "lg" | "icon";
   isLoading?: boolean;
   asChild?: boolean;
@@ -20,6 +20,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ghost: "hover:bg-accent hover:text-accent-foreground",
       destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
       gradient: "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700",
+      link: "text-primary underline-offset-4 hover:underline",
     };
 
     const sizes = {

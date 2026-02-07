@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      results.push(...generations.map(g => ({
+      results.push(...generations.map((g: typeof generations[number]) => ({
         id: g.id,
         type: "generation" as const,
         title: g.prompt.slice(0, 100),
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      results.push(...videos.map(v => ({
+      results.push(...videos.map((v: typeof videos[number]) => ({
         id: v.id,
         type: "video" as const,
         title: v.prompt?.slice(0, 100) || "Video",
@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      results.push(...workflows.map(w => ({
+      results.push(...workflows.map((w: typeof workflows[number]) => ({
         id: w.id,
         type: "workflow" as const,
         title: w.name,
@@ -172,7 +172,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      results.push(...models.map(m => ({
+      results.push(...models.map((m: typeof models[number]) => ({
         id: m.id,
         type: "model" as const,
         title: m.name,
@@ -210,7 +210,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      results.push(...projects.map(p => ({
+      results.push(...projects.map((p: typeof projects[number]) => ({
         id: p.id,
         type: "project" as const,
         title: p.name,

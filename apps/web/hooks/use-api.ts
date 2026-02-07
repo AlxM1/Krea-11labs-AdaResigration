@@ -14,14 +14,14 @@ async function fetcher<T>(url: string): Promise<T> {
 // POST/PATCH/DELETE fetcher
 async function mutationFetcher<T>(
   url: string,
-  { arg }: { arg: { method?: string; body?: unknown } }
+  options: { method?: string; body?: unknown }
 ): Promise<T> {
   const res = await fetch(url, {
-    method: arg.method || "POST",
+    method: options.method || "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: arg.body ? JSON.stringify(arg.body) : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   if (!res.ok) {

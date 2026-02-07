@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      items.push(...generations.map(g => ({
+      items.push(...generations.map((g: typeof generations[number]) => ({
         ...g,
         itemType: "generation" as const,
       })));
@@ -157,7 +157,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      items.push(...videos.map(v => ({
+      items.push(...videos.map((v: typeof videos[number]) => ({
         ...v,
         itemType: "video" as const,
       })));

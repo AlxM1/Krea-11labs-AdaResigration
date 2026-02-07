@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     const total = await prisma.trainedModel.count({ where });
 
     return NextResponse.json({
-      models: models.map(m => ({
+      models: models.map((m: typeof models[number]) => ({
         ...m,
         isOwner: m.userId === session.user.id,
       })),

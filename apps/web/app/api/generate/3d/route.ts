@@ -130,8 +130,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Simulated 3D generation function result type
+type Generate3DResult =
+  | { status: "completed"; previewUrl: string; modelUrl: string; textureUrl: string; error?: never }
+  | { status: "failed"; error: string; previewUrl?: never; modelUrl?: never; textureUrl?: never };
+
 // Simulated 3D generation function
-async function generate3DModel(params: z.infer<typeof generate3DSchema>) {
+async function generate3DModel(params: z.infer<typeof generate3DSchema>): Promise<Generate3DResult> {
   // In production, call fal.ai or other 3D generation APIs
   // Example: TripoSR, Meshy, or Rodin
 
@@ -140,7 +145,7 @@ async function generate3DModel(params: z.infer<typeof generate3DSchema>) {
 
   // Return mock result for now
   return {
-    status: "completed" as const,
+    status: "completed",
     previewUrl: `https://storage.krya.ai/3d/preview-${Date.now()}.png`,
     modelUrl: `https://storage.krya.ai/3d/model-${Date.now()}.${params.format}`,
     textureUrl: `https://storage.krya.ai/3d/texture-${Date.now()}.png`,

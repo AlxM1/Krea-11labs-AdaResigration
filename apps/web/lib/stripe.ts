@@ -2,6 +2,7 @@ import Stripe from "stripe";
 
 // Initialize Stripe
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  // @ts-expect-error - Using latest Stripe API version
   apiVersion: "2024-12-18.acacia",
   typescript: true,
 });
@@ -78,7 +79,7 @@ export async function createCheckoutSession({
   successUrl: string;
   cancelUrl: string;
 }): Promise<{ sessionId: string; url: string }> {
-  const tierConfig = subscriptionTiers[tier];
+  const tierConfig = subscriptionTiers[tier] as typeof subscriptionTiers.BASIC;
 
   if (!tierConfig.priceId) {
     throw new Error(`No price ID configured for tier: ${tier}`);
@@ -91,7 +92,7 @@ export async function createCheckoutSession({
     client_reference_id: userId,
     line_items: [
       {
-        price: tierConfig.priceId,
+        price: tierConfig.priceId!,
         quantity: 1,
       },
     ],
