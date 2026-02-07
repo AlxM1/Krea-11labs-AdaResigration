@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,13 +13,9 @@ import {
   Menu,
   X,
   ChevronDown,
-  LogOut,
   Settings,
-  User,
   Zap,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 const generateLinks = [
@@ -41,17 +36,15 @@ const toolLinks = [
 ];
 
 export function Header() {
-  const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-pink-600">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
@@ -155,94 +148,16 @@ export function Header() {
           >
             Gallery
           </Link>
-
-          <Link
-            href="/pricing"
-            className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-muted transition-colors"
-          >
-            Pricing
-          </Link>
         </nav>
 
         {/* Right Side */}
         <div className="flex items-center gap-3">
-          {status === "loading" ? (
-            <div className="h-10 w-24 animate-pulse rounded-lg bg-muted" />
-          ) : session ? (
-            <div
-              className="relative"
-              onMouseEnter={() => setProfileOpen(true)}
-              onMouseLeave={() => setProfileOpen(false)}
-            >
-              <button className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-muted transition-colors">
-                <Avatar src={session.user.image} alt={session.user.name || "User"} size="sm" />
-                <ChevronDown className={cn("h-4 w-4 transition-transform", profileOpen && "rotate-180")} />
-              </button>
-
-              <AnimatePresence>
-                {profileOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute right-0 top-full pt-2"
-                  >
-                    <div className="w-56 rounded-xl border border-border bg-card p-2 shadow-xl">
-                      <div className="px-3 py-2 border-b border-border mb-2">
-                        <div className="font-medium truncate">{session.user.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">{session.user.email}</div>
-                      </div>
-
-                      <Link
-                        href="/dashboard"
-                        className="flex items-center gap-2 rounded-lg p-2 hover:bg-muted transition-colors"
-                      >
-                        <Wand2 className="h-4 w-4" />
-                        Dashboard
-                      </Link>
-
-                      <Link
-                        href="/profile"
-                        className="flex items-center gap-2 rounded-lg p-2 hover:bg-muted transition-colors"
-                      >
-                        <User className="h-4 w-4" />
-                        Profile
-                      </Link>
-
-                      <Link
-                        href="/settings"
-                        className="flex items-center gap-2 rounded-lg p-2 hover:bg-muted transition-colors"
-                      >
-                        <Settings className="h-4 w-4" />
-                        Settings
-                      </Link>
-
-                      <button
-                        onClick={() => signOut()}
-                        className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-muted transition-colors text-destructive"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Sign out
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <>
-              <Link href="/login">
-                <Button variant="ghost" size="sm">
-                  Sign in
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button variant="gradient" size="sm">
-                  Get Started
-                </Button>
-              </Link>
-            </>
-          )}
+          <Link
+            href="/settings"
+            className="hidden md:flex items-center gap-2 rounded-lg p-2 hover:bg-muted transition-colors"
+          >
+            <Settings className="h-5 w-5" />
+          </Link>
 
           {/* Mobile Menu Button */}
           <button
@@ -302,11 +217,11 @@ export function Header() {
                   Gallery
                 </Link>
                 <Link
-                  href="/pricing"
+                  href="/settings"
                   className="block rounded-lg p-2 hover:bg-muted"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Pricing
+                  Settings
                 </Link>
               </div>
             </nav>

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+
+// Default user ID for personal use (no auth required)
+const PERSONAL_USER_ID = "personal-user";
 
 const variationsSchema = z.object({
   generationId: z.string().optional(),
@@ -21,12 +23,6 @@ const variationsSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await req.json();
     const validated = variationsSchema.safeParse(body);
 
@@ -46,7 +42,7 @@ export async function POST(req: NextRequest) {
       const generation = await prisma.generation.findFirst({
         where: {
           id: params.generationId,
-          userId: session.user.id,
+          userId: PERSONAL_USER_ID,
         },
         select: {
           imageUrl: true,
@@ -80,23 +76,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check user credits
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { creditsRemaining: true },
-    });
-
-    if (!user || user.creditsRemaining < params.count) {
-      return NextResponse.json(
-        {
-          error: "Insufficient credits",
-          creditsRequired: params.count,
-          creditsRemaining: user?.creditsRemaining || 0
-        },
-        { status: 402 }
-      );
-    }
-
     // Create variation set ID
     const variationSetId = `var_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -110,7 +89,7 @@ export async function POST(req: NextRequest) {
       Array.from({ length: params.count }).map((_, index) =>
         prisma.generation.create({
           data: {
-            userId: session.user.id,
+            userId: PERSONAL_USER_ID,
             type: "IMAGE_TO_IMAGE",
             prompt: effectivePrompt,
             model: params.model,
@@ -140,27 +119,6 @@ export async function POST(req: NextRequest) {
       data: { status: "PROCESSING" },
     });
 
-    // Deduct credits
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { creditsRemaining: { decrement: params.count } },
-    });
-
-    // Log usage
-    await prisma.usageLog.create({
-      data: {
-        userId: session.user.id,
-        actionType: "IMAGE_VARIATIONS",
-        creditsUsed: params.count,
-        metadata: {
-          variationSetId,
-          count: params.count,
-          strength: params.strength,
-          sourceGenerationId: params.generationId,
-        },
-      },
-    });
-
     return NextResponse.json({
       variationSetId,
       sourceImage: {
@@ -172,7 +130,7 @@ export async function POST(req: NextRequest) {
         index,
         status: "processing",
       })),
-      totalCredits: params.count,
+      totalCount: params.count,
       estimatedTime: params.steps <= 4 ? 5 : 15,
     });
   } catch (error) {
@@ -187,12 +145,6 @@ export async function POST(req: NextRequest) {
 // Get variation set status
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const variationSetId = searchParams.get("variationSetId");
 
@@ -205,7 +157,7 @@ export async function GET(req: NextRequest) {
 
     const generations = await prisma.generation.findMany({
       where: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         parameters: {
           path: ["variationSetId"],
           equals: variationSetId,

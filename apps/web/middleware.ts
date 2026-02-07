@@ -1,41 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
 
-// Routes that require authentication
-const protectedRoutes = [
-  "/dashboard",
-  "/image",
-  "/video",
-  "/realtime",
-  "/enhancer",
-  "/editor",
-  "/3d",
-  "/train",
-  "/lipsync",
-  "/motion-transfer",
-  "/video-restyle",
-  "/settings",
-  "/profile",
-  "/history",
-  "/favorites",
-  "/projects",
-  "/nodes",
-  "/feed",
-];
-
-// API routes that require authentication
-const protectedApiRoutes = [
-  "/api/generate",
-  "/api/enhance",
-  "/api/train",
-  "/api/workflows",
-  "/api/user",
-  "/api/upload",
-];
-
-// Public routes that don't require authentication
-const publicRoutes = ["/", "/login", "/register", "/pricing", "/api/auth"];
+// For personal use: All routes are public, no authentication required
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -49,36 +15,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check if this is a protected page route
-  const isProtectedPage = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-
-  // Check if this is a protected API route
-  const isProtectedApi = protectedApiRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-
-  // Get the user's session token
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET,
-  });
-
-  // Handle protected page routes
-  if (isProtectedPage && !token) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Handle protected API routes
-  if (isProtectedApi && !token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Redirect logged-in users away from auth pages
-  if (token && (pathname === "/login" || pathname === "/register")) {
+  // Redirect login/register/pricing pages to dashboard (not needed for personal use)
+  if (pathname === "/login" || pathname === "/register" || pathname === "/pricing") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -107,13 +45,13 @@ export async function middleware(request: NextRequest) {
   // Content Security Policy
   const cspDirectives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Next.js dev
-    "style-src 'self' 'unsafe-inline'", // unsafe-inline needed for Tailwind
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.fal.media https://*.replicate.delivery https://*.dicebear.com https://*.blob.core.windows.net",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.fal.ai https://*.replicate.com https://api.stripe.com wss://*",
+    "connect-src 'self' https://*.fal.ai https://*.replicate.com wss://*",
     "media-src 'self' blob: https://*.fal.media https://*.replicate.delivery",
-    "frame-src 'self' https://js.stripe.com",
+    "frame-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -130,24 +68,10 @@ export async function middleware(request: NextRequest) {
 
   // Add CORS headers for API routes
   if (pathname.startsWith("/api")) {
-    // Secure CORS: Only allow configured origins
-    const allowedOrigins = isProduction
-      ? [process.env.NEXT_PUBLIC_APP_URL, process.env.NEXTAUTH_URL].filter(Boolean) as string[]
-      : [
-          process.env.NEXT_PUBLIC_APP_URL,
-          process.env.NEXTAUTH_URL,
-          "http://localhost:3000",
-          "http://localhost:3001",
-        ].filter(Boolean) as string[];
-
     const origin = request.headers.get("origin");
-    if (origin && allowedOrigins.includes(origin)) {
-      response.headers.set("Access-Control-Allow-Origin", origin);
-    } else if (!isProduction && origin) {
-      // Only allow any origin in development mode
+    if (origin) {
       response.headers.set("Access-Control-Allow-Origin", origin);
     }
-    // In production with no matching origin, don't set the header (blocks CORS)
 
     response.headers.set(
       "Access-Control-Allow-Methods",

@@ -108,22 +108,6 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         <NavSection title="Generate" items={generateNav} />
         <NavSection title="Tools" items={toolsNav} />
       </div>
-
-      {/* Credits Display */}
-      {!collapsed && (
-        <div className="p-4 border-t border-border">
-          <div className="rounded-lg bg-gradient-to-br from-purple-600/20 to-pink-600/20 p-3">
-            <div className="text-xs text-muted-foreground mb-1">Credits</div>
-            <div className="text-lg font-bold">50 / 50</div>
-            <Link
-              href="/pricing"
-              className="text-xs text-primary hover:underline"
-            >
-              Upgrade for more
-            </Link>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }

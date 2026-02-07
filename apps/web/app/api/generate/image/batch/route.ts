@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getAIProvider } from "@/lib/ai/providers";
 import { z } from "zod";
+
+// Default user ID for personal use (no auth required)
+const PERSONAL_USER_ID = "personal-user";
 
 const batchGenerateSchema = z.object({
   prompts: z.array(z.object({
@@ -19,12 +20,6 @@ const batchGenerateSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await req.json();
     const validated = batchGenerateSchema.safeParse(body);
 
@@ -38,36 +33,6 @@ export async function POST(req: NextRequest) {
     const params = validated.data;
     const batchSize = params.prompts.length;
 
-    // Check user credits
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { creditsRemaining: true, subscriptionTier: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Check tier allows batch generation
-    const allowedTiers = ["PRO", "MAX", "TEAM", "ENTERPRISE"];
-    if (!allowedTiers.includes(user.subscriptionTier)) {
-      return NextResponse.json(
-        { error: "Batch generation requires PRO subscription or higher" },
-        { status: 403 }
-      );
-    }
-
-    if (user.creditsRemaining < batchSize) {
-      return NextResponse.json(
-        {
-          error: "Insufficient credits",
-          creditsRequired: batchSize,
-          creditsRemaining: user.creditsRemaining
-        },
-        { status: 402 }
-      );
-    }
-
     // Create batch job record
     const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -76,7 +41,7 @@ export async function POST(req: NextRequest) {
       params.prompts.map((p, index) =>
         prisma.generation.create({
           data: {
-            userId: session.user.id,
+            userId: PERSONAL_USER_ID,
             type: "TEXT_TO_IMAGE",
             prompt: p.prompt,
             negativePrompt: p.negativePrompt,
@@ -107,26 +72,6 @@ export async function POST(req: NextRequest) {
       data: { status: "PROCESSING" },
     });
 
-    // Reserve credits
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { creditsRemaining: { decrement: batchSize } },
-    });
-
-    // Log usage
-    await prisma.usageLog.create({
-      data: {
-        userId: session.user.id,
-        actionType: "BATCH_GENERATION",
-        creditsUsed: batchSize,
-        metadata: {
-          batchId,
-          count: batchSize,
-          model: params.model,
-        },
-      },
-    });
-
     return NextResponse.json({
       batchId,
       generations: generations.map((g: { id: string; prompt: string }) => ({
@@ -134,7 +79,7 @@ export async function POST(req: NextRequest) {
         prompt: g.prompt,
         status: "processing",
       })),
-      totalCredits: batchSize,
+      totalCount: batchSize,
       estimatedTime: params.steps <= 4 ? 3 * batchSize : 10 * batchSize,
     });
   } catch (error) {
@@ -149,12 +94,6 @@ export async function POST(req: NextRequest) {
 // Get batch status
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const batchId = searchParams.get("batchId");
 
@@ -168,7 +107,7 @@ export async function GET(req: NextRequest) {
     // Get all generations in batch
     const generations = await prisma.generation.findMany({
       where: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         parameters: {
           path: ["batchId"],
           equals: batchId,

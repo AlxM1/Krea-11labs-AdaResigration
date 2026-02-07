@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+
+// Default user ID for personal use (no auth required)
+const PERSONAL_USER_ID = "personal-user";
 
 const generate3DSchema = z.object({
   imageUrl: z.string().url(),
@@ -13,12 +15,6 @@ const generate3DSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await req.json();
     const validated = generate3DSchema.safeParse(body);
 
@@ -31,28 +27,10 @@ export async function POST(req: NextRequest) {
 
     const params = validated.data;
 
-    // Check user credits
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { creditsRemaining: true, subscriptionTier: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const creditsNeeded = params.quality === "high" ? 10 : params.quality === "standard" ? 5 : 2;
-    if (user.creditsRemaining < creditsNeeded) {
-      return NextResponse.json(
-        { error: "Insufficient credits", creditsRequired: creditsNeeded, creditsRemaining: user.creditsRemaining },
-        { status: 402 }
-      );
-    }
-
     // Create generation record
     const generation = await prisma.generation.create({
       data: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         type: "3D",
         prompt: `3D model from image`,
         model: params.model,
@@ -96,24 +74,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Deduct credits
-    if (result.status === "completed") {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: { creditsRemaining: { decrement: creditsNeeded } },
-      });
-
-      // Log usage
-      await prisma.usageLog.create({
-        data: {
-          userId: session.user.id,
-          actionType: "3D_GENERATION",
-          creditsUsed: creditsNeeded,
-          metadata: { model: params.model, quality: params.quality },
-        },
-      });
-    }
-
     return NextResponse.json({
       id: generation.id,
       status: result.status,
@@ -154,19 +114,13 @@ async function generate3DModel(params: z.infer<typeof generate3DSchema>): Promis
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     const generations = await prisma.generation.findMany({
       where: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         type: "3D",
       },
       orderBy: { createdAt: "desc" },
@@ -176,7 +130,7 @@ export async function GET(req: NextRequest) {
 
     const total = await prisma.generation.count({
       where: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         type: "3D",
       },
     });

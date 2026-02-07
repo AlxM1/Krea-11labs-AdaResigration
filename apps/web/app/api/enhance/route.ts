@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { upscaleImage, enhanceFaces, removeBackground } from "@/lib/ai/enhance";
+import { upscaleImage, enhanceFaces } from "@/lib/ai/enhance";
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { z } from "zod";
+
+// Default user ID for personal use (no auth required)
+const PERSONAL_USER_ID = "personal-user";
 
 const enhanceSchema = z.object({
   imageUrl: z.string().url(),
@@ -15,12 +17,6 @@ const enhanceSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await req.json();
     const validated = enhanceSchema.safeParse(body);
 
@@ -33,23 +29,10 @@ export async function POST(req: NextRequest) {
 
     const params = validated.data;
 
-    // Check user credits
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { creditsRemaining: true },
-    });
-
-    if (!user || user.creditsRemaining < 1) {
-      return NextResponse.json(
-        { error: "Insufficient credits" },
-        { status: 402 }
-      );
-    }
-
     // Create generation record
     const generation = await prisma.generation.create({
       data: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         type: "UPSCALE",
         prompt: `Upscale ${params.scale}x with ${params.model}`,
         model: params.model,
@@ -94,7 +77,7 @@ export async function POST(req: NextRequest) {
     let finalUrl = result.imageUrl;
     if (result.imageUrl) {
       try {
-        const uploaded = await uploadFromUrl(result.imageUrl, session.user.id);
+        const uploaded = await uploadFromUrl(result.imageUrl, PERSONAL_USER_ID);
         finalUrl = uploaded.url;
       } catch {
         // Use original URL if upload fails
@@ -111,12 +94,6 @@ export async function POST(req: NextRequest) {
         width: result.enhancedSize?.width,
         height: result.enhancedSize?.height,
       },
-    });
-
-    // Deduct credits
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { creditsRemaining: { decrement: 1 } },
     });
 
     return NextResponse.json({

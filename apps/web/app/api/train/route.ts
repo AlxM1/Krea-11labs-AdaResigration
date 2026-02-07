@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+
+// Default user ID for personal use (no auth required)
+const PERSONAL_USER_ID = "personal-user";
 
 const createTrainingSchema = z.object({
   name: z.string().min(1).max(100),
@@ -18,12 +20,6 @@ const createTrainingSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await req.json();
     const validated = createTrainingSchema.safeParse(body);
 
@@ -36,37 +32,10 @@ export async function POST(req: NextRequest) {
 
     const params = validated.data;
 
-    // Check user subscription - training requires PRO or higher
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { creditsRemaining: true, subscriptionTier: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const allowedTiers = ["PRO", "MAX", "TEAM", "ENTERPRISE"];
-    if (!allowedTiers.includes(user.subscriptionTier)) {
-      return NextResponse.json(
-        { error: "Training requires PRO subscription or higher" },
-        { status: 403 }
-      );
-    }
-
-    // Calculate credits needed based on training config
-    const creditsNeeded = Math.ceil(params.trainingSteps / 100) * params.images.length;
-    if (user.creditsRemaining < creditsNeeded) {
-      return NextResponse.json(
-        { error: "Insufficient credits", creditsRequired: creditsNeeded, creditsRemaining: user.creditsRemaining },
-        { status: 402 }
-      );
-    }
-
     // Create trained model record
     const trainedModel = await prisma.trainedModel.create({
       data: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         name: params.name,
         type: params.type,
         baseModel: params.baseModel,
@@ -99,26 +68,6 @@ export async function POST(req: NextRequest) {
           ...(trainedModel.trainingConfig as object),
           jobId: trainingJob.jobId,
           startedAt: new Date().toISOString(),
-        },
-      },
-    });
-
-    // Reserve credits
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { creditsRemaining: { decrement: creditsNeeded } },
-    });
-
-    // Log usage
-    await prisma.usageLog.create({
-      data: {
-        userId: session.user.id,
-        actionType: "MODEL_TRAINING",
-        creditsUsed: creditsNeeded,
-        metadata: {
-          modelId: trainedModel.id,
-          type: params.type,
-          steps: params.trainingSteps,
         },
       },
     });
@@ -164,18 +113,12 @@ function estimateTrainingTime(steps: number, imageCount: number): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
     const status = searchParams.get("status");
 
-    const where: Record<string, unknown> = { userId: session.user.id };
+    const where: Record<string, unknown> = { userId: PERSONAL_USER_ID };
     if (status) {
       where.status = status.toUpperCase();
     }

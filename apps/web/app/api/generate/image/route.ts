@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateImage, AIProvider, enhancePrompt, generateNegativePrompt } from "@/lib/ai/providers";
 import { uploadFromUrl } from "@/lib/storage/upload";
-import { rateLimit, rateLimitConfigs, rateLimitResponse, getClientIdentifier } from "@/lib/rate-limit";
 import { z } from "zod";
+
+// Default user ID for personal use (no auth required)
+const PERSONAL_USER_ID = "personal-user";
 
 const generateSchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -25,19 +26,6 @@ const generateSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Apply rate limiting
-    const identifier = getClientIdentifier(req, session.user.id);
-    const rateLimitResult = await rateLimit(identifier, rateLimitConfigs.generation);
-    if (!rateLimitResult.success) {
-      return rateLimitResponse(rateLimitResult);
-    }
-
     const body = await req.json();
     const validated = generateSchema.safeParse(body);
 
@@ -49,24 +37,6 @@ export async function POST(req: NextRequest) {
     }
 
     const params = validated.data;
-
-    // Check user credits
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { creditsRemaining: true, subscriptionTier: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const creditsNeeded = params.batchSize;
-    if (user.creditsRemaining < creditsNeeded) {
-      return NextResponse.json(
-        { error: "Insufficient credits", creditsRemaining: user.creditsRemaining },
-        { status: 402 }
-      );
-    }
 
     // Apply prompt enhancement if requested (using local Ollama)
     let finalPrompt = params.prompt;
@@ -94,7 +64,7 @@ export async function POST(req: NextRequest) {
     // Create generation record
     const generation = await prisma.generation.create({
       data: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         type: "TEXT_TO_IMAGE",
         prompt: finalPrompt,
         negativePrompt: finalNegativePrompt,
@@ -150,7 +120,7 @@ export async function POST(req: NextRequest) {
     // Upload generated image to storage (optional - can also use provider URL directly)
     let finalImageUrl = aiResponse.imageUrl;
     try {
-      const uploadResult = await uploadFromUrl(aiResponse.imageUrl, session.user.id);
+      const uploadResult = await uploadFromUrl(aiResponse.imageUrl, PERSONAL_USER_ID);
       finalImageUrl = uploadResult.url;
     } catch (uploadError) {
       // If upload fails, use the original URL
@@ -163,28 +133,8 @@ export async function POST(req: NextRequest) {
       data: {
         status: "COMPLETED",
         imageUrl: finalImageUrl,
-        thumbnailUrl: finalImageUrl, // Could generate a thumbnail separately
+        thumbnailUrl: finalImageUrl,
         seed: aiResponse.seed ? BigInt(aiResponse.seed) : null,
-      },
-    });
-
-    // Deduct credits
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { creditsRemaining: { decrement: creditsNeeded } },
-    });
-
-    // Log usage
-    await prisma.usageLog.create({
-      data: {
-        userId: session.user.id,
-        actionType: "IMAGE_GENERATION",
-        creditsUsed: creditsNeeded,
-        metadata: {
-          generationId: generation.id,
-          model: params.model,
-          steps: params.steps,
-        },
       },
     });
 
@@ -193,7 +143,6 @@ export async function POST(req: NextRequest) {
       status: "completed",
       imageUrl: finalImageUrl,
       seed: aiResponse.seed,
-      creditsUsed: creditsNeeded,
       provider: provider,
       prompt: finalPrompt,
       enhancedPrompt: params.enhancePrompt && finalPrompt !== params.prompt,
@@ -209,18 +158,12 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     const generations = await prisma.generation.findMany({
-      where: { userId: session.user.id },
+      where: { userId: PERSONAL_USER_ID },
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
@@ -239,7 +182,7 @@ export async function GET(req: NextRequest) {
     });
 
     const total = await prisma.generation.count({
-      where: { userId: session.user.id },
+      where: { userId: PERSONAL_USER_ID },
     });
 
     return NextResponse.json({

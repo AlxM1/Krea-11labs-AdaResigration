@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateVideo, AIProvider } from "@/lib/ai/providers";
-import { uploadFromUrl } from "@/lib/storage/upload";
 import { z } from "zod";
+
+// Default user ID for personal use (no auth required)
+const PERSONAL_USER_ID = "personal-user";
 
 const videoGenerateSchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -17,12 +18,6 @@ const videoGenerateSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await req.json();
     const validated = videoGenerateSchema.safeParse(body);
 
@@ -35,31 +30,13 @@ export async function POST(req: NextRequest) {
 
     const params = validated.data;
 
-    // Check user credits
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { creditsRemaining: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const creditsNeeded = params.duration; // 1 credit per second
-    if (user.creditsRemaining < creditsNeeded) {
-      return NextResponse.json(
-        { error: "Insufficient credits", creditsRemaining: user.creditsRemaining },
-        { status: 402 }
-      );
-    }
-
     // Determine provider (defaults to fal, use google for Veo 3.1)
     const provider: AIProvider = params.provider || "fal";
 
     // Create video record
     const video = await prisma.video.create({
       data: {
-        userId: session.user.id,
+        userId: PERSONAL_USER_ID,
         type: params.imageUrl ? "IMAGE_TO_VIDEO" : "TEXT_TO_VIDEO",
         prompt: params.prompt,
         model: params.model,
@@ -97,12 +74,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Upload to storage if we have a result
-    let videoUrl = result.videoUrl;
-    if (result.videoUrl) {
-      // In production, copy to our storage
-      // const uploaded = await uploadFromUrl(result.videoUrl, session.user.id);
-      // videoUrl = uploaded.url;
-    }
+    const videoUrl = result.videoUrl;
 
     // Update video record
     await prisma.video.update({
@@ -112,14 +84,6 @@ export async function POST(req: NextRequest) {
         videoUrl,
       },
     });
-
-    // Deduct credits
-    if (result.status === "completed") {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: { creditsRemaining: { decrement: creditsNeeded } },
-      });
-    }
 
     return NextResponse.json({
       id: video.id,
@@ -138,25 +102,19 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     const videos = await prisma.video.findMany({
-      where: { userId: session.user.id },
+      where: { userId: PERSONAL_USER_ID },
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
     });
 
     const total = await prisma.video.count({
-      where: { userId: session.user.id },
+      where: { userId: PERSONAL_USER_ID },
     });
 
     return NextResponse.json({ videos, total, limit, offset });
