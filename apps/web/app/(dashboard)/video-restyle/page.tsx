@@ -109,26 +109,27 @@ export default function VideoRestylePage() {
           </div>
 
           {/* Style Source */}
-          <Tabs defaultValue="preset" className="w-full">
+          <Tabs
+            value={styleType}
+            onValueChange={(value) => setStyleType(value as "preset" | "reference" | "prompt")}
+            className="w-full"
+          >
             <TabsList className="w-full">
               <TabsTrigger
                 value="preset"
                 className="flex-1"
-                onClick={() => setStyleType("preset")}
               >
                 Presets
               </TabsTrigger>
               <TabsTrigger
                 value="reference"
                 className="flex-1"
-                onClick={() => setStyleType("reference")}
               >
                 Reference
               </TabsTrigger>
               <TabsTrigger
                 value="prompt"
                 className="flex-1"
-                onClick={() => setStyleType("prompt")}
               >
                 Prompt
               </TabsTrigger>

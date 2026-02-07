@@ -70,12 +70,15 @@ export default function MotionTransferPage() {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Motion Source Type */}
-          <Tabs defaultValue="video" className="w-full">
+          <Tabs
+            value={motionSource}
+            onValueChange={(value) => setMotionSource(value as "video" | "webcam")}
+            className="w-full"
+          >
             <TabsList className="w-full">
               <TabsTrigger
                 value="video"
                 className="flex-1"
-                onClick={() => setMotionSource("video")}
               >
                 <Video className="h-4 w-4 mr-1" />
                 Video
@@ -83,7 +86,6 @@ export default function MotionTransferPage() {
               <TabsTrigger
                 value="webcam"
                 className="flex-1"
-                onClick={() => setMotionSource("webcam")}
               >
                 <Camera className="h-4 w-4 mr-1" />
                 Webcam

@@ -73,12 +73,16 @@ export default function VideoGenerationPage() {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Generation Type Tabs */}
-          <Tabs defaultValue="text" className="w-full">
+          <Tabs
+            value={generationType}
+            onValueChange={(value) => setGenerationType(value as "text" | "image")}
+            className="w-full"
+          >
             <TabsList className="w-full">
-              <TabsTrigger value="text" className="flex-1" onClick={() => setGenerationType("text")}>
+              <TabsTrigger value="text" className="flex-1">
                 Text to Video
               </TabsTrigger>
-              <TabsTrigger value="image" className="flex-1" onClick={() => setGenerationType("image")}>
+              <TabsTrigger value="image" className="flex-1">
                 Image to Video
               </TabsTrigger>
             </TabsList>
