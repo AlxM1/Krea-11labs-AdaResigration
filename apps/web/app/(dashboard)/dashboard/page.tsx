@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser, useGenerations, useUsage } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueueStatusPanel } from "@/components/queue-status-panel";
 import { formatDistanceToNow } from "date-fns";
 
 const quickActions = [
@@ -221,61 +222,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Getting Started */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5" />
-              Getting Started
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4 p-3 rounded-lg bg-muted/50">
-                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
-                  1
-                </div>
-                <div>
-                  <p className="font-medium">Try Real-time Canvas</p>
-                  <p className="text-sm text-muted-foreground">
-                    Draw and see AI transform your art instantly
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4 p-3 rounded-lg bg-muted/50">
-                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
-                  2
-                </div>
-                <div>
-                  <p className="font-medium">Generate Your First Image</p>
-                  <p className="text-sm text-muted-foreground">
-                    Describe what you want and let AI create it
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4 p-3 rounded-lg bg-muted/50">
-                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
-                  3
-                </div>
-                <div>
-                  <p className="font-medium">Explore AI Models</p>
-                  <p className="text-sm text-muted-foreground">
-                    Choose from 64+ models for different styles
-                  </p>
-                </div>
-              </div>
-
-              <Link href="/realtime">
-                <Button variant="gradient" className="w-full gap-2 mt-4">
-                  <Zap className="h-4 w-4" />
-                  Start with Real-time Canvas
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Queue Status */}
+        <QueueStatusPanel />
       </div>
     </div>
   );
