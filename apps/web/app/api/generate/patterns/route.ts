@@ -88,6 +88,9 @@ export async function POST(req: NextRequest) {
     // Cast result to GenerationResponse since this is image generation
     const genResult = result.result as import('@/lib/ai/providers').GenerationResponse
 
+    // Get the successful provider from attempts
+    const successfulAttempt = result.attempts.find(a => a.success)
+
     // Update generation record with result
     await prisma.generation.update({
       where: { id: generation.id },
@@ -96,7 +99,7 @@ export async function POST(req: NextRequest) {
         imageUrl: genResult.imageUrl,
         images: genResult.images || (genResult.imageUrl ? [genResult.imageUrl] : []),
         seed: genResult.seed,
-        provider: result.provider,
+        provider: successfulAttempt?.provider || 'fal',
         completedAt: new Date(),
       },
     })
