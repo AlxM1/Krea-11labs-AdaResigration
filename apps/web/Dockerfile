@@ -62,4 +62,4 @@ ENV WS_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 ENV UPLOAD_DIR="/app/uploads"
 
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "server.js"]
