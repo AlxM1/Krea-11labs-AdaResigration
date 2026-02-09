@@ -85,23 +85,26 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Cast result to GenerationResponse since this is image generation
+    const genResult = result.result as import('@/lib/ai/providers').GenerationResponse
+
     // Update generation record with result
     await prisma.generation.update({
       where: { id: generation.id },
       data: {
         status: 'COMPLETED',
-        imageUrl: result.result.imageUrl,
-        images: result.result.images || [result.result.imageUrl],
-        seed: result.result.seed,
-        provider: result.result.provider,
+        imageUrl: genResult.imageUrl,
+        images: genResult.images || (genResult.imageUrl ? [genResult.imageUrl] : []),
+        seed: genResult.seed,
+        provider: result.provider,
         completedAt: new Date(),
       },
     })
 
     return NextResponse.json({
       generationId: generation.id,
-      imageUrl: result.result.imageUrl,
-      images: result.result.images,
+      imageUrl: genResult.imageUrl,
+      images: genResult.images,
       seed: result.result.seed,
       provider: result.result.provider,
     })
