@@ -1198,10 +1198,19 @@ export class ComfyUIProvider {
         };
       }
 
+      // Construct internal ComfyUI URLs for downloading (not behind Authentik)
+      const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
+      const internalPort = process.env.COMFYUI_PORT || "8189";
+      const internalBaseUrl = `http://${internalHost}:${internalPort}`;
+
+      const videoUrls = result.images.map(img =>
+        `${internalBaseUrl}/view?filename=${img.filename}&subfolder=${img.subfolder}&type=${img.type}`
+      );
+
       return {
         id: result.promptId,
         status: "completed",
-        videoUrl: result.images[0], // Video URL from VHS_VideoCombine
+        videoUrl: videoUrls[0], // Video URL from VHS_VideoCombine
         duration,
       };
     } catch (error) {
