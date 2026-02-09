@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         height: tileSize,
         model: 'flux-schnell',
         steps: 4,
-        guidanceScale: 3.5,
+        cfgScale: 3.5,
       },
       generateImage
     )
