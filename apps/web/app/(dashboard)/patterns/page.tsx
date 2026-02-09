@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
+import { DownloadButton } from '@/components/ui/download-button'
 import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -184,18 +185,13 @@ export default function PatternsPage() {
 
             {result && (
               <div className="mt-4 space-y-2">
-                <Button
+                <DownloadButton
+                  imageUrl={result}
+                  filename={`pattern-${Date.now()}`}
                   variant="outline"
+                  size="default"
                   className="w-full"
-                  onClick={() => {
-                    const link = document.createElement('a')
-                    link.href = result
-                    link.download = `pattern-${Date.now()}.png`
-                    link.click()
-                  }}
-                >
-                  Download Pattern
-                </Button>
+                />
                 <p className="text-xs text-gray-500 text-center">
                   Pattern tiles seamlessly in all directions
                 </p>

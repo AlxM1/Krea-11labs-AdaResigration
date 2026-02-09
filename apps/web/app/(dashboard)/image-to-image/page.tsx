@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
+import { DownloadButton } from '@/components/ui/download-button'
 import { Loader2, Upload } from 'lucide-react'
 import Image from 'next/image'
 import { useDropzone } from 'react-dropzone'
@@ -224,18 +225,13 @@ export default function ImageToImagePage() {
 
             {result && (
               <div className="mt-4">
-                <Button
+                <DownloadButton
+                  imageUrl={result}
+                  filename={`transformed-${Date.now()}`}
                   variant="outline"
+                  size="default"
                   className="w-full"
-                  onClick={() => {
-                    const link = document.createElement('a')
-                    link.href = result
-                    link.download = `transformed-${Date.now()}.png`
-                    link.click()
-                  }}
-                >
-                  Download Result
-                </Button>
+                />
               </div>
             )}
           </Card>

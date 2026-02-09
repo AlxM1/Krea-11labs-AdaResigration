@@ -21,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ShareButton } from "@/components/ui/share-button";
+import { DownloadButton } from "@/components/ui/download-button";
 import { useGenerationStore } from "@/stores/generation-store";
 import { imageModels, aspectRatios, stylePresets } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
@@ -368,9 +369,10 @@ export default function ImageGenerationPage() {
                     className="w-full rounded-xl border border-border"
                   />
                   <div className="absolute bottom-4 right-4 flex gap-2">
-                    <Button variant="secondary" size="icon">
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    <DownloadButton
+                      imageUrl={generations[0].imageUrl}
+                      filename={`image-${generations[0].id}`}
+                    />
                     <Button variant="secondary" size="icon">
                       <Heart className="h-4 w-4" />
                     </Button>
