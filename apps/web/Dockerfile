@@ -39,17 +39,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone build (server.js, compiled app)
-COPY --from=builder /app/apps/web/.next/standalone ./
-# Remove pnpm-symlinked node_modules (broken symlinks in standalone output)
-RUN rm -rf node_modules
-# Copy full builder node_modules (Docker COPY dereferences symlinks)
-COPY --from=builder /app/node_modules ./node_modules
-# Copy static assets
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-# Copy Prisma schema
+# Copy standalone build (includes apps/web structure)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+# Copy static assets to the correct location
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+# Copy Prisma schema and client
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Create uploads directory
 RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
@@ -66,4 +64,4 @@ ENV WS_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 ENV UPLOAD_DIR="/app/uploads"
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
