@@ -829,6 +829,7 @@ async function queuePrompt(
 
     return { promptId: prompt_id, images };
   } catch (error) {
+    console.error("ComfyUI queuePrompt error:", error);
     return {
       promptId: "",
       images: [],
@@ -880,7 +881,9 @@ async function waitForCompletion(
 
         // Check for errors
         if (history[promptId].status?.status_str === "error") {
-          throw new Error("ComfyUI workflow execution failed");
+          const errorDetails = JSON.stringify(history[promptId].status, null, 2);
+          console.error("ComfyUI workflow error details:", errorDetails);
+          throw new Error(`ComfyUI workflow execution failed: ${errorDetails}`);
         }
       }
 
