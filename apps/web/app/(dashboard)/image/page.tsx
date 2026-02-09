@@ -20,6 +20,7 @@ import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ShareButton } from "@/components/ui/share-button";
 import { useGenerationStore } from "@/stores/generation-store";
 import { imageModels, aspectRatios, stylePresets } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
@@ -373,9 +374,10 @@ export default function ImageGenerationPage() {
                     <Button variant="secondary" size="icon">
                       <Heart className="h-4 w-4" />
                     </Button>
-                    <Button variant="secondary" size="icon">
-                      <Share2 className="h-4 w-4" />
-                    </Button>
+                    <ShareButton
+                      generationId={generations[0].id}
+                      initialIsPublic={generations[0].isPublic}
+                    />
                     <Button variant="secondary" size="icon">
                       <RefreshCw className="h-4 w-4" />
                     </Button>

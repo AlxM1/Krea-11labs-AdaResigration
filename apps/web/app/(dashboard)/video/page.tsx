@@ -20,6 +20,7 @@ import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { ShareButton } from "@/components/ui/share-button";
 import { videoModels } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -394,6 +395,11 @@ export default function VideoGenerationPage() {
                         Download
                       </Button>
                     </a>
+                    <ShareButton
+                      generationId={videoResult.id}
+                      variant="default"
+                      size="sm"
+                    />
                   </div>
                 </div>
               ) : (
