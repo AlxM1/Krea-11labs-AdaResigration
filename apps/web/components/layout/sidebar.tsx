@@ -22,6 +22,9 @@ import {
   Eraser,
   Hexagon,
   Blend,
+  ArrowUpCircle,
+  Grid3x3,
+  ImagePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,11 +44,14 @@ const generateNav = [
 ];
 
 const toolsNav = [
+  { href: "/image-to-image", label: "Image-to-Image", icon: ImagePlus },
+  { href: "/upscale", label: "Upscale", icon: ArrowUpCircle },
   { href: "/enhancer", label: "Enhancer", icon: Wand2 },
   { href: "/editor", label: "Editor", icon: Scissors },
   { href: "/background-removal", label: "BG Removal", icon: Eraser },
   { href: "/logo", label: "Logo", icon: Hexagon },
   { href: "/style-transfer", label: "Style", icon: Blend },
+  { href: "/patterns", label: "Patterns", icon: Grid3x3 },
   { href: "/lipsync", label: "Lipsync", icon: Mic },
   { href: "/motion-transfer", label: "Motion", icon: Move },
   { href: "/video-restyle", label: "Restyle", icon: Palette },

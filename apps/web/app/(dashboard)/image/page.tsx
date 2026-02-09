@@ -38,6 +38,8 @@ export default function ImageGenerationPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedAspect, setSelectedAspect] = useState("1:1");
   const [selectedStyle, setSelectedStyle] = useState("none");
+  const [enhancePrompt, setEnhancePrompt] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   const handleGenerate = async () => {
     if (!params.prompt.trim()) {
@@ -95,6 +97,29 @@ export default function ImageGenerationPage() {
     setParams({ seed: Math.floor(Math.random() * 2147483647) });
   };
 
+  const handleEnhancePrompt = async () => {
+    if (!params.prompt.trim()) return;
+
+    setIsEnhancing(true);
+    try {
+      const response = await fetch('/api/llm/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: params.prompt }),
+      });
+
+      const data = await response.json();
+      if (data.enhanced) {
+        setParams({ prompt: data.enhanced });
+        toast.success('Prompt enhanced!');
+      }
+    } catch (error) {
+      toast.error('Failed to enhance prompt');
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Left Panel - Generation Controls */}
@@ -109,7 +134,28 @@ export default function ImageGenerationPage() {
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Prompt Input */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Prompt</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium">Prompt</label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleEnhancePrompt}
+                disabled={!params.prompt.trim() || isEnhancing}
+                className="h-7 text-xs"
+              >
+                {isEnhancing ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    Enhancing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Enhance
+                  </>
+                )}
+              </Button>
+            </div>
             <Textarea
               placeholder="Describe what you want to create..."
               value={params.prompt}

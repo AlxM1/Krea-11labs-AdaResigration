@@ -10,6 +10,8 @@ import {
   ChevronDown,
   Download,
   Clock,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +34,30 @@ export default function VideoGenerationPage() {
   const [inputImage, setInputImage] = useState<string | null>(null);
   const [generationType, setGenerationType] = useState<"text" | "image">("text");
   const [videoResult, setVideoResult] = useState<{ id: string; videoUrl?: string; status: string } | null>(null);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+
+  const handleEnhancePrompt = async () => {
+    if (!prompt.trim()) return;
+
+    setIsEnhancing(true);
+    try {
+      const response = await fetch('/api/llm/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await response.json();
+      if (data.enhanced) {
+        setPrompt(data.enhanced);
+        toast.success('Prompt enhanced!');
+      }
+    } catch (error) {
+      toast.error('Failed to enhance prompt');
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim() && generationType === "text") {
@@ -143,7 +169,28 @@ export default function VideoGenerationPage() {
             <TabsContent value="text" className="mt-4">
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Prompt</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium">Prompt</label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleEnhancePrompt}
+                      disabled={!prompt.trim() || isEnhancing}
+                      className="h-7 text-xs"
+                    >
+                      {isEnhancing ? (
+                        <>
+                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                          Enhancing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Enhance
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   <Textarea
                     placeholder="Describe the video you want to create..."
                     value={prompt}
