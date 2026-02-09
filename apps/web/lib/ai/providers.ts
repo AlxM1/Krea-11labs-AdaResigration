@@ -1,7 +1,16 @@
 /**
  * AI Provider Integration Layer
- * Supports multiple providers: fal.ai, Replicate, Together AI, OpenAI, Google
- * And local providers: ComfyUI, Ollama
+ *
+ * Image Generation Providers:
+ * - Primary: fal.ai (FLUX, SDXL, etc.)
+ * - Secondary: ComfyUI (self-hosted on local GPU)
+ * - Fallback: Replicate, Together AI, Google AI
+ *
+ * LLM Providers (prompt enhancement only):
+ * - Primary: NVIDIA NIM (Kimi K2.5) - see lib/llm/client.ts
+ * - Fallback: Local Ollama
+ *
+ * Note: NVIDIA NIM does NOT provide hosted image generation API
  */
 
 import { ComfyUIProvider, checkComfyUIHealth, getComfyUIModels } from "./comfyui-provider";
@@ -9,7 +18,7 @@ import { OllamaProvider, checkOllamaHealth, getOllamaModels } from "./ollama-pro
 import { GoogleAIProvider, checkGoogleAIHealth, getGoogleAIModels } from "./google-provider";
 import { NvidiaNIMProvider, checkNvidiaNIMHealth, getNvidiaNIMModels } from "./nvidia-nim-provider";
 
-export type AIProvider = "nvidia" | "fal" | "replicate" | "together" | "openai" | "google" | "comfyui" | "ollama";
+export type AIProvider = "fal" | "replicate" | "together" | "openai" | "google" | "comfyui" | "ollama";
 export type ProviderMode = "cloud" | "local";
 
 export interface GenerationRequest {
@@ -460,48 +469,29 @@ class GoogleAIProviderWrapper extends BaseProvider {
 }
 
 /**
- * NVIDIA NIM Provider Wrapper
- */
-class NvidiaNIMProviderWrapper extends BaseProvider {
-  private provider: NvidiaNIMProvider;
-
-  constructor(apiKey: string) {
-    super(apiKey);
-    this.provider = new NvidiaNIMProvider(apiKey);
-  }
-
-  async generateImage(request: GenerationRequest): Promise<GenerationResponse> {
-    return this.provider.generateImage(request);
-  }
-
-  async generateVideo(request: VideoGenerationRequest): Promise<VideoGenerationResponse> {
-    return this.provider.generateVideo(request);
-  }
-
-  async getStatus(id: string): Promise<GenerationResponse> {
-    return this.provider.getStatus(id);
-  }
-}
-
-/**
  * Get AI provider instance
+ * Provider fallback order: fal.ai (primary) -> ComfyUI (local) -> others
  */
 export function getAIProvider(provider: AIProvider = "fal"): BaseProvider {
   switch (provider) {
-    case "nvidia":
-      return new NvidiaNIMProviderWrapper(process.env.NVIDIA_API_KEY || "");
     case "fal":
       return new FalProvider(process.env.FAL_KEY || "");
+    case "comfyui":
+      return new ComfyUIProviderWrapper();
     case "replicate":
       return new ReplicateProvider(process.env.REPLICATE_API_TOKEN || "");
     case "together":
       return new TogetherProvider(process.env.TOGETHER_API_KEY || "");
     case "google":
       return new GoogleAIProviderWrapper(process.env.GOOGLE_AI_API_KEY || "");
-    case "comfyui":
-      return new ComfyUIProviderWrapper();
     default:
-      return new FalProvider(process.env.FAL_KEY || "");
+      // Default to fal.ai as primary, fallback to ComfyUI if fal.ai not available
+      if (process.env.FAL_KEY) {
+        return new FalProvider(process.env.FAL_KEY);
+      } else if (process.env.COMFYUI_URL) {
+        return new ComfyUIProviderWrapper();
+      }
+      return new FalProvider(""); // Will fail gracefully if no key
   }
 }
 
@@ -552,17 +542,9 @@ export async function checkAllProvidersHealth(): Promise<ProviderHealth[]> {
   const results: ProviderHealth[] = [];
 
   // Check cloud providers (based on env vars)
-  // NVIDIA NIM - Primary provider
-  if (process.env.NVIDIA_API_KEY) {
-    const health = await checkNvidiaNIMHealth();
-    results.push({
-      provider: "nvidia",
-      available: health,
-      mode: "cloud",
-      models: health ? await getNvidiaNIMModels() : undefined,
-    });
-  }
+  // Note: NVIDIA NIM is only used for LLM tasks (Kimi K2.5), not image generation
 
+  // fal.ai - Primary image generation provider
   if (process.env.FAL_KEY) {
     results.push({
       provider: "fal",
@@ -663,9 +645,7 @@ export async function getBestProvider(
   }
 
   // Cloud providers in priority order
-  // 1. NVIDIA NIM (Primary provider)
-  if (process.env.NVIDIA_API_KEY) return "nvidia";
-  // 2. fal.ai (Fallback)
+  // 1. fal.ai (Primary provider for image generation)
   if (process.env.FAL_KEY) return "fal";
   // 3. Google AI
   if (process.env.GOOGLE_AI_API_KEY) return "google";
@@ -679,7 +659,7 @@ export async function getBestProvider(
     return "comfyui";
   }
 
-  return "nvidia"; // Default (will fail if no key, forcing proper configuration)
+  return "fal"; // Default (will fail gracefully if no API key configured)
 }
 
 /**

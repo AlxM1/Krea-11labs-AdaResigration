@@ -17,7 +17,7 @@ const generateSchema = z.object({
   seed: z.number().default(-1),
   batchSize: z.number().min(1).max(4).default(1),
   // Provider selection
-  provider: z.enum(["nvidia", "fal", "replicate", "together", "google", "comfyui"]).optional(),
+  provider: z.enum(["fal", "replicate", "together", "google", "comfyui"]).optional(),
   // Prompt enhancement options
   enhancePrompt: z.boolean().default(false),
   autoNegative: z.boolean().default(false),
@@ -66,16 +66,13 @@ export async function POST(req: NextRequest) {
     let provider: AIProvider;
     let actualModel = params.model;
 
-    // Map NVIDIA model IDs to actual NVIDIA NIM model names
-    if (params.model.startsWith("nvidia-")) {
-      provider = "nvidia";
-      if (params.model === "nvidia-flux-dev") {
-        actualModel = "black-forest-labs/flux-1-dev";
-      } else if (params.model === "nvidia-flux-kontext") {
-        actualModel = "black-forest-labs/flux-1-kontext-dev";
-      }
+    // Route ComfyUI models to local GPU
+    if (params.model.startsWith("comfyui-")) {
+      provider = "comfyui";
+      actualModel = params.model.replace("comfyui-", ""); // Strip prefix for ComfyUI
     } else {
-      provider = params.provider || "fal"; // Default to fal for non-NVIDIA models
+      // Default to fal.ai for all cloud models (primary provider)
+      provider = params.provider || "fal";
     }
 
     // Create generation record

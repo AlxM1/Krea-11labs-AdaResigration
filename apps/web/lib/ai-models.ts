@@ -10,32 +10,11 @@ export interface AIModel {
 }
 
 export const imageModels: AIModel[] = [
-  // NVIDIA NIM models (primary provider)
-  {
-    id: "nvidia-flux-dev",
-    name: "FLUX.1 Dev (NVIDIA)",
-    provider: "nvidia",
-    description: "Premium quality via NVIDIA NIM - fastest inference",
-    type: "quality",
-    defaultSteps: 50,
-    maxResolution: 2048,
-    isPremium: true,
-  },
-  {
-    id: "nvidia-flux-kontext",
-    name: "FLUX.1 Kontext (NVIDIA)",
-    provider: "nvidia",
-    description: "Image-to-image with context understanding via NVIDIA",
-    type: "quality",
-    defaultSteps: 50,
-    maxResolution: 2048,
-    isPremium: true,
-  },
-  // fal.ai models (fallback)
+  // fal.ai models (primary provider)
   {
     id: "flux-schnell",
-    name: "Flux Schnell",
-    provider: "Black Forest Labs",
+    name: "FLUX.1 Schnell",
+    provider: "fal.ai",
     description: "Fast, high-quality generation in 4 steps",
     type: "fast",
     defaultSteps: 4,
@@ -44,8 +23,8 @@ export const imageModels: AIModel[] = [
   },
   {
     id: "flux-dev",
-    name: "Flux.1 Dev",
-    provider: "Black Forest Labs",
+    name: "FLUX.1 Dev",
+    provider: "fal.ai",
     description: "Premium quality with superior aesthetics",
     type: "quality",
     defaultSteps: 30,
@@ -90,6 +69,17 @@ export const imageModels: AIModel[] = [
     type: "balanced",
     defaultSteps: 25,
     maxResolution: 1024,
+    isPremium: false,
+  },
+  // Local GPU option
+  {
+    id: "comfyui-flux",
+    name: "FLUX.1 (Local GPU)",
+    provider: "ComfyUI",
+    description: "Self-hosted on local GPU server - no API costs",
+    type: "quality",
+    defaultSteps: 30,
+    maxResolution: 2048,
     isPremium: false,
   },
 ];
