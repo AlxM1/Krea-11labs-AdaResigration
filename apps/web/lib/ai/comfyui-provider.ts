@@ -9,6 +9,7 @@ import {
   VideoGenerationRequest,
   VideoGenerationResponse,
 } from "./providers";
+import { uploadFromUrl } from "../storage/upload";
 
 // ComfyUI WebSocket client ID
 let clientId: string | null = null;
@@ -787,7 +788,7 @@ async function withRetry<T>(
 async function queuePrompt(
   workflow: Record<string, unknown>,
   config: ComfyUIConfig
-): Promise<{ promptId: string; images: string[]; error?: string }> {
+): Promise<{ promptId: string; images: ComfyUIImage[]; error?: string }> {
   // Get or create client ID
   if (!clientId) {
     clientId = crypto.randomUUID();
@@ -838,16 +839,22 @@ async function queuePrompt(
   }
 }
 
+interface ComfyUIImage {
+  filename: string;
+  subfolder: string;
+  type: string;
+}
+
 /**
- * Wait for a ComfyUI prompt to complete
+ * Wait for a ComfyUI prompt to complete and return image metadata
  */
 async function waitForCompletion(
   promptId: string,
   config: ComfyUIConfig,
   timeout = 300000 // 5 minutes
-): Promise<string[]> {
+): Promise<ComfyUIImage[]> {
   const startTime = Date.now();
-  const images: string[] = [];
+  const images: ComfyUIImage[] = [];
 
   while (Date.now() - startTime < timeout) {
     try {
@@ -857,20 +864,26 @@ async function waitForCompletion(
       if (history[promptId]) {
         const outputs = history[promptId].outputs;
 
-        // Extract image URLs from all output nodes
+        // Extract image metadata from all output nodes
         for (const nodeId in outputs) {
           const nodeOutput = outputs[nodeId];
           if (nodeOutput.images) {
             for (const image of nodeOutput.images) {
-              const imageUrl = `${config.outputUrl}?filename=${image.filename}&subfolder=${image.subfolder || ""}&type=${image.type || "output"}`;
-              images.push(imageUrl);
+              images.push({
+                filename: image.filename,
+                subfolder: image.subfolder || "",
+                type: image.type || "output",
+              });
             }
           }
           // Handle video outputs
           if (nodeOutput.gifs) {
             for (const gif of nodeOutput.gifs) {
-              const videoUrl = `${config.outputUrl}?filename=${gif.filename}&subfolder=${gif.subfolder || ""}&type=${gif.type || "output"}`;
-              images.push(videoUrl);
+              images.push({
+                filename: gif.filename,
+                subfolder: gif.subfolder || "",
+                type: gif.type || "output",
+              });
             }
           }
         }
@@ -898,6 +911,35 @@ async function waitForCompletion(
   }
 
   throw new Error("ComfyUI generation timed out");
+}
+
+/**
+ * Download image from ComfyUI and save to local storage
+ * Uses internal ComfyUI URL (not behind Authentik)
+ */
+async function downloadAndSaveImage(
+  image: ComfyUIImage,
+  config: ComfyUIConfig,
+  userId: string
+): Promise<string> {
+  // Construct internal ComfyUI URL (e.g., http://10.25.10.60:8189/view)
+  // Use COMFYUI_HOST and COMFYUI_PORT for internal access
+  const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
+  const internalPort = process.env.COMFYUI_PORT || "8189";
+  const internalBaseUrl = `http://${internalHost}:${internalPort}`;
+
+  const imageUrl = `${internalBaseUrl}/view?filename=${image.filename}&subfolder=${image.subfolder}&type=${image.type}`;
+
+  console.log(`[ComfyUI] Downloading image from internal URL: ${imageUrl}`);
+
+  try {
+    const uploadResult = await uploadFromUrl(imageUrl, userId);
+    console.log(`[ComfyUI] Image saved to local storage: ${uploadResult.url}`);
+    return uploadResult.url;
+  } catch (error) {
+    console.error(`[ComfyUI] Failed to download/save image:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -962,11 +1004,20 @@ export class ComfyUIProvider {
         };
       }
 
+      // Construct internal ComfyUI URLs for downloading (not behind Authentik)
+      const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
+      const internalPort = process.env.COMFYUI_PORT || "8189";
+      const internalBaseUrl = `http://${internalHost}:${internalPort}`;
+
+      const imageUrls = result.images.map(img =>
+        `${internalBaseUrl}/view?filename=${img.filename}&subfolder=${img.subfolder}&type=${img.type}`
+      );
+
       return {
         id: result.promptId,
         status: "completed",
-        imageUrl: result.images[0],
-        images: result.images,
+        imageUrl: imageUrls[0],
+        images: imageUrls,
         seed,
       };
     } catch (error) {
@@ -1006,11 +1057,20 @@ export class ComfyUIProvider {
         };
       }
 
+      // Construct internal ComfyUI URLs for downloading (not behind Authentik)
+      const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
+      const internalPort = process.env.COMFYUI_PORT || "8189";
+      const internalBaseUrl = `http://${internalHost}:${internalPort}`;
+
+      const imageUrls = result.images.map(img =>
+        `${internalBaseUrl}/view?filename=${img.filename}&subfolder=${img.subfolder}&type=${img.type}`
+      );
+
       return {
         id: result.promptId,
         status: "completed",
-        imageUrl: result.images[0],
-        images: result.images,
+        imageUrl: imageUrls[0],
+        images: imageUrls,
         seed,
       };
     } catch (error) {

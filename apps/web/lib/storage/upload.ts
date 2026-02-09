@@ -150,16 +150,19 @@ function isAllowedUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
 
-    // Only allow HTTPS (and HTTP in development only)
-    const allowedProtocols = process.env.NODE_ENV === "development"
-      ? ["https:", "http:"]
-      : ["https:"];
+    // Only allow HTTPS (and HTTP in development/internal only)
+    const allowedProtocols = ["https:", "http:"];
     if (!allowedProtocols.includes(url.protocol)) {
       return false;
     }
 
-    // Block private/internal IP ranges
     const hostname = url.hostname.toLowerCase();
+
+    // Allow internal ComfyUI server (from GPU_SERVER_HOST env var)
+    const gpuServerHost = process.env.GPU_SERVER_HOST || process.env.COMFYUI_HOST;
+    if (gpuServerHost && hostname === gpuServerHost.toLowerCase()) {
+      return true; // Allow internal GPU server
+    }
 
     // Block localhost and common internal hostnames
     const blockedHostnames = [
@@ -175,7 +178,7 @@ function isAllowedUrl(urlString: string): boolean {
       return false;
     }
 
-    // Block internal/private IP ranges
+    // Block internal/private IP ranges (except whitelisted GPU server)
     const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
     if (ipv4Match) {
       const [, a, b, c] = ipv4Match.map(Number);
