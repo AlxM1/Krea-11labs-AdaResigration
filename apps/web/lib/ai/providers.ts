@@ -2,15 +2,15 @@
  * AI Provider Integration Layer
  *
  * Image Generation Providers:
- * - Primary: fal.ai (FLUX, SDXL, etc.)
- * - Secondary: ComfyUI (self-hosted on local GPU)
- * - Fallback: Replicate, Together AI, Google AI
+ * - Primary: ComfyUI (self-hosted RTX 5090 at 10.25.10.60:8189) - FREE
+ * - Fallback: HuggingFace (free tier) -> fal.ai (requires credits)
  *
  * LLM Providers (prompt enhancement only):
  * - Primary: NVIDIA NIM (Kimi K2.5) - see lib/llm/client.ts
  * - Fallback: Local Ollama
  *
  * Note: NVIDIA NIM does NOT provide hosted image generation API
+ * Note: fal.ai credits exhausted - using local ComfyUI as primary
  */
 
 import { ComfyUIProvider, checkComfyUIHealth, getComfyUIModels } from "./comfyui-provider";
@@ -470,14 +470,14 @@ class GoogleAIProviderWrapper extends BaseProvider {
 
 /**
  * Get AI provider instance
- * Provider fallback order: fal.ai (primary) -> ComfyUI (local) -> others
+ * Provider fallback order: ComfyUI (local, free) -> HuggingFace (free) -> fal.ai (credits)
  */
-export function getAIProvider(provider: AIProvider = "fal"): BaseProvider {
+export function getAIProvider(provider: AIProvider = "comfyui"): BaseProvider {
   switch (provider) {
-    case "fal":
-      return new FalProvider(process.env.FAL_KEY || "");
     case "comfyui":
       return new ComfyUIProviderWrapper();
+    case "fal":
+      return new FalProvider(process.env.FAL_KEY || "");
     case "replicate":
       return new ReplicateProvider(process.env.REPLICATE_API_TOKEN || "");
     case "together":
@@ -485,13 +485,13 @@ export function getAIProvider(provider: AIProvider = "fal"): BaseProvider {
     case "google":
       return new GoogleAIProviderWrapper(process.env.GOOGLE_AI_API_KEY || "");
     default:
-      // Default to fal.ai as primary, fallback to ComfyUI if fal.ai not available
-      if (process.env.FAL_KEY) {
-        return new FalProvider(process.env.FAL_KEY);
-      } else if (process.env.COMFYUI_URL) {
+      // Default to ComfyUI (free), fallback to fal.ai if ComfyUI unavailable
+      if (process.env.COMFYUI_URL) {
         return new ComfyUIProviderWrapper();
+      } else if (process.env.FAL_KEY) {
+        return new FalProvider(process.env.FAL_KEY);
       }
-      return new FalProvider(""); // Will fail gracefully if no key
+      return new ComfyUIProviderWrapper(); // Will fail gracefully if not available
   }
 }
 
@@ -504,10 +504,11 @@ export function getOllamaProvider(): OllamaProvider {
 
 /**
  * Generate image using configured provider
+ * Default: ComfyUI (local, free)
  */
 export async function generateImage(
   request: GenerationRequest,
-  provider: AIProvider = "fal"
+  provider: AIProvider = "comfyui"
 ): Promise<GenerationResponse> {
   const aiProvider = getAIProvider(provider);
   return aiProvider.generateImage(request);
@@ -515,10 +516,11 @@ export async function generateImage(
 
 /**
  * Generate video using configured provider
+ * Default: ComfyUI (local, free)
  */
 export async function generateVideo(
   request: VideoGenerationRequest,
-  provider: AIProvider = "fal"
+  provider: AIProvider = "comfyui"
 ): Promise<VideoGenerationResponse> {
   const aiProvider = getAIProvider(provider);
   return aiProvider.generateVideo(request);
@@ -541,10 +543,22 @@ export interface ProviderHealth {
 export async function checkAllProvidersHealth(): Promise<ProviderHealth[]> {
   const results: ProviderHealth[] = [];
 
+  // Check local providers first
+  // ComfyUI - Primary image generation provider (RTX 5090, free)
+  if (process.env.COMFYUI_URL) {
+    const health = await checkComfyUIHealth();
+    results.push({
+      provider: "comfyui",
+      available: health,
+      mode: "local",
+      models: health ? await getComfyUIModels().then(m => m.checkpoints) : undefined,
+    });
+  }
+
   // Check cloud providers (based on env vars)
   // Note: NVIDIA NIM is only used for LLM tasks (Kimi K2.5), not image generation
 
-  // fal.ai - Primary image generation provider
+  // fal.ai - Fallback provider (credits exhausted)
   if (process.env.FAL_KEY) {
     results.push({
       provider: "fal",
@@ -637,16 +651,15 @@ export async function checkAllProvidersHealth(): Promise<ProviderHealth[]> {
 export async function getBestProvider(
   preferLocal: boolean = false
 ): Promise<AIProvider> {
-  if (preferLocal) {
-    // Try local providers first
-    if (await checkComfyUIHealth()) {
-      return "comfyui";
-    }
+  // Always try local ComfyUI first (free, no API costs)
+  // fal.ai credits exhausted, so ComfyUI is now primary
+  if (await checkComfyUIHealth()) {
+    return "comfyui";
   }
 
-  // Cloud providers in priority order
-  // 1. fal.ai (Primary provider for image generation)
-  if (process.env.FAL_KEY) return "fal";
+  // Cloud providers as fallback
+  // Note: fal.ai credits exhausted - only use if explicitly requested
+  if (process.env.FAL_KEY && preferLocal === false) return "fal";
   // 3. Google AI
   if (process.env.GOOGLE_AI_API_KEY) return "google";
   // 4. Replicate

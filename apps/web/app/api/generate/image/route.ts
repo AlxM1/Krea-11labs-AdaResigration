@@ -66,12 +66,17 @@ export async function POST(req: NextRequest) {
     let provider: AIProvider;
     let actualModel = params.model;
 
-    // Route ComfyUI models to local GPU
+    // Route ComfyUI models to local GPU (primary provider)
     if (params.model.startsWith("comfyui-")) {
       provider = "comfyui";
-      actualModel = params.model.replace("comfyui-", ""); // Strip prefix for ComfyUI
+      // Map comfyui-sdxl to actual checkpoint name
+      if (params.model === "comfyui-sdxl") {
+        actualModel = "sd_xl_base_1.0.safetensors";
+      } else {
+        actualModel = params.model.replace("comfyui-", "");
+      }
     } else {
-      // Default to fal.ai for all cloud models (primary provider)
+      // Default to fal.ai for all cloud models (fallback provider)
       provider = params.provider || "fal";
     }
 
