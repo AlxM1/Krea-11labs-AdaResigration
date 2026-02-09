@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
         steps: 4,
         cfgScale: 3.5,
       },
-      generateImage
+      (provider, request) => generateImage(request, provider)
     )
 
     if (!result.success || !result.result) {
