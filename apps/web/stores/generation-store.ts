@@ -20,6 +20,7 @@ export interface Generation {
   status: "pending" | "processing" | "completed" | "failed";
   createdAt: Date;
   params: Partial<GenerationParams>;
+  isPublic?: boolean;
 }
 
 interface GenerationState {
