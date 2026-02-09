@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOrCreateUser } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { executeImageChain } from '@/lib/ai/provider-chain'
 import { generateImage } from '@/lib/ai/providers'
 import { prisma } from '@/lib/db'
@@ -15,10 +15,11 @@ const STYLE_PROMPTS = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { user } = await getOrCreateUser(req)
-    if (!user) {
+    const session = await auth(req)
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const user = session.user
 
     const body = await req.json()
     const { prompt, style = 'geometric', tileSize = 1024 } = body
