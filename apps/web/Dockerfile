@@ -41,9 +41,9 @@ RUN adduser --system --uid 1001 nextjs
 
 # Copy standalone build (includes apps/web structure)
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-# Copy static assets to the correct location
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+# Copy static assets to the correct location (root level for standalone mode)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
 # Copy Prisma schema
 COPY --from=builder /app/prisma ./prisma
 # Copy Prisma generated client and all Prisma runtime dependencies
