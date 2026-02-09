@@ -108,8 +108,8 @@ export async function POST(req: NextRequest) {
       generationId: generation.id,
       imageUrl: genResult.imageUrl,
       images: genResult.images,
-      seed: result.result.seed,
-      provider: result.result.provider,
+      seed: genResult.seed,
+      provider: successfulAttempt?.provider || 'fal',
     })
   } catch (error) {
     console.error('Pattern generation error:', error)
