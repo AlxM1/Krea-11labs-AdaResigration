@@ -16,7 +16,7 @@ interface DownloadButtonProps {
   imageUrl: string
   filename?: string
   variant?: 'default' | 'outline' | 'secondary' | 'ghost'
-  size?: 'default' | 'sm' | 'lg' | 'icon'
+  size?: 'sm' | 'md' | 'lg' | 'icon'
   className?: string
 }
 

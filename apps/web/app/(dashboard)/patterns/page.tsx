@@ -189,7 +189,7 @@ export default function PatternsPage() {
                   imageUrl={result}
                   filename={`pattern-${Date.now()}`}
                   variant="outline"
-                  size="default"
+                  size="md"
                   className="w-full"
                 />
                 <p className="text-xs text-gray-500 text-center">

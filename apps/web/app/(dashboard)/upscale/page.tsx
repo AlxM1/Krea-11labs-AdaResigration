@@ -271,7 +271,7 @@ export default function UpscalePage() {
                   imageUrl={result}
                   filename={`upscaled-${scale}x-${Date.now()}`}
                   variant="outline"
-                  size="default"
+                  size="md"
                   className="w-full"
                 />
               </div>

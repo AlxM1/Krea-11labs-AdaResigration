@@ -228,7 +228,7 @@ export default function ImageToImagePage() {
                   imageUrl={result}
                   filename={`transformed-${Date.now()}`}
                   variant="outline"
-                  size="default"
+                  size="md"
                   className="w-full"
                 />
               </div>
