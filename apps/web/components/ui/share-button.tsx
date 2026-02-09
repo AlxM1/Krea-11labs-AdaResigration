@@ -10,7 +10,7 @@ interface ShareButtonProps {
   generationId: string
   initialIsPublic?: boolean
   variant?: 'icon' | 'default'
-  size?: 'sm' | 'default' | 'lg' | 'icon'
+  size?: 'sm' | 'md' | 'lg' | 'icon'
   className?: string
   onShareChange?: (isPublic: boolean) => void
 }
