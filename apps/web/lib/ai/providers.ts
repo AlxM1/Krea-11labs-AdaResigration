@@ -7,8 +7,9 @@
 import { ComfyUIProvider, checkComfyUIHealth, getComfyUIModels } from "./comfyui-provider";
 import { OllamaProvider, checkOllamaHealth, getOllamaModels } from "./ollama-provider";
 import { GoogleAIProvider, checkGoogleAIHealth, getGoogleAIModels } from "./google-provider";
+import { NvidiaNIMProvider, checkNvidiaNIMHealth, getNvidiaNIMModels } from "./nvidia-nim-provider";
 
-export type AIProvider = "fal" | "replicate" | "together" | "openai" | "google" | "comfyui" | "ollama";
+export type AIProvider = "nvidia" | "fal" | "replicate" | "together" | "openai" | "google" | "comfyui" | "ollama";
 export type ProviderMode = "cloud" | "local";
 
 export interface GenerationRequest {
@@ -459,10 +460,36 @@ class GoogleAIProviderWrapper extends BaseProvider {
 }
 
 /**
+ * NVIDIA NIM Provider Wrapper
+ */
+class NvidiaNIMProviderWrapper extends BaseProvider {
+  private provider: NvidiaNIMProvider;
+
+  constructor(apiKey: string) {
+    super(apiKey);
+    this.provider = new NvidiaNIMProvider(apiKey);
+  }
+
+  async generateImage(request: GenerationRequest): Promise<GenerationResponse> {
+    return this.provider.generateImage(request);
+  }
+
+  async generateVideo(request: VideoGenerationRequest): Promise<VideoGenerationResponse> {
+    return this.provider.generateVideo(request);
+  }
+
+  async getStatus(id: string): Promise<GenerationResponse> {
+    return this.provider.getStatus(id);
+  }
+}
+
+/**
  * Get AI provider instance
  */
 export function getAIProvider(provider: AIProvider = "fal"): BaseProvider {
   switch (provider) {
+    case "nvidia":
+      return new NvidiaNIMProviderWrapper(process.env.NVIDIA_API_KEY || "");
     case "fal":
       return new FalProvider(process.env.FAL_KEY || "");
     case "replicate":
@@ -525,6 +552,17 @@ export async function checkAllProvidersHealth(): Promise<ProviderHealth[]> {
   const results: ProviderHealth[] = [];
 
   // Check cloud providers (based on env vars)
+  // NVIDIA NIM - Primary provider
+  if (process.env.NVIDIA_API_KEY) {
+    const health = await checkNvidiaNIMHealth();
+    results.push({
+      provider: "nvidia",
+      available: health,
+      mode: "cloud",
+      models: health ? await getNvidiaNIMModels() : undefined,
+    });
+  }
+
   if (process.env.FAL_KEY) {
     results.push({
       provider: "fal",
@@ -612,6 +650,7 @@ export async function checkAllProvidersHealth(): Promise<ProviderHealth[]> {
 
 /**
  * Get best available provider based on mode preference
+ * Priority: NVIDIA NIM (primary) -> fal.ai -> Replicate -> Local ComfyUI
  */
 export async function getBestProvider(
   preferLocal: boolean = false
@@ -623,10 +662,16 @@ export async function getBestProvider(
     }
   }
 
-  // Fall back to cloud providers
+  // Cloud providers in priority order
+  // 1. NVIDIA NIM (Primary provider)
+  if (process.env.NVIDIA_API_KEY) return "nvidia";
+  // 2. fal.ai (Fallback)
   if (process.env.FAL_KEY) return "fal";
+  // 3. Google AI
   if (process.env.GOOGLE_AI_API_KEY) return "google";
+  // 4. Replicate
   if (process.env.REPLICATE_API_TOKEN) return "replicate";
+  // 5. Together AI
   if (process.env.TOGETHER_API_KEY) return "together";
 
   // Last resort: try local even if not preferred
@@ -634,14 +679,22 @@ export async function getBestProvider(
     return "comfyui";
   }
 
-  return "fal"; // Default
+  return "nvidia"; // Default (will fail if no key, forcing proper configuration)
 }
 
 /**
- * Enhanced prompt using Ollama (if available)
+ * Enhanced prompt using LLM
+ * Priority: NVIDIA NIM Kimi K2.5 -> Ollama (local)
  */
 export async function enhancePrompt(prompt: string): Promise<string> {
   try {
+    // Try NVIDIA NIM Kimi K2.5 first (primary LLM)
+    if (process.env.NVIDIA_API_KEY) {
+      const nvidia = new NvidiaNIMProvider(process.env.NVIDIA_API_KEY);
+      return await nvidia.enhancePrompt(prompt);
+    }
+
+    // Fallback to local Ollama
     if (await checkOllamaHealth()) {
       const ollama = getOllamaProvider();
       return await ollama.enhancePrompt(prompt);
@@ -653,10 +706,18 @@ export async function enhancePrompt(prompt: string): Promise<string> {
 }
 
 /**
- * Generate negative prompt using Ollama (if available)
+ * Generate negative prompt using LLM
+ * Priority: NVIDIA NIM Kimi K2.5 -> Ollama (local)
  */
-export async function generateNegativePrompt(prompt: string): Promise<string | undefined> {
+export async function generateNegativePrompt(prompt: string, style?: string): Promise<string | undefined> {
   try {
+    // Try NVIDIA NIM Kimi K2.5 first (primary LLM)
+    if (process.env.NVIDIA_API_KEY) {
+      const nvidia = new NvidiaNIMProvider(process.env.NVIDIA_API_KEY);
+      return await nvidia.generateNegativePrompt(prompt, style);
+    }
+
+    // Fallback to local Ollama
     if (await checkOllamaHealth()) {
       const ollama = getOllamaProvider();
       return await ollama.generateNegativePrompt(prompt);
@@ -675,7 +736,10 @@ export {
   getOllamaModels,
   checkGoogleAIHealth,
   getGoogleAIModels,
+  checkNvidiaNIMHealth,
+  getNvidiaNIMModels,
   ComfyUIProvider,
   OllamaProvider,
   GoogleAIProvider,
+  NvidiaNIMProvider,
 };

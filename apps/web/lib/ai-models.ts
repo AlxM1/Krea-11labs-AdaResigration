@@ -10,6 +10,28 @@ export interface AIModel {
 }
 
 export const imageModels: AIModel[] = [
+  // NVIDIA NIM models (primary provider)
+  {
+    id: "nvidia-flux-dev",
+    name: "FLUX.1 Dev (NVIDIA)",
+    provider: "nvidia",
+    description: "Premium quality via NVIDIA NIM - fastest inference",
+    type: "quality",
+    defaultSteps: 50,
+    maxResolution: 2048,
+    isPremium: true,
+  },
+  {
+    id: "nvidia-flux-kontext",
+    name: "FLUX.1 Kontext (NVIDIA)",
+    provider: "nvidia",
+    description: "Image-to-image with context understanding via NVIDIA",
+    type: "quality",
+    defaultSteps: 50,
+    maxResolution: 2048,
+    isPremium: true,
+  },
+  // fal.ai models (fallback)
   {
     id: "flux-schnell",
     name: "Flux Schnell",

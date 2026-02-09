@@ -17,7 +17,7 @@ const generateSchema = z.object({
   seed: z.number().default(-1),
   batchSize: z.number().min(1).max(4).default(1),
   // Provider selection
-  provider: z.enum(["fal", "replicate", "together", "google", "comfyui"]).optional(),
+  provider: z.enum(["nvidia", "fal", "replicate", "together", "google", "comfyui"]).optional(),
   // Prompt enhancement options
   enhancePrompt: z.boolean().default(false),
   autoNegative: z.boolean().default(false),
@@ -62,8 +62,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Determine provider (defaults to fal for cloud, comfyui for local)
-    const provider: AIProvider = params.provider || "fal";
+    // Determine provider based on model selection or explicit provider param
+    let provider: AIProvider;
+    let actualModel = params.model;
+
+    // Map NVIDIA model IDs to actual NVIDIA NIM model names
+    if (params.model.startsWith("nvidia-")) {
+      provider = "nvidia";
+      if (params.model === "nvidia-flux-dev") {
+        actualModel = "black-forest-labs/flux-1-dev";
+      } else if (params.model === "nvidia-flux-kontext") {
+        actualModel = "black-forest-labs/flux-1-kontext-dev";
+      }
+    } else {
+      provider = params.provider || "fal"; // Default to fal for non-NVIDIA models
+    }
 
     // Create generation record
     const generation = await prisma.generation.create({
@@ -96,7 +109,7 @@ export async function POST(req: NextRequest) {
           generationId: generation.id,
           prompt: finalPrompt,
           negativePrompt: finalNegativePrompt,
-          model: params.model,
+          model: actualModel,
           width: params.width,
           height: params.height,
           steps: params.steps,
@@ -133,7 +146,7 @@ export async function POST(req: NextRequest) {
         steps: params.steps,
         cfgScale: params.cfgScale,
         seed: params.seed > 0 ? params.seed : undefined,
-        model: params.model,
+        model: actualModel,
       },
       provider
     );

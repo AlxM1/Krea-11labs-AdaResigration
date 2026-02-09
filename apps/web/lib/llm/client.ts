@@ -3,7 +3,7 @@
  * Orchestrates: NVIDIA NIM → Together AI → Ollama
  */
 
-import { NVIDIANIMProvider, checkNVIDIANIMHealth } from '../ai/nvidia-nim-provider';
+import { NvidiaNIMProvider, checkNvidiaNIMHealth } from '../ai/nvidia-nim-provider';
 import { TogetherLLMProvider, checkTogetherLLMHealth } from './together-llm';
 import { OllamaProvider, checkOllamaHealth } from '../ai/ollama-provider';
 
@@ -27,12 +27,12 @@ export interface LLMResponse {
  * Attempts providers in order: NVIDIA NIM (free) → Together AI (free tier) → Ollama (local)
  */
 export class LLMClient {
-  private nvidiaProvider: NVIDIANIMProvider;
+  private nvidiaProvider: NvidiaNIMProvider;
   private togetherProvider: TogetherLLMProvider;
   private ollamaProvider: OllamaProvider;
 
   constructor() {
-    this.nvidiaProvider = new NVIDIANIMProvider();
+    this.nvidiaProvider = new NvidiaNIMProvider(process.env.NVIDIA_API_KEY || '');
     this.togetherProvider = new TogetherLLMProvider();
     this.ollamaProvider = new OllamaProvider();
   }
@@ -43,7 +43,7 @@ export class LLMClient {
   async getAvailableProviders(): Promise<LLMProvider[]> {
     const providers: LLMProvider[] = [];
 
-    if (await checkNVIDIANIMHealth()) {
+    if (await checkNvidiaNIMHealth()) {
       providers.push('nvidia');
     }
 
@@ -89,15 +89,10 @@ export class LLMClient {
 
         switch (providerName) {
           case 'nvidia':
-            response = await this.nvidiaProvider.chatCompletion({
-              model: 'moonshotai/kimi-k2.5',
-              messages: [
-                ...(request.systemPrompt ? [{ role: 'system' as const, content: request.systemPrompt }] : []),
-                { role: 'user' as const, content: request.prompt },
-              ],
-              max_tokens: request.maxTokens || 500,
-              temperature: request.temperature || 0.7,
-            }).then(r => r.choices[0]?.message?.content || '');
+            response = await this.nvidiaProvider.chatCompletion(
+              request.prompt,
+              request.systemPrompt
+            );
             break;
 
           case 'together':
