@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { imageQueue, videoQueue } from '@/lib/queue'
+import { getQueue, QueueNames } from '@/lib/queue'
 
 export async function GET(request: NextRequest) {
   try {
     const userId = request.headers.get('x-user-id') || 'personal-user'
+
+    const imageQueue = getQueue(QueueNames.IMAGE_GENERATION)
+    const videoQueue = getQueue(QueueNames.VIDEO_GENERATION)
+
+    if (!imageQueue || !videoQueue) {
+      return NextResponse.json({
+        queues: {
+          image: { active: 0, waiting: 0, completed: 0, failed: 0 },
+          video: { active: 0, waiting: 0, completed: 0, failed: 0 },
+        },
+        userJobs: { active: [], waiting: [] },
+      })
+    }
 
     // Get queue counts
     const [

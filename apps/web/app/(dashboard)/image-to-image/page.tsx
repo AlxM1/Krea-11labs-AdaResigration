@@ -154,12 +154,11 @@ export default function ImageToImagePage() {
                 </Label>
                 <div className="mt-2">
                   <Slider
-                    value={[strength]}
-                    onValueChange={(value) => setStrength(value[0])}
+                    value={strength}
+                    onChange={setStrength}
                     min={0.1}
                     max={1}
                     step={0.05}
-                    className="w-full"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
                     <span>Subtle (keep original)</span>
