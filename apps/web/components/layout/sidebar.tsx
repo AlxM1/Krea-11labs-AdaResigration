@@ -19,6 +19,9 @@ import {
   Clock,
   Star,
   FolderOpen,
+  Eraser,
+  Hexagon,
+  Blend,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +43,9 @@ const generateNav = [
 const toolsNav = [
   { href: "/enhancer", label: "Enhancer", icon: Wand2 },
   { href: "/editor", label: "Editor", icon: Scissors },
+  { href: "/background-removal", label: "BG Removal", icon: Eraser },
+  { href: "/logo", label: "Logo", icon: Hexagon },
+  { href: "/style-transfer", label: "Style", icon: Blend },
   { href: "/lipsync", label: "Lipsync", icon: Mic },
   { href: "/motion-transfer", label: "Motion", icon: Move },
   { href: "/video-restyle", label: "Restyle", icon: Palette },

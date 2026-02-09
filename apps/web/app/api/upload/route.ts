@@ -21,7 +21,7 @@ const directUploadSchema = z.object({
 // Get presigned upload URL
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -136,7 +136,7 @@ async function calculateStorageUsage(userId: string): Promise<number> {
 // Confirm upload completed
 export async function PUT(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

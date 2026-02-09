@@ -1,16 +1,36 @@
 "use client";
 
-import { Star, Heart, Download, Trash2 } from "lucide-react";
+import useSWR from "swr";
+import { Star, Heart, Download, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import toast from "react-hot-toast";
 
-const mockFavorites = [
-  { id: "1", imageUrl: "https://via.placeholder.com/300x300/7c3aed/ffffff?text=Fav1", prompt: "A beautiful sunset over mountains" },
-  { id: "2", imageUrl: "https://via.placeholder.com/300x400/ec4899/ffffff?text=Fav2", prompt: "Cyberpunk city at night" },
-  { id: "3", imageUrl: "https://via.placeholder.com/300x300/06b6d4/ffffff?text=Fav3", prompt: "Portrait of a fantasy character" },
-];
+interface FavoriteItem {
+  id: string;
+  imageUrl: string | null;
+  prompt: string;
+  model?: string;
+}
 
 export default function FavoritesPage() {
+  const { data, isLoading, mutate } = useSWR<{ favorites: FavoriteItem[] }>("/api/favorites?type=images");
+
+  const favorites = data?.favorites || [];
+
+  const handleRemove = async (id: string) => {
+    try {
+      await fetch("/api/favorites", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, type: "images" }),
+      });
+      mutate();
+      toast.success("Removed from favorites");
+    } catch {
+      toast.error("Failed to remove from favorites");
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -23,19 +43,29 @@ export default function FavoritesPage() {
         </p>
       </div>
 
-      {mockFavorites.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : favorites.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {mockFavorites.map((item) => (
+          {favorites.map((item) => (
             <div
               key={item.id}
               className="group relative rounded-xl border border-border overflow-hidden"
             >
               <div className="aspect-square">
-                <img
-                  src={item.imageUrl}
-                  alt={item.prompt}
-                  className="w-full h-full object-cover"
-                />
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.prompt}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <Star className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
               </div>
 
               {/* Favorite indicator */}
@@ -45,10 +75,14 @@ export default function FavoritesPage() {
 
               {/* Hover overlay */}
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <Button variant="secondary" size="icon">
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button variant="secondary" size="icon">
+                {item.imageUrl && (
+                  <a href={item.imageUrl} download>
+                    <Button variant="secondary" size="icon">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </a>
+                )}
+                <Button variant="secondary" size="icon" onClick={() => handleRemove(item.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

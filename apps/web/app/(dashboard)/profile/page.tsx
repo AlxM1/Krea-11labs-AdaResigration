@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useUser } from "@/hooks/use-user";
 import {
   User,
   Image as ImageIcon,
@@ -35,21 +35,21 @@ const mockCreations = [
 ];
 
 export default function ProfilePage() {
-  const { data: session } = useSession();
+  const { user } = useUser();
 
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Profile Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8">
-        <Avatar src={session?.user?.image} size="xl" className="w-24 h-24" />
+        <Avatar src={user?.image} size="xl" className="w-24 h-24" />
 
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold">{session?.user?.name || "User"}</h1>
+            <h1 className="text-2xl font-bold">{user?.name || "User"}</h1>
             <Badge variant="secondary">Free Plan</Badge>
           </div>
           <p className="text-muted-foreground mb-4">
-            {session?.user?.email}
+            {user?.email}
           </p>
 
           {/* Stats */}

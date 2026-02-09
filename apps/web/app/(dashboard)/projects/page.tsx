@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 import {
   FolderOpen,
   Plus,
   MoreHorizontal,
-  Pencil,
-  Trash2,
   Image as ImageIcon,
   Video,
   Layers,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,52 +19,72 @@ import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-const mockProjects = [
-  {
-    id: "1",
-    name: "Brand Campaign",
-    type: "collection",
-    itemCount: 12,
-    thumbnail: "https://via.placeholder.com/200x200/7c3aed/ffffff?text=Project",
-    updatedAt: "2 days ago",
-  },
-  {
-    id: "2",
-    name: "Product Shots",
-    type: "collection",
-    itemCount: 8,
-    thumbnail: "https://via.placeholder.com/200x200/ec4899/ffffff?text=Project",
-    updatedAt: "1 week ago",
-  },
-  {
-    id: "3",
-    name: "Social Media",
-    type: "workflow",
-    itemCount: 5,
-    thumbnail: "https://via.placeholder.com/200x200/06b6d4/ffffff?text=Workflow",
-    updatedAt: "2 weeks ago",
-  },
-];
+interface Project {
+  id: string;
+  name: string;
+  type: string;
+  thumbnail: string | null;
+  updatedAt: string;
+  _count?: { generations: number; videos: number };
+}
 
-const typeIcons = {
-  collection: FolderOpen,
-  workflow: Layers,
-  canvas: ImageIcon,
-  video: Video,
+const typeIcons: Record<string, typeof FolderOpen> = {
+  COLLECTION: FolderOpen,
+  WORKFLOW: Layers,
+  CANVAS: ImageIcon,
+  VIDEO: Video,
 };
 
 export default function ProjectsPage() {
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateProject = () => {
+  const { data, isLoading, mutate } = useSWR<{ projects: Project[]; total: number }>("/api/projects");
+
+  const projects = data?.projects || [];
+
+  const handleCreateProject = async () => {
     if (!newProjectName.trim()) {
       toast.error("Please enter a project name");
       return;
     }
-    toast.success("Project created!");
-    setShowNewProject(false);
-    setNewProjectName("");
+
+    setIsCreating(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newProjectName }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to create project");
+        return;
+      }
+
+      toast.success("Project created!");
+      setShowNewProject(false);
+      setNewProjectName("");
+      mutate();
+    } catch {
+      toast.error("Failed to create project");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days < 1) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -86,10 +106,15 @@ export default function ProjectsPage() {
         </Button>
       </div>
 
-      {mockProjects.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : projects.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {mockProjects.map((project) => {
-            const Icon = typeIcons[project.type as keyof typeof typeIcons] || FolderOpen;
+          {projects.map((project) => {
+            const Icon = typeIcons[project.type] || FolderOpen;
+            const itemCount = (project._count?.generations || 0) + (project._count?.videos || 0);
 
             return (
               <Card
@@ -97,17 +122,22 @@ export default function ProjectsPage() {
                 className="group cursor-pointer hover:border-primary/50 transition-colors"
               >
                 <CardContent className="p-0">
-                  {/* Thumbnail */}
                   <div className="aspect-video bg-muted relative rounded-t-xl overflow-hidden">
-                    <img
-                      src={project.thumbnail}
-                      alt={project.name}
-                      className="w-full h-full object-cover"
-                    />
+                    {project.thumbnail ? (
+                      <img
+                        src={project.thumbnail}
+                        alt={project.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Icon className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
                     <div className="absolute top-2 left-2">
                       <Badge variant="secondary" className="gap-1">
                         <Icon className="h-3 w-3" />
-                        {project.type}
+                        {project.type.toLowerCase()}
                       </Badge>
                     </div>
                     <button className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -115,12 +145,11 @@ export default function ProjectsPage() {
                     </button>
                   </div>
 
-                  {/* Info */}
                   <div className="p-4">
                     <h3 className="font-semibold mb-1">{project.name}</h3>
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{project.itemCount} items</span>
-                      <span>{project.updatedAt}</span>
+                      <span>{itemCount} items</span>
+                      <span>{formatDate(project.updatedAt)}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -177,7 +206,7 @@ export default function ProjectsPage() {
             <Button variant="outline" onClick={() => setShowNewProject(false)}>
               Cancel
             </Button>
-            <Button variant="gradient" onClick={handleCreateProject}>
+            <Button variant="gradient" onClick={handleCreateProject} isLoading={isCreating}>
               Create Project
             </Button>
           </div>

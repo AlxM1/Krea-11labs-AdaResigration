@@ -1,15 +1,12 @@
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../apps/web/node_modules/.prisma/client"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// NextAuth.js Models
+// NextAuth.js Models (deprecated — kept to avoid destructive migration)
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -55,7 +52,8 @@ model User {
   email             String?   @unique
   emailVerified     DateTime?
   image             String?
-  password          String?   // Hashed password for credentials auth
+  password          String?   // Hashed password for credentials auth (deprecated)
+  authentikId       String?   @unique // Authentik user ID for forward-auth
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

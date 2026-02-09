@@ -16,7 +16,7 @@ async function isAdmin(userId: string): Promise<boolean> {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -35,6 +35,8 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // Ensure native Node.js packages are not bundled (required for standalone)
+  serverExternalPackages: ["socket.io", "bullmq", "ioredis", "pg", "@prisma/client", "pino", "pino-pretty"],
   // Output standalone build for Docker
   output: "standalone",
 };

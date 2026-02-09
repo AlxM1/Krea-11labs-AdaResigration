@@ -29,6 +29,9 @@ const generateLinks = [
 const toolLinks = [
   { href: "/enhancer", label: "Enhancer", description: "Upscale images up to 8x" },
   { href: "/editor", label: "Editor", description: "Edit images with AI" },
+  { href: "/background-removal", label: "BG Removal", description: "Remove image backgrounds" },
+  { href: "/logo", label: "Logo Generator", description: "Create AI logos" },
+  { href: "/style-transfer", label: "Style Transfer", description: "Apply artistic styles" },
   { href: "/lipsync", label: "Lipsync", description: "Sync video to audio" },
   { href: "/motion-transfer", label: "Motion Transfer", description: "Animate images" },
   { href: "/video-restyle", label: "Video Restyle", description: "Change video style" },

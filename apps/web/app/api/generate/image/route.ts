@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { generateImage, AIProvider, enhancePrompt, generateNegativePrompt } from "@/lib/ai/providers";
 import { uploadFromUrl } from "@/lib/storage/upload";
+import { addJob, isQueueAvailable, QueueNames, ImageGenerationJob } from "@/lib/queue";
 import { z } from "zod";
-
-// Default user ID for personal use (no auth required)
-const PERSONAL_USER_ID = "personal-user";
 
 const generateSchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -22,10 +21,15 @@ const generateSchema = z.object({
   // Prompt enhancement options
   enhancePrompt: z.boolean().default(false),
   autoNegative: z.boolean().default(false),
+  // If true, queue the job and return immediately (useful for slow providers)
+  async: z.boolean().default(false),
 });
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth(req);
+    const userId = session?.user?.id || "personal-user";
+
     const body = await req.json();
     const validated = generateSchema.safeParse(body);
 
@@ -64,14 +68,14 @@ export async function POST(req: NextRequest) {
     // Create generation record
     const generation = await prisma.generation.create({
       data: {
-        userId: PERSONAL_USER_ID,
+        userId: userId,
         type: "TEXT_TO_IMAGE",
         prompt: finalPrompt,
         negativePrompt: finalNegativePrompt,
         model: params.model,
         width: params.width,
         height: params.height,
-        status: "PROCESSING",
+        status: "PENDING",
         parameters: {
           steps: params.steps,
           cfgScale: params.cfgScale,
@@ -81,6 +85,42 @@ export async function POST(req: NextRequest) {
           originalPrompt: params.enhancePrompt ? params.prompt : undefined,
         },
       },
+    });
+
+    // Queue the job if async mode and Redis available
+    if (params.async && isQueueAvailable()) {
+      const job = await addJob<ImageGenerationJob & { provider: AIProvider }>(
+        QueueNames.IMAGE_GENERATION,
+        {
+          userId: userId,
+          generationId: generation.id,
+          prompt: finalPrompt,
+          negativePrompt: finalNegativePrompt,
+          model: params.model,
+          width: params.width,
+          height: params.height,
+          steps: params.steps,
+          cfgScale: params.cfgScale,
+          seed: params.seed > 0 ? params.seed : undefined,
+          provider,
+        },
+        { jobId: `img-${generation.id}` }
+      );
+
+      return NextResponse.json({
+        id: generation.id,
+        status: "queued",
+        jobId: job?.id,
+        provider: provider,
+        prompt: finalPrompt,
+        message: "Image generation queued. Poll /api/jobs/{jobId} for status.",
+      });
+    }
+
+    // Synchronous generation (default for fast providers like fal.ai)
+    await prisma.generation.update({
+      where: { id: generation.id },
+      data: { status: "PROCESSING" },
     });
 
     // Call AI provider
@@ -120,7 +160,7 @@ export async function POST(req: NextRequest) {
     // Upload generated image to storage (optional - can also use provider URL directly)
     let finalImageUrl = aiResponse.imageUrl;
     try {
-      const uploadResult = await uploadFromUrl(aiResponse.imageUrl, PERSONAL_USER_ID);
+      const uploadResult = await uploadFromUrl(aiResponse.imageUrl, userId);
       finalImageUrl = uploadResult.url;
     } catch (uploadError) {
       // If upload fails, use the original URL
@@ -158,12 +198,14 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth(req);
+    const userId = session?.user?.id || "personal-user";
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     const generations = await prisma.generation.findMany({
-      where: { userId: PERSONAL_USER_ID },
+      where: { userId },
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
@@ -182,7 +224,7 @@ export async function GET(req: NextRequest) {
     });
 
     const total = await prisma.generation.count({
-      where: { userId: PERSONAL_USER_ID },
+      where: { userId },
     });
 
     return NextResponse.json({

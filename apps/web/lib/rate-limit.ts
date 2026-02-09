@@ -140,7 +140,7 @@ export async function rateLimit(
   // Log warning in production without Redis
   if (process.env.NODE_ENV === "production") {
     console.warn(
-      "[RateLimit] Using in-memory rate limiting. Set REDIS_URL for distributed rate limiting."
+      "[RateLimit] Using in-memory rate limiting. Set REDIS_HOST for distributed rate limiting."
     );
   }
 

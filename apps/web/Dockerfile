@@ -1,56 +1,69 @@
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
+RUN corepack enable pnpm
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
+# Copy workspace config and package files
+COPY .npmrc pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/
 
-# Install dependencies
-RUN \
-  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+# Install dependencies (hoisted node-linker for standalone compatibility)
+RUN pnpm install --frozen-lockfile
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
+RUN corepack enable pnpm
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+# Ensure public dir exists
+RUN mkdir -p apps/web/public
+
+# Generate Prisma client (generates into node_modules/@prisma/client)
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm exec prisma generate
 
 # Build the application
-ENV NEXT_TELEMETRY_DISABLED 1
-RUN npm run build --workspace=apps/web
+RUN pnpm --filter @krya/web build
 
 # Stage 3: Production
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy necessary files
-COPY --from=builder /app/apps/web/public ./apps/web/public
+# Copy standalone build (server.js, compiled app)
 COPY --from=builder /app/apps/web/.next/standalone ./
+# Remove pnpm-symlinked node_modules (broken symlinks in standalone output)
+RUN rm -rf node_modules
+# Copy full builder node_modules (Docker COPY dereferences symlinks)
+COPY --from=builder /app/node_modules ./node_modules
+# Copy static assets
+COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+# Copy Prisma schema
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Create uploads directory
+RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
 
 USER nextjs
 
+# Next.js HTTP server
 EXPOSE 3000
+# Socket.IO server for real-time canvas
+EXPOSE 3001
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV WS_PORT=3001
+ENV HOSTNAME="0.0.0.0"
+ENV UPLOAD_DIR="/app/uploads"
 
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "server.js"]

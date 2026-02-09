@@ -20,7 +20,7 @@ const NotificationTypes = {
 // Get user notifications
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
 // Mark notifications as read
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -112,7 +112,7 @@ export async function PATCH(req: NextRequest) {
 // Delete notifications
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

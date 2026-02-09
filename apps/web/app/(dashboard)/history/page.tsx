@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 import {
   Clock,
   Image as ImageIcon,
@@ -9,69 +10,34 @@ import {
   Wand2,
   Download,
   Trash2,
-  Filter,
   Search,
   MoreHorizontal,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import toast from "react-hot-toast";
 
-const mockHistory = [
-  {
-    id: "1",
-    type: "image",
-    prompt: "A futuristic city at sunset with flying cars",
-    imageUrl: "https://via.placeholder.com/200x200/7c3aed/ffffff?text=Image",
-    model: "Flux Dev",
-    createdAt: "2 hours ago",
-    status: "completed",
-  },
-  {
-    id: "2",
-    type: "video",
-    prompt: "Ocean waves crashing on a beach",
-    imageUrl: "https://via.placeholder.com/200x200/ec4899/ffffff?text=Video",
-    model: "Kling 2.5",
-    createdAt: "5 hours ago",
-    status: "completed",
-  },
-  {
-    id: "3",
-    type: "image",
-    prompt: "Portrait of a cyberpunk character",
-    imageUrl: "https://via.placeholder.com/200x200/06b6d4/ffffff?text=Image",
-    model: "SDXL",
-    createdAt: "1 day ago",
-    status: "completed",
-  },
-  {
-    id: "4",
-    type: "upscale",
-    prompt: "Upscaled 4x",
-    imageUrl: "https://via.placeholder.com/200x200/10b981/ffffff?text=Upscale",
-    model: "Real-ESRGAN",
-    createdAt: "1 day ago",
-    status: "completed",
-  },
-  {
-    id: "5",
-    type: "3d",
-    prompt: "A detailed robot figure",
-    imageUrl: "https://via.placeholder.com/200x200/f59e0b/ffffff?text=3D",
-    model: "TripoSR",
-    createdAt: "2 days ago",
-    status: "completed",
-  },
-];
+interface HistoryItem {
+  id: string;
+  type: string;
+  prompt: string;
+  imageUrl: string | null;
+  videoUrl?: string | null;
+  model: string;
+  createdAt: string;
+  status: string;
+}
 
-const typeIcons = {
-  image: ImageIcon,
-  video: Video,
-  "3d": Box,
-  upscale: Wand2,
+const typeIcons: Record<string, typeof ImageIcon> = {
+  TEXT_TO_IMAGE: ImageIcon,
+  IMAGE_TO_IMAGE: ImageIcon,
+  EDIT: Wand2,
+  UPSCALE: Wand2,
+  THREE_D: Box,
 };
 
 export default function HistoryPage() {
@@ -79,11 +45,19 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
-  const filteredHistory = mockHistory.filter((item) => {
-    if (filter !== "all" && item.type !== filter) return false;
-    if (searchQuery && !item.prompt.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+  const typeParam = filter !== "all" ? `&type=${filter}` : "";
+  const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : "";
+
+  const { data, isLoading, mutate } = useSWR<{
+    generations: HistoryItem[];
+    videos: HistoryItem[];
+    stats: { generationCount: number; videoCount: number };
+  }>(`/api/history?limit=50${typeParam}${searchParam}`);
+
+  const items = [
+    ...(data?.generations || []).map((g) => ({ ...g, itemType: "generation" as const })),
+    ...(data?.videos || []).map((v) => ({ ...v, type: "video", itemType: "video" as const })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const toggleSelect = (id: string) => {
     setSelectedItems((prev) => {
@@ -95,6 +69,33 @@ export default function HistoryPage() {
       }
       return newSet;
     });
+  };
+
+  const handleDelete = async () => {
+    try {
+      await fetch("/api/history", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedItems) }),
+      });
+      setSelectedItems(new Set());
+      mutate();
+      toast.success("Items deleted");
+    } catch {
+      toast.error("Failed to delete items");
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / 3600000);
+    if (hours < 1) return "Just now";
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -138,11 +139,7 @@ export default function HistoryPage() {
             <span className="text-sm text-muted-foreground">
               {selectedItems.size} selected
             </span>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-1" />
-              Download
-            </Button>
-            <Button variant="destructive" size="sm">
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
               <Trash2 className="h-4 w-4 mr-1" />
               Delete
             </Button>
@@ -151,10 +148,14 @@ export default function HistoryPage() {
       </div>
 
       {/* History Grid */}
-      {filteredHistory.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : items.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filteredHistory.map((item) => {
-            const Icon = typeIcons[item.type as keyof typeof typeIcons] || ImageIcon;
+          {items.map((item) => {
+            const Icon = typeIcons[item.type] || ImageIcon;
             const isSelected = selectedItems.has(item.id);
 
             return (
@@ -166,23 +167,26 @@ export default function HistoryPage() {
                 )}
                 onClick={() => toggleSelect(item.id)}
               >
-                {/* Image */}
                 <div className="aspect-square relative">
-                  <img
-                    src={item.imageUrl}
-                    alt={item.prompt}
-                    className="w-full h-full object-cover"
-                  />
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.prompt}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <Icon className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
 
-                  {/* Type badge */}
                   <div className="absolute top-2 left-2">
                     <Badge variant="secondary" className="gap-1">
                       <Icon className="h-3 w-3" />
-                      {item.type}
+                      {item.type === "TEXT_TO_IMAGE" ? "image" : item.type.toLowerCase().replace("_", " ")}
                     </Badge>
                   </div>
 
-                  {/* Selection indicator */}
                   <div
                     className={cn(
                       "absolute top-2 right-2 w-5 h-5 rounded-full border-2 transition-colors",
@@ -201,7 +205,6 @@ export default function HistoryPage() {
                     )}
                   </div>
 
-                  {/* Hover overlay */}
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <Button variant="secondary" size="icon" onClick={(e) => e.stopPropagation()}>
                       <Download className="h-4 w-4" />
@@ -212,12 +215,11 @@ export default function HistoryPage() {
                   </div>
                 </div>
 
-                {/* Info */}
                 <div className="p-3">
                   <p className="text-sm truncate mb-1">{item.prompt}</p>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{item.model}</span>
-                    <span>{item.createdAt}</span>
+                    <span>{formatDate(item.createdAt)}</span>
                   </div>
                 </div>
               </div>

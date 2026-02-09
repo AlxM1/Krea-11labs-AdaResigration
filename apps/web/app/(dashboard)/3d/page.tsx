@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import {
   Box,
@@ -22,6 +22,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+
+// Lazy load 3D viewer to avoid SSR issues with Three.js
+const ThreeDViewer = lazy(() => import("@/components/3d/viewer"));
 
 const models3D = [
   { value: "triposr", label: "TripoSR", description: "Fast image-to-3D" },
@@ -53,6 +56,8 @@ export default function ThreeDPage() {
   const [hasResult, setHasResult] = useState(false);
   const [isRotating, setIsRotating] = useState(true);
   const [lighting, setLighting] = useState("studio");
+  const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,15 +83,64 @@ export default function ThreeDPage() {
 
     setIsGenerating(true);
 
-    // Simulate generation
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    try {
+      // Upload image if using image-to-3D
+      let imageUrl = inputImage;
 
-    setIsGenerating(false);
-    setHasResult(true);
-    toast.success("3D model generated!");
+      // For text-to-3D, we'd need to generate an image first (not implemented yet)
+      if (generationType === "text") {
+        toast.error("Text-to-3D coming soon. Please use Image-to-3D for now.");
+        setIsGenerating(false);
+        return;
+      }
+
+      // Call 3D generation API
+      const response = await fetch("/api/generate/3d", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageUrl,
+          model: selectedModel,
+          format: exportFormat,
+          quality: "standard",
+          removeBackground: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "3D generation failed");
+      }
+
+      setModelUrl(data.modelUrl);
+      setPreviewUrl(data.previewUrl);
+      setHasResult(true);
+      toast.success("3D model generated!");
+    } catch (error) {
+      console.error("3D generation error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate 3D model");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleDownload = () => {
+    if (!modelUrl) {
+      toast.error("No model to download");
+      return;
+    }
+
+    // Create a temporary link and trigger download
+    const link = document.createElement("a");
+    link.href = modelUrl;
+    link.download = `model-${Date.now()}.${exportFormat}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
     toast.success(`Downloading ${exportFormat.toUpperCase()} file...`);
   };
 
@@ -300,19 +354,25 @@ export default function ThreeDPage() {
               <p className="text-muted-foreground">Generating 3D model...</p>
               <p className="text-sm text-muted-foreground mt-1">This may take a minute</p>
             </div>
-          ) : hasResult ? (
-            <div className="text-center">
-              {/* In production, this would be a Three.js viewer */}
-              <div className="w-64 h-64 rounded-xl bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-border flex items-center justify-center mx-auto mb-4">
-                <Box className={cn(
-                  "h-24 w-24 text-primary",
-                  isRotating && "animate-spin"
-                )} style={{ animationDuration: "4s" }} />
+          ) : hasResult && modelUrl ? (
+            <Suspense fallback={
+              <div className="text-center">
+                <Box className="h-16 w-16 text-muted-foreground mx-auto mb-4 animate-spin" />
+                <p className="text-sm text-muted-foreground">Loading 3D viewer...</p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                3D viewer preview (Three.js in production)
-              </p>
-            </div>
+            }>
+              <ThreeDViewer
+                modelUrl={modelUrl}
+                modelFormat={exportFormat as "glb" | "obj" | "fbx" | "stl"}
+                lighting={lighting as "studio" | "outdoor" | "night"}
+                autoRotate={isRotating}
+                onLoad={() => console.log("3D model loaded")}
+                onError={(error) => {
+                  console.error("3D viewer error:", error);
+                  toast.error("Failed to load 3D model");
+                }}
+              />
+            </Suspense>
           ) : (
             <div className="text-center">
               <Box className="h-16 w-16 text-muted-foreground mx-auto mb-4" />

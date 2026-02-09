@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { useUser } from "@/hooks/use-user";
 import {
   Settings,
   User,
@@ -13,6 +13,12 @@ import {
   Trash2,
   Save,
   ExternalLink,
+  Zap,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,11 +29,23 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
+interface ProviderStatus {
+  name: string;
+  available: boolean;
+  configured: boolean;
+  loading?: boolean;
+}
+
 export default function SettingsPage() {
-  const { data: session } = useSession();
-  const [name, setName] = useState(session?.user?.name || "");
-  const [email, setEmail] = useState(session?.user?.email || "");
+  const { user } = useUser();
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
   const [isSaving, setIsSaving] = useState(false);
+
+  // AI Provider states
+  const [providers, setProviders] = useState<Record<string, ProviderStatus>>({});
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [isCheckingProviders, setIsCheckingProviders] = useState(false);
 
   const handleSaveProfile = async () => {
     setIsSaving(true);
@@ -35,6 +53,24 @@ export default function SettingsPage() {
     setIsSaving(false);
     toast.success("Profile updated successfully");
   };
+
+  // Check provider status
+  const checkProviderStatus = async () => {
+    setIsCheckingProviders(true);
+    try {
+      const response = await fetch('/api/admin/providers/status');
+      const data = await response.json();
+      setProviders(data.providers || {});
+    } catch (error) {
+      console.error('Failed to check provider status:', error);
+    } finally {
+      setIsCheckingProviders(false);
+    }
+  };
+
+  useEffect(() => {
+    checkProviderStatus();
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -62,6 +98,10 @@ export default function SettingsPage() {
             <Bell className="h-4 w-4" />
             Notifications
           </TabsTrigger>
+          <TabsTrigger value="providers" className="gap-2">
+            <Zap className="h-4 w-4" />
+            AI Providers
+          </TabsTrigger>
           <TabsTrigger value="api" className="gap-2">
             <Key className="h-4 w-4" />
             API
@@ -78,7 +118,7 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               {/* Avatar */}
               <div className="flex items-center gap-4">
-                <Avatar src={session?.user?.image} size="xl" />
+                <Avatar src={user?.image} size="xl" />
                 <div>
                   <Button variant="outline" size="sm">
                     Change Avatar
@@ -222,6 +262,137 @@ export default function SettingsPage() {
                   <input type="checkbox" className="h-5 w-5 rounded" defaultChecked />
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AI Providers Tab */}
+        <TabsContent value="providers" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>AI Provider Configuration</CardTitle>
+                  <CardDescription>
+                    Configure AI providers for generation features. At least one provider is recommended.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={checkProviderStatus}
+                  disabled={isCheckingProviders}
+                >
+                  {isCheckingProviders && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Check Status
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Provider Status Banner */}
+              <div className="p-4 rounded-lg bg-muted">
+                <div className="flex items-start gap-3">
+                  <div className="text-sm">
+                    <p className="font-medium mb-1">Provider Status</p>
+                    <p className="text-muted-foreground">
+                      Configure API keys in your environment variables (.env file) or through your hosting platform.
+                      These settings are read-only here for security.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cloud Providers */}
+              <div>
+                <h3 className="font-semibold mb-3">Cloud Providers</h3>
+                <div className="space-y-3">
+                  {[
+                    { key: 'fal', name: 'fal.ai', env: 'FAL_KEY', url: 'https://fal.ai/dashboard/keys' },
+                    { key: 'replicate', name: 'Replicate', env: 'REPLICATE_API_TOKEN', url: 'https://replicate.com/account/api-tokens' },
+                    { key: 'together', name: 'Together AI', env: 'TOGETHER_API_KEY', url: 'https://api.together.xyz/settings/api-keys' },
+                    { key: 'google', name: 'Google AI', env: 'GOOGLE_AI_API_KEY', url: 'https://aistudio.google.com/apikey' },
+                    { key: 'nvidia', name: 'NVIDIA NIM', env: 'NVIDIA_API_KEY', url: 'https://build.nvidia.com/' },
+                    { key: 'huggingface', name: 'HuggingFace', env: 'HF_TOKEN', url: 'https://huggingface.co/settings/tokens' },
+                    { key: 'stability', name: 'Stability AI', env: 'STABILITY_API_KEY', url: 'https://platform.stability.ai/account/keys' },
+                  ].map((provider) => (
+                    <div key={provider.key} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        {providers[provider.key]?.available ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : providers[provider.key]?.configured ? (
+                          <XCircle className="h-5 w-5 text-yellow-500" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        <div>
+                          <p className="font-medium">{provider.name}</p>
+                          <p className="text-xs text-muted-foreground">{provider.env}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {providers[provider.key]?.available ? (
+                          <Badge variant="success">Available</Badge>
+                        ) : providers[provider.key]?.configured ? (
+                          <Badge variant="outline">Configured but unavailable</Badge>
+                        ) : (
+                          <Badge variant="outline">Not Configured</Badge>
+                        )}
+                        <Button variant="ghost" size="sm" asChild>
+                          <a href={provider.url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Local Providers */}
+              <div>
+                <h3 className="font-semibold mb-3">Local GPU Server</h3>
+                <div className="space-y-3">
+                  {[
+                    { key: 'comfyui', name: 'ComfyUI', env: 'COMFYUI_URL', url: 'https://github.com/comfyanonymous/ComfyUI' },
+                    { key: 'ollama', name: 'Ollama (LLM)', env: 'OLLAMA_URL', url: 'https://ollama.ai' },
+                  ].map((provider) => (
+                    <div key={provider.key} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        {providers[provider.key]?.available ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        <div>
+                          <p className="font-medium">{provider.name}</p>
+                          <p className="text-xs text-muted-foreground">{provider.env}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {providers[provider.key]?.available ? (
+                          <Badge variant="success">Connected</Badge>
+                        ) : (
+                          <Badge variant="outline">Not Connected</Badge>
+                        )}
+                        <Button variant="ghost" size="sm" asChild>
+                          <a href={provider.url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* GPU Status Link */}
+              <div className="pt-4 border-t border-border">
+                <Button variant="link" className="p-0 h-auto" asChild>
+                  <a href="/api/admin/gpu-status" target="_blank">
+                    View detailed GPU server status →
+                  </a>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -21,10 +21,14 @@ const logConfig: Prisma.LogLevel[] =
 
 // Create Prisma client with pg driver adapter
 function createPrismaClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
-
-  // Create pg Pool (reuse if already exists in global)
-  const pool = globalForPrisma.pool ?? new Pool({ connectionString });
+  // Use individual env vars to avoid URL-parsing issues with special chars in password
+  const pool = globalForPrisma.pool ?? new Pool({
+    host: process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DB_PORT || "5432"),
+    user: process.env.DB_USER || "krya",
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || "krya",
+  });
   globalForPrisma.pool = pool;
 
   // Create Prisma adapter

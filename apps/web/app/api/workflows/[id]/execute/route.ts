@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { executeNode, type WorkflowNode as NodeType } from "@/lib/workflow/node-executor";
 
 const executeWorkflowSchema = z.object({
   inputs: z.record(z.unknown()).optional(),
@@ -27,7 +28,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
+    const session = await auth(req);
     const { id } = await params;
 
     if (!session?.user) {
@@ -86,13 +87,16 @@ export async function POST(
     // Execute workflow
     const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // In production, this would:
-    // 1. Topologically sort nodes
-    // 2. Execute each node in order
-    // 3. Pass outputs between connected nodes
-    // 4. Handle errors and retries
-
-    const result = await executeWorkflowNodes(nodes, connections, validated.data.inputs || {});
+    const result = await executeWorkflowNodes(
+      nodes,
+      connections,
+      validated.data.inputs || {},
+      {
+        workflowId: id,
+        executionId,
+        userId: session.user.id,
+      }
+    );
 
     // Calculate credits used based on nodes executed
     const creditsUsed = calculateWorkflowCredits(nodes);
@@ -127,6 +131,7 @@ export async function POST(
       executionId,
       status: result.status,
       outputs: result.outputs,
+      errors: result.errors,
       creditsUsed,
     });
   } catch (error) {
@@ -141,14 +146,15 @@ export async function POST(
 async function executeWorkflowNodes(
   nodes: WorkflowNode[],
   connections: WorkflowConnection[],
-  inputs: Record<string, unknown>
-): Promise<{ status: string; outputs: Record<string, unknown> }> {
-  // Build execution graph
+  inputs: Record<string, unknown>,
+  context: { workflowId: string; executionId: string; userId: string }
+): Promise<{ status: string; outputs: Record<string, unknown>; errors?: string[] }> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
   const outputs: Record<string, unknown> = {};
+  const errors: string[] = [];
 
   // Find input nodes and set initial values
-  const inputNodes = nodes.filter(n => n.type === "input");
+  const inputNodes = nodes.filter(n => n.type === "input" || n.type === "text-input" || n.type === "image-input");
   for (const inputNode of inputNodes) {
     const inputKey = inputNode.data.inputKey as string || inputNode.id;
     outputs[inputNode.id] = inputs[inputKey] || inputNode.data.defaultValue;
@@ -156,10 +162,10 @@ async function executeWorkflowNodes(
 
   // Topological sort and execute
   const executed = new Set<string>(inputNodes.map(n => n.id));
-  const queue = [...nodes.filter(n => n.type !== "input")];
+  const queue = [...nodes.filter(n => !inputNodes.includes(n))];
 
   let iterations = 0;
-  const maxIterations = nodes.length * 2;
+  const maxIterations = nodes.length * 3;
 
   while (queue.length > 0 && iterations < maxIterations) {
     iterations++;
@@ -181,10 +187,33 @@ async function executeWorkflowNodes(
       nodeInputs[handle] = outputs[conn.source];
     }
 
-    // Execute node (simulated)
-    const result = await executeNode(node, nodeInputs);
-    outputs[node.id] = result;
-    executed.add(node.id);
+    // Execute node using real executor
+    try {
+      const result = await executeNode(node as NodeType, nodeInputs, context);
+
+      if (result.success) {
+        outputs[node.id] = result.output;
+        executed.add(node.id);
+        console.log(`Node ${node.id} executed successfully in ${result.duration}ms`);
+      } else {
+        errors.push(`Node ${node.id} (${node.type}) failed: ${result.error}`);
+        console.error(`Node ${node.id} execution failed:`, result.error);
+        // Continue execution with undefined output
+        outputs[node.id] = undefined;
+        executed.add(node.id);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      errors.push(`Node ${node.id} (${node.type}) error: ${errorMsg}`);
+      console.error(`Node ${node.id} threw error:`, errorMsg);
+      outputs[node.id] = undefined;
+      executed.add(node.id);
+    }
+  }
+
+  // Check for circular dependencies or stuck nodes
+  if (queue.length > 0) {
+    errors.push(`Workflow execution incomplete. ${queue.length} nodes could not execute (circular dependency?)`);
   }
 
   // Find output nodes
@@ -197,52 +226,13 @@ async function executeWorkflowNodes(
   }
 
   return {
-    status: "completed",
+    status: errors.length > 0 ? "completed_with_errors" : "completed",
     outputs: Object.keys(finalOutputs).length > 0 ? finalOutputs : outputs,
+    errors: errors.length > 0 ? errors : undefined,
   };
 }
 
-async function executeNode(
-  node: WorkflowNode,
-  inputs: Record<string, unknown>
-): Promise<unknown> {
-  // In production, each node type would have its own executor
-  switch (node.type) {
-    case "text-input":
-      return node.data.value || inputs.input;
-
-    case "image-input":
-      return node.data.imageUrl || inputs.input;
-
-    case "generate-image":
-      // Would call actual image generation API
-      return {
-        imageUrl: `https://storage.krya.ai/generated/${Date.now()}.png`,
-        prompt: inputs.prompt,
-      };
-
-    case "upscale":
-      // Would call upscale API
-      return {
-        imageUrl: `https://storage.krya.ai/upscaled/${Date.now()}.png`,
-        scale: node.data.scale || 2,
-      };
-
-    case "remove-background":
-      return {
-        imageUrl: `https://storage.krya.ai/nobg/${Date.now()}.png`,
-      };
-
-    case "merge":
-      return Object.values(inputs);
-
-    case "output":
-      return inputs.input;
-
-    default:
-      return inputs;
-  }
-}
+// Removed - now using real executor from @/lib/workflow/node-executor
 
 function calculateWorkflowCredits(nodes: WorkflowNode[]): number {
   let credits = 0;

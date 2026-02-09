@@ -196,10 +196,37 @@ export class FalProvider extends BaseProvider {
  */
 export class ReplicateProvider extends BaseProvider {
   private baseUrl = "https://api.replicate.com/v1";
+  private maxPollAttempts = 60;
+  private pollIntervalMs = 2000;
+
+  private async pollPrediction(id: string): Promise<{ status: string; output?: string[]; error?: string }> {
+    for (let i = 0; i < this.maxPollAttempts; i++) {
+      const response = await fetch(`${this.baseUrl}/predictions/${id}`, {
+        headers: { "Authorization": `Token ${this.apiKey}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Replicate poll error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status === "succeeded") {
+        return { status: "succeeded", output: data.output };
+      }
+      if (data.status === "failed" || data.status === "canceled") {
+        return { status: "failed", error: data.error || "Prediction failed" };
+      }
+
+      // Still processing - wait and retry
+      await new Promise((resolve) => setTimeout(resolve, this.pollIntervalMs));
+    }
+
+    return { status: "failed", error: "Prediction timed out" };
+  }
 
   async generateImage(request: GenerationRequest): Promise<GenerationResponse> {
     try {
-      // Create prediction
       const response = await fetch(`${this.baseUrl}/predictions`, {
         method: "POST",
         headers: {
@@ -226,11 +253,25 @@ export class ReplicateProvider extends BaseProvider {
 
       const data = await response.json();
 
+      // If already completed (unlikely but possible)
+      if (data.status === "succeeded") {
+        return {
+          id: data.id,
+          status: "completed",
+          imageUrl: data.output?.[0],
+          images: data.output,
+        };
+      }
+
+      // Poll for completion
+      const result = await this.pollPrediction(data.id);
+
       return {
         id: data.id,
-        status: data.status === "succeeded" ? "completed" : "processing",
-        imageUrl: data.output?.[0],
-        images: data.output,
+        status: result.status === "succeeded" ? "completed" : "failed",
+        imageUrl: result.output?.[0],
+        images: result.output,
+        error: result.error,
       };
     } catch (error) {
       return {
@@ -243,26 +284,34 @@ export class ReplicateProvider extends BaseProvider {
 
   async generateVideo(request: VideoGenerationRequest): Promise<VideoGenerationResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/predictions`, {
+      const response = await fetch(`${this.baseUrl}/models/minimax/video-01-live/predictions`, {
         method: "POST",
         headers: {
           "Authorization": `Token ${this.apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          version: "video-model-version", // Replace with actual model
           input: {
             prompt: request.prompt,
-            image: request.imageUrl,
+            first_frame_image: request.imageUrl,
           },
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`Replicate video error: ${response.statusText}`);
+      }
+
       const data = await response.json();
+
+      // Poll for completion
+      const result = await this.pollPrediction(data.id);
 
       return {
         id: data.id,
-        status: "processing",
+        status: result.status === "succeeded" ? "completed" : "failed",
+        videoUrl: result.output?.[0],
+        error: result.error,
       };
     } catch (error) {
       return {

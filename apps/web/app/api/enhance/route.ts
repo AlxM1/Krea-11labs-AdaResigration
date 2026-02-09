@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { upscaleImage, enhanceFaces } from "@/lib/ai/enhance";
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { z } from "zod";
-
-// Default user ID for personal use (no auth required)
-const PERSONAL_USER_ID = "personal-user";
 
 const enhanceSchema = z.object({
   imageUrl: z.string().url(),
@@ -17,6 +15,9 @@ const enhanceSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth(req);
+    const userId = session?.user?.id || "personal-user";
+
     const body = await req.json();
     const validated = enhanceSchema.safeParse(body);
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     // Create generation record
     const generation = await prisma.generation.create({
       data: {
-        userId: PERSONAL_USER_ID,
+        userId: userId,
         type: "UPSCALE",
         prompt: `Upscale ${params.scale}x with ${params.model}`,
         model: params.model,
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
     let finalUrl = result.imageUrl;
     if (result.imageUrl) {
       try {
-        const uploaded = await uploadFromUrl(result.imageUrl, PERSONAL_USER_ID);
+        const uploaded = await uploadFromUrl(result.imageUrl, userId);
         finalUrl = uploaded.url;
       } catch {
         // Use original URL if upload fails

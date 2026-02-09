@@ -10,15 +10,19 @@ let redis: Redis | null = null;
 
 /**
  * Get Redis client instance
- * Returns null if REDIS_URL is not configured
+ * Returns null if REDIS_HOST is not configured
  */
 export function getRedis(): Redis | null {
-  if (!process.env.REDIS_URL) {
+  if (!process.env.REDIS_HOST) {
     return null;
   }
 
   if (!redis) {
-    redis = new Redis(process.env.REDIS_URL, {
+    redis = new Redis({
+      host: process.env.REDIS_HOST,
+      port: parseInt(process.env.REDIS_PORT || "6379"),
+      password: process.env.REDIS_PASSWORD || undefined,
+      db: parseInt(process.env.REDIS_DB || "0"),
       maxRetriesPerRequest: 3,
       retryStrategy(times) {
         const delay = Math.min(times * 50, 2000);
@@ -47,6 +51,22 @@ export function getRedis(): Redis | null {
   }
 
   return redis;
+}
+
+/**
+ * Get Redis connection options (for BullMQ which creates its own connections)
+ */
+export function getRedisConnectionOptions() {
+  if (!process.env.REDIS_HOST) {
+    return null;
+  }
+  return {
+    host: process.env.REDIS_HOST,
+    port: parseInt(process.env.REDIS_PORT || "6379"),
+    password: process.env.REDIS_PASSWORD || undefined,
+    db: parseInt(process.env.REDIS_DB || "0"),
+    maxRetriesPerRequest: null as null,
+  };
 }
 
 /**

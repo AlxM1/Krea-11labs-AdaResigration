@@ -1,107 +1,132 @@
-import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import Google from "next-auth/providers/google";
-import GitHub from "next-auth/providers/github";
-import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
+/**
+ * Authentik Forward Auth Integration
+ *
+ * Authentik sits as a forward-auth proxy in front of Krya.
+ * When a user hits Krya, Authentik injects identity headers.
+ * This module reads those headers to identify the user.
+ *
+ * Headers used:
+ * - X-authentik-email: User's email
+ * - X-authentik-name: User's display name
+ * - X-authentik-uid: Authentik user ID
+ * - X-authentik-groups: Comma-separated group names
+ */
+
 import { prisma } from "./db";
-import { z } from "zod";
+import { headers } from "next/headers";
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  authentikId: string | null;
+}
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-    GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    }),
-    Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+const PERSONAL_USER_ID = "personal-user";
+const PERSONAL_USER_EMAIL = "personal@localhost";
+
+/**
+ * Read Authentik headers from a Request or from Next.js headers()
+ */
+export function getUserFromHeaders(
+  hdrs: Headers
+): { email: string; name: string | null; authentikId: string | null } | null {
+  const email = hdrs.get("x-authentik-email");
+  if (!email) return null;
+
+  return {
+    email,
+    name: hdrs.get("x-authentik-name") || null,
+    authentikId: hdrs.get("x-authentik-uid") || null,
+  };
+}
+
+/**
+ * Upsert user in DB by email (auto-create on first visit)
+ */
+export async function getOrCreateUser(
+  hdrs: Headers
+): Promise<AuthUser | null> {
+  const authInfo = getUserFromHeaders(hdrs);
+
+  if (!authInfo) {
+    // No Authentik headers — fall back to personal user for dev/personal use
+    const user = await prisma.user.upsert({
+      where: { email: PERSONAL_USER_EMAIL },
+      update: {},
+      create: {
+        id: PERSONAL_USER_ID,
+        email: PERSONAL_USER_EMAIL,
+        name: "Personal User",
       },
-      async authorize(credentials) {
-        const validated = loginSchema.safeParse(credentials);
-        if (!validated.success) return null;
+      select: { id: true, email: true, name: true, image: true, authentikId: true },
+    });
 
-        const { email, password } = validated.data;
-
-        // Find user with password
-        const user = await prisma.user.findUnique({
-          where: { email },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            image: true,
-            password: true,
-          },
-        });
-
-        // User must exist and have a password set
-        if (!user || !user.password) {
-          return null;
-        }
-
-        // Verify password
-        const isValidPassword = await compare(password, user.password);
-        if (!isValidPassword) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-        };
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-      }
-
-      if (trigger === "update" && session) {
-        token.name = session.name;
-        token.image = session.image;
-      }
-
-      return token;
-    },
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
-  },
-});
-
-// Type augmentation for session
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
+    return {
+      id: user.id,
+      email: user.email || PERSONAL_USER_EMAIL,
+      name: user.name,
+      image: user.image,
+      authentikId: user.authentikId,
     };
+  }
+
+  // Upsert user by email
+  const user = await prisma.user.upsert({
+    where: { email: authInfo.email },
+    update: {
+      name: authInfo.name || undefined,
+      authentikId: authInfo.authentikId || undefined,
+    },
+    create: {
+      email: authInfo.email,
+      name: authInfo.name,
+      authentikId: authInfo.authentikId,
+    },
+    select: { id: true, email: true, name: true, image: true, authentikId: true },
+  });
+
+  return {
+    id: user.id,
+    email: user.email || authInfo.email,
+    name: user.name,
+    image: user.image,
+    authentikId: user.authentikId,
+  };
+}
+
+/**
+ * Compatibility wrapper: get auth session from a Request object.
+ * API routes pass their request; the function reads Authentik headers and upserts the user.
+ *
+ * Usage in API routes:
+ *   const session = await auth(req);
+ *   const userId = session?.user?.id || "personal-user";
+ */
+export async function auth(
+  request?: Request
+): Promise<{ user: AuthUser } | null> {
+  try {
+    let hdrs: Headers;
+
+    if (request) {
+      hdrs = request.headers;
+    } else {
+      // Server component context — use Next.js headers()
+      const h = await headers();
+      hdrs = new Headers();
+      h.forEach((value, key) => {
+        hdrs.set(key, value);
+      });
+    }
+
+    const user = await getOrCreateUser(hdrs);
+    if (!user) return null;
+
+    return { user };
+  } catch (error) {
+    console.error("[Auth] Error getting user:", error);
+    return null;
   }
 }

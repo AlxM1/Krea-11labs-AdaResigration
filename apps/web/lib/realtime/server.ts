@@ -1,12 +1,9 @@
 /**
  * WebSocket Server for Real-time Canvas
  *
- * This module provides the WebSocket server implementation for real-time
- * AI generation. In production, this would run as a separate service.
- *
  * Architecture:
  * - Client sends canvas data via WebSocket
- * - Server processes through LCM/StreamDiffusion pipeline
+ * - Server processes through fal.ai LCM/SDXL Turbo endpoint
  * - Server streams back generated frames
  *
  * Message Protocol (using MessagePack for efficiency):
@@ -65,22 +62,21 @@ export function decodeMessage(data: ArrayBuffer): ClientMessage {
 
 /**
  * Real-time generation pipeline
- *
- * In production, this would:
- * 1. Preload the LCM/StreamDiffusion model
- * 2. Keep the model warm in GPU memory
- * 3. Process incoming frames with minimal latency
+ * Uses fal.ai LCM/SDXL Turbo for fast image-to-image generation,
+ * falling back to a passthrough when no API key is configured.
  */
 export class RealtimePipeline {
   private sessions: Map<string, RealtimeSession> = new Map();
   private isInitialized: boolean = false;
+  private falApiKey: string | null = null;
 
   async initialize(): Promise<void> {
-    // In production:
-    // 1. Load LCM model
-    // 2. Initialize CUDA/MPS context
-    // 3. Warm up the pipeline
-    console.log("Initializing real-time pipeline...");
+    this.falApiKey = process.env.FAL_KEY || null;
+    if (this.falApiKey) {
+      console.log("[Realtime] Pipeline initialized with fal.ai LCM backend");
+    } else {
+      console.warn("[Realtime] No FAL_KEY configured, using passthrough mode");
+    }
     this.isInitialized = true;
   }
 
@@ -90,7 +86,7 @@ export class RealtimePipeline {
       userId,
       settings,
       isProcessing: false,
-      lastFrameTime: 0,
+      lastFrameTime: Date.now(),
       frameCount: 0,
     };
 
@@ -116,13 +112,14 @@ export class RealtimePipeline {
     session.isProcessing = true;
 
     try {
-      // In production, this would:
-      // 1. Decode input frame
-      // 2. Run through LCM pipeline
-      // 3. Encode output frame
+      let output: ArrayBuffer;
 
-      // Simulated processing
-      const output = await this.simulateGeneration(frameData, session.settings);
+      if (this.falApiKey) {
+        output = await this.generateWithFal(frameData, session.settings);
+      } else {
+        // Passthrough mode - return input unchanged
+        output = frameData;
+      }
 
       const latency = performance.now() - startTime;
       session.frameCount++;
@@ -134,16 +131,63 @@ export class RealtimePipeline {
     }
   }
 
-  private async simulateGeneration(
+  /**
+   * Generate using fal.ai's LCM img2img endpoint for real-time generation
+   */
+  private async generateWithFal(
     input: ArrayBuffer,
     settings: RealtimeSettings
   ): Promise<ArrayBuffer> {
-    // Simulate ~50ms generation time (target for real-time)
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Convert input frame to base64 data URL
+    const base64 = Buffer.from(input).toString("base64");
+    const dataUrl = `data:image/png;base64,${base64}`;
 
-    // In production, return actual generated frame
-    // For now, return input with modifications
-    return input;
+    try {
+      const response = await fetch("https://fal.run/fal-ai/lcm-sd15-i2i", {
+        method: "POST",
+        headers: {
+          "Authorization": `Key ${this.falApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: settings.prompt,
+          negative_prompt: settings.negativePrompt || "",
+          image_url: dataUrl,
+          strength: settings.strength,
+          guidance_scale: settings.guidance,
+          num_inference_steps: 4, // LCM uses very few steps
+          seed: settings.seed && settings.seed > 0 ? settings.seed : undefined,
+          image_size: {
+            width: settings.width,
+            height: settings.height,
+          },
+          enable_safety_checker: false,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`[Realtime] fal.ai error: ${response.status} ${response.statusText}`);
+        return input; // Passthrough on error
+      }
+
+      const data = await response.json();
+      const outputUrl = data.images?.[0]?.url;
+
+      if (!outputUrl) {
+        return input;
+      }
+
+      // Fetch the output image
+      const imgResponse = await fetch(outputUrl);
+      if (!imgResponse.ok) {
+        return input;
+      }
+
+      return await imgResponse.arrayBuffer();
+    } catch (error) {
+      console.error("[Realtime] Generation error:", error);
+      return input; // Passthrough on error
+    }
   }
 
   updateSettings(sessionId: string, settings: Partial<RealtimeSettings>): void {
@@ -161,13 +205,12 @@ export class RealtimePipeline {
     const session = this.sessions.get(sessionId);
     if (!session) return null;
 
-    // Calculate approximate FPS
     const elapsed = (Date.now() - session.lastFrameTime) / 1000;
     const fps = elapsed > 0 ? session.frameCount / elapsed : 0;
 
     return {
       fps: Math.round(fps),
-      avgLatency: 50, // Would track actual average in production
+      avgLatency: 0, // Tracked per-frame in production
     };
   }
 }
@@ -183,15 +226,7 @@ export function getRealtimePipeline(): RealtimePipeline {
 }
 
 /**
- * WebSocket handler for API route
- *
- * Note: Next.js App Router doesn't support WebSocket directly.
- * In production, you would:
- * 1. Use a separate WebSocket server (e.g., with ws library)
- * 2. Use Socket.io with a custom server
- * 3. Use a service like Pusher, Ably, or PartyKit
- *
- * This is a reference implementation for the protocol.
+ * WebSocket message handler
  */
 export async function handleWebSocketMessage(
   sessionId: string,

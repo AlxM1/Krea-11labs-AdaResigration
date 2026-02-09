@@ -31,6 +31,7 @@ export default function VideoGenerationPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [inputImage, setInputImage] = useState<string | null>(null);
   const [generationType, setGenerationType] = useState<"text" | "image">("text");
+  const [videoResult, setVideoResult] = useState<{ id: string; videoUrl?: string; status: string } | null>(null);
 
   const handleGenerate = async () => {
     if (!prompt.trim() && generationType === "text") {
@@ -39,13 +40,65 @@ export default function VideoGenerationPage() {
     }
 
     setIsGenerating(true);
+    setVideoResult(null);
     toast.success("Video generation started!");
 
-    // Simulate generation
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/generate/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          model: selectedModel,
+          duration,
+          aspectRatio,
+          imageUrl: generationType === "image" ? inputImage : undefined,
+          async: true,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Video generation failed");
+        setIsGenerating(false);
+        return;
+      }
+
+      // Poll for completion
+      const jobId = data.id;
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/jobs/${jobId}`);
+          const statusData = await statusRes.json();
+
+          if (statusData.status === "completed") {
+            clearInterval(pollInterval);
+            setVideoResult(statusData);
+            setIsGenerating(false);
+            toast.success("Video generated!");
+          } else if (statusData.status === "failed") {
+            clearInterval(pollInterval);
+            setIsGenerating(false);
+            toast.error("Video generation failed");
+          }
+        } catch {
+          // Continue polling
+        }
+      }, 3000);
+
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (isGenerating) {
+          setIsGenerating(false);
+          toast.error("Video generation timed out");
+        }
+      }, 300000);
+    } catch (error) {
+      toast.error("Failed to start video generation");
       setIsGenerating(false);
-      toast.success("Video generated! (Demo)");
-    }, 3000);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -277,6 +330,24 @@ export default function VideoGenerationPage() {
                   </div>
                   <p className="text-muted-foreground">Generating your video...</p>
                   <p className="text-sm text-muted-foreground mt-1">This may take a few minutes</p>
+                </div>
+              ) : videoResult?.videoUrl ? (
+                <div className="w-full max-w-2xl">
+                  <video
+                    src={videoResult.videoUrl}
+                    controls
+                    autoPlay
+                    loop
+                    className="w-full rounded-xl border border-border"
+                  />
+                  <div className="flex gap-2 mt-4 justify-center">
+                    <a href={videoResult.videoUrl} download>
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center">

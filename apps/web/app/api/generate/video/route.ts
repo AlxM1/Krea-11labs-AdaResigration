@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { generateVideo, AIProvider } from "@/lib/ai/providers";
+import { addJob, isQueueAvailable, QueueNames, VideoGenerationJob } from "@/lib/queue";
 import { z } from "zod";
-
-// Default user ID for personal use (no auth required)
-const PERSONAL_USER_ID = "personal-user";
 
 const videoGenerateSchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -13,11 +12,16 @@ const videoGenerateSchema = z.object({
   duration: z.number().min(2).max(10).default(5),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
   // Provider selection (google for Veo 3.1, fal for Runway, comfyui for local SVD)
-  provider: z.enum(["fal", "google", "comfyui"]).optional(),
+  provider: z.enum(["fal", "google", "comfyui", "replicate"]).optional(),
+  // If true, queue the job and return immediately
+  async: z.boolean().default(true),
 });
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth(req);
+    const userId = session?.user?.id || "personal-user";
+
     const body = await req.json();
     const validated = videoGenerateSchema.safeParse(body);
 
@@ -29,14 +33,12 @@ export async function POST(req: NextRequest) {
     }
 
     const params = validated.data;
-
-    // Determine provider (defaults to fal, use google for Veo 3.1)
     const provider: AIProvider = params.provider || "fal";
 
     // Create video record
     const video = await prisma.video.create({
       data: {
-        userId: PERSONAL_USER_ID,
+        userId: userId,
         type: params.imageUrl ? "IMAGE_TO_VIDEO" : "TEXT_TO_VIDEO",
         prompt: params.prompt,
         model: params.model,
@@ -49,7 +51,33 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Generate video (in production, queue this with BullMQ)
+    // Try to queue the job if Redis is available and async mode is on
+    if (params.async && isQueueAvailable()) {
+      const job = await addJob<VideoGenerationJob & { provider: AIProvider }>(
+        QueueNames.VIDEO_GENERATION,
+        {
+          userId: userId,
+          videoId: video.id,
+          prompt: params.prompt,
+          imageUrl: params.imageUrl,
+          model: params.model,
+          duration: params.duration,
+          aspectRatio: params.aspectRatio,
+          provider,
+        },
+        { jobId: `video-${video.id}` }
+      );
+
+      return NextResponse.json({
+        id: video.id,
+        status: "queued",
+        jobId: job?.id,
+        provider: provider,
+        message: "Video generation queued. Poll /api/jobs/{id} for status.",
+      });
+    }
+
+    // Synchronous fallback: generate directly
     const result = await generateVideo(
       {
         prompt: params.prompt,
@@ -73,22 +101,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Upload to storage if we have a result
-    const videoUrl = result.videoUrl;
-
-    // Update video record
     await prisma.video.update({
       where: { id: video.id },
       data: {
         status: result.status === "completed" ? "COMPLETED" : "PROCESSING",
-        videoUrl,
+        videoUrl: result.videoUrl,
       },
     });
 
     return NextResponse.json({
       id: video.id,
       status: result.status,
-      videoUrl,
+      videoUrl: result.videoUrl,
       provider: provider,
     });
   } catch (error) {
@@ -102,19 +126,21 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth(req);
+    const userId = session?.user?.id || "personal-user";
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     const videos = await prisma.video.findMany({
-      where: { userId: PERSONAL_USER_ID },
+      where: { userId },
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
     });
 
     const total = await prisma.video.count({
-      where: { userId: PERSONAL_USER_ID },
+      where: { userId },
     });
 
     return NextResponse.json({ videos, total, limit, offset });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { addJob, isQueueAvailable, QueueNames, ModelTrainingJob } from "@/lib/queue";
 import { z } from "zod";
 
 // Default user ID for personal use (no auth required)
@@ -52,31 +53,54 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // In production, queue the training job with BullMQ
-    // For now, we'll simulate starting the training
-    const trainingJob = await startTraining({
-      modelId: trainedModel.id,
-      ...params,
-    });
-
-    // Update status to training
-    await prisma.trainedModel.update({
-      where: { id: trainedModel.id },
-      data: {
-        status: "TRAINING",
-        trainingConfig: {
-          ...(trainedModel.trainingConfig as object),
-          jobId: trainingJob.jobId,
-          startedAt: new Date().toISOString(),
+    // Queue the training job
+    if (isQueueAvailable()) {
+      const job = await addJob<ModelTrainingJob>(
+        QueueNames.MODEL_TRAINING,
+        {
+          userId: PERSONAL_USER_ID,
+          modelId: trainedModel.id,
+          name: params.name,
+          type: params.type,
+          baseModel: params.baseModel,
+          triggerWord: params.triggerWord,
+          images: params.images,
+          trainingSteps: params.trainingSteps,
+          learningRate: params.learningRate,
+          loraRank: params.loraRank,
         },
-      },
-    });
+        { jobId: `train-${trainedModel.id}` }
+      );
 
+      await prisma.trainedModel.update({
+        where: { id: trainedModel.id },
+        data: {
+          status: "QUEUED",
+          trainingConfig: {
+            ...(trainedModel.trainingConfig as object),
+            jobId: job?.id,
+            queuedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return NextResponse.json({
+        id: trainedModel.id,
+        name: trainedModel.name,
+        status: "queued",
+        jobId: job?.id,
+        estimatedTime: estimateTrainingTime(params.trainingSteps, params.images.length),
+        message: "Training job queued. Poll /api/jobs/{id} for status.",
+      });
+    }
+
+    // No queue available - return pending status
     return NextResponse.json({
       id: trainedModel.id,
       name: trainedModel.name,
-      status: "training",
+      status: "pending",
       estimatedTime: estimateTrainingTime(params.trainingSteps, params.images.length),
+      message: "Training created but queue unavailable. Configure Redis to enable background training.",
     });
   } catch (error) {
     console.error("Training creation error:", error);
@@ -85,19 +109,6 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Simulated training start function
-async function startTraining(params: { modelId: string } & z.infer<typeof createTrainingSchema>) {
-  // In production, this would:
-  // 1. Upload images to training storage
-  // 2. Create a BullMQ job for training
-  // 3. Start the training process on GPU infrastructure
-
-  return {
-    jobId: `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    estimatedTime: estimateTrainingTime(params.trainingSteps, params.images.length),
-  };
 }
 
 function estimateTrainingTime(steps: number, imageCount: number): string {

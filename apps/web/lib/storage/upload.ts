@@ -1,13 +1,13 @@
 /**
  * File Upload and Storage Utilities
- * Supports Cloudflare R2, AWS S3, and local storage
+ * Local filesystem storage with API route serving
  */
 
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import fs from "fs/promises";
+import path from "path";
 import crypto from "crypto";
 
-export type StorageProvider = "r2" | "s3" | "local";
+export type StorageProvider = "local";
 
 interface UploadResult {
   url: string;
@@ -16,56 +16,13 @@ interface UploadResult {
   contentType: string;
 }
 
-interface StorageConfig {
-  provider: StorageProvider;
-  bucket: string;
-  region?: string;
-  endpoint?: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  publicUrl?: string;
-}
+const UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
 
 /**
- * Get storage configuration from environment
+ * Ensure directory exists
  */
-function getStorageConfig(): StorageConfig {
-  const provider = (process.env.STORAGE_PROVIDER || "r2") as StorageProvider;
-
-  if (provider === "r2") {
-    return {
-      provider: "r2",
-      bucket: process.env.R2_BUCKET_NAME || "krya-uploads",
-      endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
-      publicUrl: process.env.R2_PUBLIC_URL,
-    };
-  }
-
-  return {
-    provider: "s3",
-    bucket: process.env.S3_BUCKET_NAME || "krya-uploads",
-    region: process.env.AWS_REGION || "us-east-1",
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-  };
-}
-
-/**
- * Create S3 client for storage operations
- */
-function createStorageClient(): S3Client {
-  const config = getStorageConfig();
-
-  return new S3Client({
-    region: config.region || "auto",
-    endpoint: config.endpoint,
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
-    },
-  });
+async function ensureDir(dirPath: string): Promise<void> {
+  await fs.mkdir(dirPath, { recursive: true });
 }
 
 /**
@@ -79,7 +36,31 @@ function generateFileKey(userId: string, filename: string, folder: string = "upl
 }
 
 /**
- * Upload file to storage
+ * Get content type from file extension
+ */
+function getContentTypeFromExt(ext: string): string {
+  const types: Record<string, string> = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    svg: "image/svg+xml",
+  };
+  return types[ext.toLowerCase()] || "application/octet-stream";
+}
+
+/**
+ * Get public URL for a storage key
+ */
+export function getPublicUrl(key: string): string {
+  return `/api/uploads/${key}`;
+}
+
+/**
+ * Upload file to local storage
  */
 export async function uploadFile(
   file: Buffer | Uint8Array,
@@ -88,26 +69,14 @@ export async function uploadFile(
   contentType: string,
   folder: string = "uploads"
 ): Promise<UploadResult> {
-  const config = getStorageConfig();
-  const client = createStorageClient();
   const key = generateFileKey(userId, filename, folder);
+  const filePath = path.join(UPLOAD_DIR, key);
 
-  const command = new PutObjectCommand({
-    Bucket: config.bucket,
-    Key: key,
-    Body: file,
-    ContentType: contentType,
-    CacheControl: "public, max-age=31536000",
-  });
-
-  await client.send(command);
-
-  const url = config.publicUrl
-    ? `${config.publicUrl}/${key}`
-    : `https://${config.bucket}.s3.${config.region}.amazonaws.com/${key}`;
+  await ensureDir(path.dirname(filePath));
+  await fs.writeFile(filePath, file);
 
   return {
-    url,
+    url: getPublicUrl(key),
     key,
     size: file.length,
     contentType,
@@ -115,7 +84,7 @@ export async function uploadFile(
 }
 
 /**
- * Upload base64 image to storage
+ * Upload base64 image to local storage
  */
 export async function uploadBase64Image(
   base64: string,
@@ -139,64 +108,39 @@ export async function uploadBase64Image(
 }
 
 /**
- * Get presigned URL for direct upload
+ * Get presigned upload URL — for local storage, returns a direct upload endpoint
  */
 export async function getPresignedUploadUrl(
   userId: string,
   filename: string,
   contentType: string
 ): Promise<{ uploadUrl: string; key: string; publicUrl: string }> {
-  const config = getStorageConfig();
-  const client = createStorageClient();
   const key = generateFileKey(userId, filename, "uploads");
 
-  const command = new PutObjectCommand({
-    Bucket: config.bucket,
-    Key: key,
-    ContentType: contentType,
-  });
-
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
-
-  const publicUrl = config.publicUrl
-    ? `${config.publicUrl}/${key}`
-    : `https://${config.bucket}.s3.${config.region}.amazonaws.com/${key}`;
-
   return {
-    uploadUrl,
+    uploadUrl: `/api/upload?key=${encodeURIComponent(key)}`,
     key,
-    publicUrl,
+    publicUrl: getPublicUrl(key),
   };
 }
 
 /**
- * Delete file from storage
+ * Delete file from local storage
  */
 export async function deleteFile(key: string): Promise<void> {
-  const config = getStorageConfig();
-  const client = createStorageClient();
-
-  const command = new DeleteObjectCommand({
-    Bucket: config.bucket,
-    Key: key,
-  });
-
-  await client.send(command);
-}
-
-/**
- * Get presigned URL for download
- */
-export async function getPresignedDownloadUrl(key: string): Promise<string> {
-  const config = getStorageConfig();
-  const client = createStorageClient();
-
-  const command = new GetObjectCommand({
-    Bucket: config.bucket,
-    Key: key,
-  });
-
-  return getSignedUrl(client, command, { expiresIn: 3600 });
+  const filePath = path.join(UPLOAD_DIR, key);
+  // Prevent path traversal
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(path.resolve(UPLOAD_DIR))) {
+    throw new Error("Invalid file path");
+  }
+  try {
+    await fs.unlink(resolved);
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
 }
 
 /**
@@ -274,7 +218,7 @@ function isAllowedUrl(urlString: string): boolean {
 }
 
 /**
- * Upload image from URL to storage (for caching external images)
+ * Upload image from URL to local storage (for caching external images)
  * Protected against SSRF attacks
  */
 export async function uploadFromUrl(
@@ -300,7 +244,7 @@ export async function uploadFromUrl(
 
   // Validate content type
   const contentType = response.headers.get("content-type") || "";
-  const allowedContentTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+  const allowedContentTypes = ["image/png", "image/jpeg", "image/webp", "image/gif", "video/mp4", "video/webm"];
   if (!allowedContentTypes.some(t => contentType.startsWith(t))) {
     throw new Error(`Invalid content type: ${contentType}`);
   }

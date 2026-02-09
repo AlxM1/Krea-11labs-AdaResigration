@@ -260,6 +260,22 @@ export class OllamaProvider {
   }
 
   /**
+   * Generic completion method (for LLM client interface)
+   */
+  async complete(options: {
+    prompt: string;
+    systemPrompt?: string;
+    maxTokens?: number;
+    temperature?: number;
+  }): Promise<string> {
+    return this.generate(options.prompt, {
+      system: options.systemPrompt,
+      temperature: options.temperature,
+      maxTokens: options.maxTokens,
+    });
+  }
+
+  /**
    * Enhance/improve an image generation prompt
    */
   async enhancePrompt(prompt: string): Promise<string> {

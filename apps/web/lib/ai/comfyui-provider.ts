@@ -746,7 +746,43 @@ export async function getComfyUIModels(): Promise<{
 }
 
 /**
- * Queue a prompt in ComfyUI and wait for completion
+ * Retry configuration for ComfyUI connections
+ */
+const RETRY_CONFIG = {
+  maxAttempts: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 5000,
+  backoffMultiplier: 2,
+};
+
+/**
+ * Execute function with retry logic
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  attemptNumber: number = 1
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (attemptNumber >= RETRY_CONFIG.maxAttempts) {
+      throw error;
+    }
+
+    const delay = Math.min(
+      RETRY_CONFIG.initialDelayMs * Math.pow(RETRY_CONFIG.backoffMultiplier, attemptNumber - 1),
+      RETRY_CONFIG.maxDelayMs
+    );
+
+    console.log(`ComfyUI request failed, retrying in ${delay}ms (attempt ${attemptNumber}/${RETRY_CONFIG.maxAttempts})`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    return withRetry(fn, attemptNumber + 1);
+  }
+}
+
+/**
+ * Queue a prompt in ComfyUI and wait for completion (with retry logic)
  */
 async function queuePrompt(
   workflow: Record<string, unknown>,
@@ -758,22 +794,35 @@ async function queuePrompt(
   }
 
   try {
-    // Queue the prompt
-    const response = await fetch(`${config.baseUrl}/prompt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt: workflow,
-        client_id: clientId,
-      }),
+    // Queue the prompt with retry
+    const { prompt_id } = await withRetry(async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout for queue
+
+      try {
+        const response = await fetch(`${config.baseUrl}/prompt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: workflow,
+            client_id: clientId,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`ComfyUI error: ${error}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        clearTimeout(timeout);
+        throw error;
+      }
     });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`ComfyUI error: ${error}`);
-    }
-
-    const { prompt_id } = await response.json();
 
     // Poll for completion
     const images = await waitForCompletion(prompt_id, config);

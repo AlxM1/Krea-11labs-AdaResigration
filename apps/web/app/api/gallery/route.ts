@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
     const total = await prisma.generation.count({ where });
 
     // Get session for like status
-    const session = await auth();
+    const session = await auth(req);
     let likedIds: Set<string> = new Set();
 
     if (session?.user) {
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
 // Like/unlike an item
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

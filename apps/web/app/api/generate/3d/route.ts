@@ -90,25 +90,127 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Simulated 3D generation function result type
+// 3D generation result type
 type Generate3DResult =
-  | { status: "completed"; previewUrl: string; modelUrl: string; textureUrl: string; error?: never }
+  | { status: "completed"; previewUrl: string; modelUrl: string; textureUrl?: string; error?: never }
   | { status: "failed"; error: string; previewUrl?: never; modelUrl?: never; textureUrl?: never };
 
-// Simulated 3D generation function
+/**
+ * Generate 3D model using provider chain
+ * Tries: fal.ai TripoSR → Replicate TripoSR
+ */
 async function generate3DModel(params: z.infer<typeof generate3DSchema>): Promise<Generate3DResult> {
-  // In production, call fal.ai or other 3D generation APIs
-  // Example: TripoSR, Meshy, or Rodin
+  const attempts: { provider: string; error?: string }[] = [];
 
-  // Simulate processing time
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // Try fal.ai TripoSR first
+  if (process.env.FAL_KEY) {
+    try {
+      console.log("Trying fal.ai TripoSR for 3D generation");
 
-  // Return mock result for now
+      const response = await fetch("https://fal.run/fal-ai/triposr", {
+        method: "POST",
+        headers: {
+          "Authorization": `Key ${process.env.FAL_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image_url: params.imageUrl,
+          remove_background: params.removeBackground,
+          foreground_ratio: 0.85,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`fal.ai error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // fal.ai returns GLB model URL
+      return {
+        status: "completed",
+        previewUrl: data.preview_image?.url || params.imageUrl,
+        modelUrl: data.model?.url || data.mesh?.url,
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      attempts.push({ provider: "fal.ai", error: errorMsg });
+      console.error("fal.ai TripoSR failed:", errorMsg);
+    }
+  }
+
+  // Try Replicate TripoSR as fallback
+  if (process.env.REPLICATE_API_TOKEN) {
+    try {
+      console.log("Trying Replicate TripoSR for 3D generation");
+
+      const response = await fetch("https://api.replicate.com/v1/predictions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          version: "230b59c0a1c3e7cd4ac02c0924b9c5e6ba8d2c7e7cc0e5d0d0c2c2f8e7c0a1c3",
+          input: {
+            image: params.imageUrl,
+            remove_background: params.removeBackground,
+            foreground_ratio: 0.85,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Replicate error: ${response.statusText}`);
+      }
+
+      const prediction = await response.json();
+
+      // Poll for completion
+      let pollAttempts = 0;
+      const maxPollAttempts = 60; // 2 minutes max
+
+      while (pollAttempts < maxPollAttempts) {
+        const statusResponse = await fetch(
+          `https://api.replicate.com/v1/predictions/${prediction.id}`,
+          {
+            headers: {
+              "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
+            },
+          }
+        );
+
+        const statusData = await statusResponse.json();
+
+        if (statusData.status === "succeeded") {
+          return {
+            status: "completed",
+            previewUrl: statusData.output?.preview || params.imageUrl,
+            modelUrl: statusData.output?.model || statusData.output,
+          };
+        }
+
+        if (statusData.status === "failed" || statusData.status === "canceled") {
+          throw new Error(statusData.error || "Prediction failed");
+        }
+
+        // Wait 2 seconds before polling again
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        pollAttempts++;
+      }
+
+      throw new Error("Prediction timed out");
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      attempts.push({ provider: "Replicate", error: errorMsg });
+      console.error("Replicate TripoSR failed:", errorMsg);
+    }
+  }
+
+  // All providers failed
   return {
-    status: "completed",
-    previewUrl: `https://storage.krya.ai/3d/preview-${Date.now()}.png`,
-    modelUrl: `https://storage.krya.ai/3d/model-${Date.now()}.${params.format}`,
-    textureUrl: `https://storage.krya.ai/3d/texture-${Date.now()}.png`,
+    status: "failed",
+    error: `All 3D generation providers failed. Tried: ${attempts.map(a => a.provider).join(", ")}. Configure FAL_KEY or REPLICATE_API_TOKEN.`,
   };
 }
 

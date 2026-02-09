@@ -16,7 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
+    const session = await auth(req);
     const { id } = await params;
 
     if (!session?.user) {
@@ -105,7 +105,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
+    const session = await auth(req);
     const { id } = await params;
 
     if (!session?.user) {
@@ -158,7 +158,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
+    const session = await auth(req);
     const { id } = await params;
 
     if (!session?.user) {

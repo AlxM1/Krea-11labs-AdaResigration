@@ -15,11 +15,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Redirect login/register/pricing pages to dashboard (not needed for personal use)
-  if (pathname === "/login" || pathname === "/register" || pathname === "/pricing") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
   // Add security headers to all responses
   const response = NextResponse.next();
   const isProduction = process.env.NODE_ENV === "production";

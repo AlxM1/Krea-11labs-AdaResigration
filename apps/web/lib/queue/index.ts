@@ -4,7 +4,7 @@
  */
 
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
-import { getRedis } from "../redis";
+import { getRedisConnectionOptions } from "../redis";
 
 // Queue names
 export const QueueNames = {
@@ -12,6 +12,9 @@ export const QueueNames = {
   VIDEO_GENERATION: "video-generation",
   MODEL_TRAINING: "model-training",
   IMAGE_ENHANCEMENT: "image-enhancement",
+  BACKGROUND_REMOVAL: "background-removal",
+  LOGO_GENERATION: "logo-generation",
+  STYLE_TRANSFER: "style-transfer",
   NOTIFICATIONS: "notifications",
   CLEANUP: "cleanup",
 } as const;
@@ -65,6 +68,29 @@ export interface ImageEnhancementJob {
   faceEnhance?: boolean;
 }
 
+export interface BackgroundRemovalJob {
+  userId: string;
+  generationId: string;
+  imageUrl: string;
+}
+
+export interface LogoGenerationJob {
+  userId: string;
+  generationId: string;
+  companyName: string;
+  style: string;
+  colors: string[];
+}
+
+export interface StyleTransferJob {
+  userId: string;
+  generationId: string;
+  contentImageUrl: string;
+  stylePreset?: string;
+  styleImageUrl?: string;
+  strength: number;
+}
+
 export interface NotificationJob {
   userId: string;
   type: string;
@@ -81,22 +107,22 @@ const workers: Map<QueueName, Worker> = new Map();
  * Check if queue system is available (Redis connected)
  */
 export function isQueueAvailable(): boolean {
-  return getRedis() !== null;
+  return getRedisConnectionOptions() !== null;
 }
 
 /**
  * Get or create a queue instance
  */
 export function getQueue(name: QueueName): Queue | null {
-  const redis = getRedis();
-  if (!redis) {
+  const connOpts = getRedisConnectionOptions();
+  if (!connOpts) {
     console.warn(`[Queue] Redis not available, cannot create queue: ${name}`);
     return null;
   }
 
   if (!queues.has(name)) {
     const queue = new Queue(name, {
-      connection: redis,
+      connection: connOpts,
       defaultJobOptions: {
         removeOnComplete: { count: 100 },
         removeOnFail: { count: 50 },
@@ -148,8 +174,8 @@ export function createWorker<T>(
     concurrency?: number;
   }
 ): Worker | null {
-  const redis = getRedis();
-  if (!redis) {
+  const connOpts = getRedisConnectionOptions();
+  if (!connOpts) {
     console.warn(`[Worker] Redis not available, cannot create worker: ${queueName}`);
     return null;
   }
@@ -171,7 +197,7 @@ export function createWorker<T>(
       }
     },
     {
-      connection: redis,
+      connection: connOpts,
       concurrency: options?.concurrency || 1,
     }
   );
@@ -192,12 +218,12 @@ export function createWorker<T>(
  * Get queue events for monitoring
  */
 export function getQueueEvents(queueName: QueueName): QueueEvents | null {
-  const redis = getRedis();
-  if (!redis) {
+  const connOpts = getRedisConnectionOptions();
+  if (!connOpts) {
     return null;
   }
 
-  return new QueueEvents(queueName, { connection: redis });
+  return new QueueEvents(queueName, { connection: connOpts });
 }
 
 /**

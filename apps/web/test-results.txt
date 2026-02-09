@@ -1,0 +1,1660 @@
+! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-10.29.1.tgz
+
+> @krya/web@0.1.0 test:ci /app
+> jest --ci
+
+FAIL __tests__/integrations/service-integration.test.ts
+  ● Console
+
+    console.error
+      Failed to send Newsletter callback: Error: Service down
+          at Object.<anonymous> (/app/__tests__/integrations/service-integration.test.ts:171:57)
+          at Promise.then.completed (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+          at _callCircusTest (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at _runTest (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+          at _runTestsForDescribeBlock (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+          at _runTestsForDescribeBlock (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+          at _runTestsForDescribeBlock (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+          at run (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+          at runAndTransformResultsToJestFormat (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+          at jestAdapter (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+          at runTestInternal (/app/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/app/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (/app/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/testWorker.js:106:12)
+
+      57 |       console.log(`Newsletter callback sent for request ${callback.requestId}`);
+      58 |     } catch (error) {
+    > 59 |       console.error('Failed to send Newsletter callback:', error);
+         |               ^
+      60 |       // Don't throw - callbacks are best-effort
+      61 |     }
+      62 |   }
+
+      at NewsletterClient.error [as sendCallback] (lib/integrations/newsletter-client.ts:59:15)
+      at Object.<anonymous> (__tests__/integrations/service-integration.test.ts:239:7)
+
+    console.log
+      AgentSmith callback sent for workflow workflow-123
+
+      at AgentSmithClient.log [as sendCallback] (lib/integrations/agentsmith-client.ts:57:15)
+
+  ● Service Integrations › VoiceForge Integration › should list available voices
+
+    TypeError: voiceForgeClient.listVoices is not a function
+
+      79 |       })
+      80 |
+    > 81 |       const voices = await voiceForgeClient.listVoices()
+         |                                             ^
+      82 |
+      83 |       expect(voices).toHaveLength(2)
+      84 |       expect(voices[0].id).toBe('en-US-Neural2-A')
+
+      at Object.listVoices (__tests__/integrations/service-integration.test.ts:81:45)
+
+  ● Service Integrations › VoiceForge Integration › should handle VoiceForge unavailable
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      90 |       const isAvailable = await voiceForgeClient.isAvailable()
+      91 |
+    > 92 |       expect(isAvailable).toBe(false)
+         |                           ^
+      93 |     })
+      94 |   })
+      95 |
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:92:27)
+
+  ● Service Integrations › WhisperFlow Integration › should transcribe audio from URL
+
+    WhisperFlow transcription failed: Connection refused
+
+      103 |       };
+      104 |     } catch (error) {
+    > 105 |       throw new Error(
+          |             ^
+      106 |         `WhisperFlow transcription failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      107 |       );
+      108 |     }
+
+      at WhisperFlowClient.transcribe (lib/integrations/whisperflow-client.ts:105:13)
+      at Object.<anonymous> (__tests__/integrations/service-integration.test.ts:114:22)
+
+  ● Service Integrations › WhisperFlow Integration › should transcribe audio from base64
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Transcribed from base64"
+    Received: "This is the transcribed text"
+
+      141 |       })
+      142 |
+    > 143 |       expect(result.text).toBe('Transcribed from base64')
+          |                           ^
+      144 |     })
+      145 |
+      146 |     it('should support custom prompts for context', async () => {
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:143:27)
+
+  ● Service Integrations › WhisperFlow Integration › should support custom prompts for context
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "sunset"
+    Received string:    "Transcribed from base64"
+
+      159 |       })
+      160 |
+    > 161 |       expect(result.text).toContain('sunset')
+          |                           ^
+      162 |       expect(global.fetch).toHaveBeenCalledWith(
+      163 |         expect.any(String),
+      164 |         expect.objectContaining({
+
+      at Object.toContain (__tests__/integrations/service-integration.test.ts:161:27)
+
+  ● Service Integrations › WhisperFlow Integration › should handle WhisperFlow unavailable
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      173 |       const isAvailable = await whisperFlowClient.isAvailable()
+      174 |
+    > 175 |       expect(isAvailable).toBe(false)
+          |                           ^
+      176 |     })
+      177 |   })
+      178 |
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:175:27)
+
+  ● Service Integrations › Newsletter Pipeline Integration › should accept internal generation requests
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      206 |       const data = await response.json()
+      207 |
+    > 208 |       expect(response.status).toBe(200)
+          |                               ^
+      209 |       expect(data.status).toBe('processing')
+      210 |       expect(data).toHaveProperty('jobId')
+      211 |     })
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:208:31)
+
+  ● Service Integrations › Newsletter Pipeline Integration › should send callback to Newsletter after generation
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: StringContaining "/api/webhooks/krya", ObjectContaining {"headers": ObjectContaining {"X-Internal-API-Key": "test-internal-key"}, "method": "POST"}
+    Received: "http://raiser-newsletter-pipeline:8300/api/callbacks/krya", {"body": "{\"jobId\":\"job-123\",\"status\":\"completed\",\"result\":{\"imageUrl\":\"https://example.com/image.png\"}}", "headers": {"Content-Type": "application/json", "X-Internal-API-Key": "test-internal-key"}, "method": "POST"}
+
+    Number of calls: 1
+
+      245 |       })
+      246 |
+    > 247 |       expect(global.fetch).toHaveBeenCalledWith(
+          |                            ^
+      248 |         expect.stringContaining('/api/webhooks/krya'),
+      249 |         expect.objectContaining({
+      250 |           method: 'POST',
+
+      at Object.toHaveBeenCalledWith (__tests__/integrations/service-integration.test.ts:247:28)
+
+  ● Service Integrations › Newsletter Pipeline Integration › should support batch generation requests
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      276 |       const data = await response.json()
+      277 |
+    > 278 |       expect(response.status).toBe(200)
+          |                               ^
+      279 |       expect(data.status).toBe('processing')
+      280 |     })
+      281 |   })
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:278:31)
+
+  ● Service Integrations › AgentSmith Integration › should accept webhook from AgentSmith
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      313 |       const data = await response.json()
+      314 |
+    > 315 |       expect(response.status).toBe(200)
+          |                               ^
+      316 |       expect(data.success).toBe(true)
+      317 |       expect(data.status).toBe('processing')
+      318 |       expect(data.workflowId).toBe('workflow-123')
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:315:31)
+
+  ● Service Integrations › AgentSmith Integration › should support image generation action
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      361 |       const data = await response.json()
+      362 |
+    > 363 |       expect(response.status).toBe(200)
+          |                               ^
+      364 |       expect(data.success).toBe(true)
+      365 |     })
+      366 |
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:363:31)
+
+  ● Service Integrations › AgentSmith Integration › should support video generation action
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      386 |       const data = await response.json()
+      387 |
+    > 388 |       expect(response.status).toBe(200)
+          |                               ^
+      389 |       expect(data.success).toBe(true)
+      390 |     })
+      391 |
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:388:31)
+
+  ● Service Integrations › AgentSmith Integration › should support batch generation action
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 401
+
+      411 |       const data = await response.json()
+      412 |
+    > 413 |       expect(response.status).toBe(200)
+          |                               ^
+      414 |       expect(data.success).toBe(true)
+      415 |     })
+      416 |
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:413:31)
+
+  ● Service Integrations › AgentSmith Integration › should handle AgentSmith unavailable gracefully
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      448 |       const isAvailable = await agentSmithClient.isAvailable()
+      449 |
+    > 450 |       expect(isAvailable).toBe(false)
+          |                           ^
+      451 |     })
+      452 |   })
+      453 |
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:450:27)
+
+  ● Service Integrations › Service Health Checks › should check all service availability
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      507 |       ])
+      508 |
+    > 509 |       expect(vfAvailable).toBe(true)
+          |                           ^
+      510 |       expect(wfAvailable).toBe(true)
+      511 |       expect(asAvailable).toBe(true)
+      512 |     })
+
+      at Object.toBe (__tests__/integrations/service-integration.test.ts:509:27)
+
+FAIL __tests__/lib/llm-client.test.ts
+  ● Console
+
+    console.log
+      Trying LLM provider: nvidia
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.error
+      LLM provider nvidia failed: TypeError: Cannot read properties of undefined (reading '0')
+          at /app/lib/llm/client.ts:100:35
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at LLMClient.complete (/app/lib/llm/client.ts:92:24)
+          at LLMClient.enhancePrompt (/app/lib/llm/client.ts:166:22)
+          at Object.<anonymous> (/app/__tests__/lib/llm-client.test.ts:37:24)
+
+      130 |         }
+      131 |       } catch (error) {
+    > 132 |         console.error(`LLM provider ${providerName} failed:`, error);
+          |                 ^
+      133 |         // Continue to next provider
+      134 |       }
+      135 |     }
+
+      at LLMClient.error [as complete] (lib/llm/client.ts:132:17)
+      at LLMClient.enhancePrompt (lib/llm/client.ts:166:22)
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:37:24)
+
+    console.log
+      Trying LLM provider: together
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.log
+      Trying LLM provider: together
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.log
+      Trying LLM provider: nvidia
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.error
+      LLM provider nvidia failed: Error: All providers down
+          at Object.<anonymous> (/app/__tests__/lib/llm-client.test.ts:91:53)
+          at Promise.then.completed (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+          at _callCircusTest (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at _runTest (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+          at _runTestsForDescribeBlock (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+          at _runTestsForDescribeBlock (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+          at _runTestsForDescribeBlock (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+          at run (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+          at runAndTransformResultsToJestFormat (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+          at jestAdapter (/app/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+          at runTestInternal (/app/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (/app/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (/app/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/testWorker.js:106:12)
+
+      130 |         }
+      131 |       } catch (error) {
+    > 132 |         console.error(`LLM provider ${providerName} failed:`, error);
+          |                 ^
+      133 |         // Continue to next provider
+      134 |       }
+      135 |     }
+
+      at LLMClient.error [as complete] (lib/llm/client.ts:132:17)
+      at LLMClient.enhancePrompt (lib/llm/client.ts:166:22)
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:94:24)
+
+    console.log
+      Trying LLM provider: nvidia
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.error
+      LLM provider nvidia failed: TypeError: Cannot read properties of undefined (reading '0')
+          at /app/lib/llm/client.ts:100:35
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at LLMClient.complete (/app/lib/llm/client.ts:92:24)
+          at LLMClient.generateNegativePrompt (/app/lib/llm/client.ts:201:22)
+          at Object.<anonymous> (/app/__tests__/lib/llm-client.test.ts:132:24)
+
+      130 |         }
+      131 |       } catch (error) {
+    > 132 |         console.error(`LLM provider ${providerName} failed:`, error);
+          |                 ^
+      133 |         // Continue to next provider
+      134 |       }
+      135 |     }
+
+      at LLMClient.error [as complete] (lib/llm/client.ts:132:17)
+      at LLMClient.generateNegativePrompt (lib/llm/client.ts:201:22)
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:132:24)
+
+    console.log
+      Trying LLM provider: together
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.log
+      Trying LLM provider: nvidia
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.error
+      LLM provider nvidia failed: TypeError: Cannot read properties of undefined (reading '0')
+          at /app/lib/llm/client.ts:100:35
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at LLMClient.complete (/app/lib/llm/client.ts:92:24)
+          at LLMClient.generateNegativePrompt (/app/lib/llm/client.ts:201:22)
+          at Object.<anonymous> (/app/__tests__/lib/llm-client.test.ts:150:24)
+
+      130 |         }
+      131 |       } catch (error) {
+    > 132 |         console.error(`LLM provider ${providerName} failed:`, error);
+          |                 ^
+      133 |         // Continue to next provider
+      134 |       }
+      135 |     }
+
+      at LLMClient.error [as complete] (lib/llm/client.ts:132:17)
+      at LLMClient.generateNegativePrompt (lib/llm/client.ts:201:22)
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:150:24)
+
+    console.log
+      Trying LLM provider: together
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.log
+      Trying LLM provider: nvidia
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.error
+      LLM provider nvidia failed: TypeError: Cannot read properties of undefined (reading '0')
+          at /app/lib/llm/client.ts:100:35
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at LLMClient.complete (/app/lib/llm/client.ts:92:24)
+          at LLMClient.suggestStyles (/app/lib/llm/client.ts:227:22)
+          at Object.<anonymous> (/app/__tests__/lib/llm-client.test.ts:188:27)
+
+      130 |         }
+      131 |       } catch (error) {
+    > 132 |         console.error(`LLM provider ${providerName} failed:`, error);
+          |                 ^
+      133 |         // Continue to next provider
+      134 |       }
+      135 |     }
+
+      at LLMClient.error [as complete] (lib/llm/client.ts:132:17)
+      at LLMClient.suggestStyles (lib/llm/client.ts:227:22)
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:188:27)
+
+    console.log
+      Trying LLM provider: together
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.log
+      Trying LLM provider: nvidia
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.error
+      LLM provider nvidia failed: TypeError: Cannot read properties of undefined (reading '0')
+          at /app/lib/llm/client.ts:100:35
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at LLMClient.complete (/app/lib/llm/client.ts:92:24)
+          at LLMClient.suggestStyles (/app/lib/llm/client.ts:227:22)
+          at Object.<anonymous> (/app/__tests__/lib/llm-client.test.ts:208:27)
+
+      130 |         }
+      131 |       } catch (error) {
+    > 132 |         console.error(`LLM provider ${providerName} failed:`, error);
+          |                 ^
+      133 |         // Continue to next provider
+      134 |       }
+      135 |     }
+
+      at LLMClient.error [as complete] (lib/llm/client.ts:132:17)
+      at LLMClient.suggestStyles (lib/llm/client.ts:227:22)
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:208:27)
+
+    console.log
+      Trying LLM provider: together
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.log
+      Trying LLM provider: nvidia
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.error
+      LLM provider nvidia failed: TypeError: Cannot read properties of undefined (reading '0')
+          at /app/lib/llm/client.ts:100:35
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at LLMClient.complete (/app/lib/llm/client.ts:92:24)
+          at LLMClient.parseSearchQuery (/app/lib/llm/client.ts:271:22)
+          at Object.<anonymous> (/app/__tests__/lib/llm-client.test.ts:232:23)
+
+      130 |         }
+      131 |       } catch (error) {
+    > 132 |         console.error(`LLM provider ${providerName} failed:`, error);
+          |                 ^
+      133 |         // Continue to next provider
+      134 |       }
+      135 |     }
+
+      at LLMClient.error [as complete] (lib/llm/client.ts:132:17)
+      at LLMClient.parseSearchQuery (lib/llm/client.ts:271:22)
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:232:23)
+
+    console.log
+      Trying LLM provider: together
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.log
+      Trying LLM provider: nvidia
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+    console.error
+      LLM provider nvidia failed: TypeError: Cannot read properties of undefined (reading '0')
+          at /app/lib/llm/client.ts:100:35
+          at processTicksAndRejections (node:internal/process/task_queues:95:5)
+          at LLMClient.complete (/app/lib/llm/client.ts:92:24)
+          at LLMClient.parseSearchQuery (/app/lib/llm/client.ts:271:22)
+          at Object.<anonymous> (/app/__tests__/lib/llm-client.test.ts:256:23)
+
+      130 |         }
+      131 |       } catch (error) {
+    > 132 |         console.error(`LLM provider ${providerName} failed:`, error);
+          |                 ^
+      133 |         // Continue to next provider
+      134 |       }
+      135 |     }
+
+      at LLMClient.error [as complete] (lib/llm/client.ts:132:17)
+      at LLMClient.parseSearchQuery (lib/llm/client.ts:271:22)
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:256:23)
+
+    console.log
+      Trying LLM provider: together
+
+      at LLMClient.log [as complete] (lib/llm/client.ts:86:17)
+
+  ● LLMClient › enhancePrompt › should enhance a short prompt using NVIDIA NIM
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 17
+    Received:   17
+
+      39 |       expect(enhanced).toContain('sunset')
+      40 |       expect(enhanced).toContain('ocean')
+    > 41 |       expect(enhanced.length).toBeGreaterThan('sunset over ocean'.length)
+         |                               ^
+      42 |       expect(global.fetch).toHaveBeenCalledWith(
+      43 |         expect.stringContaining('nvidia.com'),
+      44 |         expect.objectContaining({
+
+      at Object.toBeGreaterThan (__tests__/lib/llm-client.test.ts:41:31)
+
+  ● LLMClient › enhancePrompt › should fallback to Together AI when NVIDIA NIM fails
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "Together AI"
+    Received string:    "test prompt"
+
+      67 |       const enhanced = await llmClient.enhancePrompt('test prompt')
+      68 |
+    > 69 |       expect(enhanced).toContain('Together AI')
+         |                        ^
+      70 |       expect(global.fetch).toHaveBeenCalledTimes(2)
+      71 |     })
+      72 |
+
+      at Object.toContain (__tests__/lib/llm-client.test.ts:69:24)
+
+  ● LLMClient › enhancePrompt › should fallback to Ollama when cloud providers fail
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "Ollama"
+    Received string:    "test prompt"
+
+      84 |       const enhanced = await llmClient.enhancePrompt('test prompt')
+      85 |
+    > 86 |       expect(enhanced).toContain('Ollama')
+         |                        ^
+      87 |       expect(global.fetch).toHaveBeenCalledTimes(3)
+      88 |     })
+      89 |
+
+      at Object.toContain (__tests__/lib/llm-client.test.ts:86:24)
+
+  ● LLMClient › enhancePrompt › should not enhance already detailed prompts
+
+    TypeError: "A highly detailed, photorealistic portrait of a woman, golden hour lighting, professional photography, 8k resolution, shallow depth of field, bokeh background" is not a function
+
+       98 |
+       99 |     it('should not enhance already detailed prompts', async () => {
+    > 100 |       const detailedPrompt = 'A highly detailed, photorealistic portrait of a woman, golden hour lighting, professional photography, 8k resolution, shallow depth of field, bokeh background'
+          |                              ^
+      101 |
+      102 |       (global.fetch as jest.Mock).mockResolvedValueOnce({
+      103 |         ok: true,
+
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:100:30)
+
+  ● LLMClient › generateNegativePrompt › should generate negative prompts based on positive prompt
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "blurry"
+    Received string:    "Positive prompt: \"beautiful portrait\"·
+    Generate a negative prompt:"
+
+      132 |       const negative = await llmClient.generateNegativePrompt('beautiful portrait')
+      133 |
+    > 134 |       expect(negative).toContain('blurry')
+          |                        ^
+      135 |       expect(negative.length).toBeGreaterThan(0)
+      136 |     })
+      137 |
+
+      at Object.toContain (__tests__/lib/llm-client.test.ts:134:24)
+
+  ● LLMClient › generateNegativePrompt › should return default negative prompt on failure
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "low quality"
+    Received string:    "Positive prompt: \"test\"·
+    Generate a negative prompt:"
+
+      164 |       const negative = await llmClient.generateNegativePrompt('test')
+      165 |
+    > 166 |       expect(negative).toContain('low quality')
+          |                        ^
+      167 |       expect(negative).toContain('blurry')
+      168 |     })
+      169 |   })
+
+      at Object.toContain (__tests__/lib/llm-client.test.ts:166:24)
+
+  ● LLMClient › suggestStyles › should suggest art styles based on prompt
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 3
+    Received length: 0
+    Received array:  []
+
+      188 |       const suggestions = await llmClient.suggestStyles('portrait of a woman')
+      189 |
+    > 190 |       expect(suggestions).toHaveLength(3)
+          |                           ^
+      191 |       expect(suggestions[0]).toHaveProperty('style')
+      192 |       expect(suggestions[0]).toHaveProperty('reason')
+      193 |       expect(suggestions[0]).toHaveProperty('model')
+
+      at Object.toHaveLength (__tests__/lib/llm-client.test.ts:190:27)
+
+  ● LLMClient › parseSearchQuery › should parse natural language search query
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "last_week"
+    Received: undefined
+
+      232 |       const filters = await llmClient.parseSearchQuery('show me my anime portraits from last week')
+      233 |
+    > 234 |       expect(filters.timeRange).toBe('last_week')
+          |                                 ^
+      235 |       expect(filters.style).toBe('anime')
+      236 |       expect(filters.subject).toBe('portrait')
+      237 |     })
+
+      at Object.toBe (__tests__/lib/llm-client.test.ts:234:33)
+
+  ● LLMClient › parseSearchQuery › should handle complex queries
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "FLUX Pro"
+    Received: undefined
+
+      258 |       )
+      259 |
+    > 260 |       expect(filters.model).toBe('FLUX Pro')
+          |                             ^
+      261 |       expect(filters.style).toBe('photorealistic')
+      262 |     })
+      263 |
+
+      at Object.toBe (__tests__/lib/llm-client.test.ts:260:29)
+
+  ● LLMClient › Provider Availability › should work with only NVIDIA NIM
+
+    TypeError: "" is not a function
+
+      276 |       const originalOllama = process.env.OLLAMA_URL
+      277 |       process.env.TOGETHER_API_KEY = ''
+    > 278 |       process.env.OLLAMA_URL = ''
+          |                                ^
+      279 |
+      280 |       (global.fetch as jest.Mock).mockResolvedValueOnce({
+      281 |         ok: true,
+
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:278:32)
+
+  ● LLMClient › Provider Availability › should work with only Together AI
+
+    TypeError: "" is not a function
+
+      298 |       const originalOllama = process.env.OLLAMA_URL
+      299 |       process.env.NVIDIA_API_KEY = ''
+    > 300 |       process.env.OLLAMA_URL = ''
+          |                                ^
+      301 |
+      302 |       (global.fetch as jest.Mock).mockResolvedValueOnce({
+      303 |         ok: true,
+
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:300:32)
+
+  ● LLMClient › Provider Availability › should work with only Ollama
+
+    TypeError: "" is not a function
+
+      319 |       const originalTogether = process.env.TOGETHER_API_KEY
+      320 |       process.env.NVIDIA_API_KEY = ''
+    > 321 |       process.env.TOGETHER_API_KEY = ''
+          |                                      ^
+      322 |
+      323 |       (global.fetch as jest.Mock).mockResolvedValueOnce({
+      324 |         ok: true,
+
+      at Object.<anonymous> (__tests__/lib/llm-client.test.ts:321:38)
+
+FAIL __tests__/lib/provider-chain.test.ts (19.412 s)
+  ● Console
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying provider: replicate (priority 3)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying provider: comfyui (priority 4)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.error
+      Provider together failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:59:22)
+
+    console.log
+      Trying provider: replicate (priority 3)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.error
+      Provider replicate failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:59:22)
+
+    console.log
+      Trying provider: comfyui (priority 4)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.error
+      Provider comfyui failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:59:22)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider fal failed: Together AI unavailable
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:76:22)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider together failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:76:22)
+
+    console.log
+      Trying provider: replicate (priority 3)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.error
+      Provider replicate failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:76:22)
+
+    console.log
+      Trying provider: comfyui (priority 4)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.error
+      Provider comfyui failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:76:22)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying provider: comfyui (priority 4)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying video provider: fal
+
+      at log (lib/ai/provider-chain.ts:360:15)
+
+    console.log
+      Trying video provider: replicate
+
+      at log (lib/ai/provider-chain.ts:360:15)
+
+    console.log
+      Trying video provider: fal
+
+      at log (lib/ai/provider-chain.ts:360:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Trying video provider: replicate
+
+      at log (lib/ai/provider-chain.ts:360:15)
+
+    console.error
+      Video provider replicate failed: Cannot read properties of undefined (reading 'status')
+
+      398 |       });
+      399 |
+    > 400 |       console.error(`Video provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      401 |     }
+      402 |   }
+      403 |
+
+      at error (lib/ai/provider-chain.ts:400:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:152:22)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.error
+      Provider together failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:219:22)
+
+    console.log
+      Trying provider: replicate (priority 3)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.error
+      Provider replicate failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:219:22)
+
+    console.log
+      Trying provider: comfyui (priority 4)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.error
+      Provider comfyui failed: Cannot read properties of undefined (reading 'status')
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:219:22)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider fal failed: Permanent failure
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/lib/provider-chain.test.ts:232:22)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+  ● Provider Chain › executeImageChain › should use primary provider when available
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      42 |       const result = await executeImageChain('text-to-image', mockRequest, mockGenerateFn)
+      43 |
+    > 44 |       expect(result.success).toBe(true)
+         |                              ^
+      45 |       expect(result.provider).toBe('fal')
+      46 |       expect(mockGenerateFn).toHaveBeenCalledTimes(1)
+      47 |     })
+
+      at Object.toBe (__tests__/lib/provider-chain.test.ts:44:30)
+
+  ● Provider Chain › executeImageChain › should fallback to secondary provider when primary fails
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      59 |       const result = await executeImageChain('text-to-image', mockRequest, mockGenerateFn)
+      60 |
+    > 61 |       expect(result.success).toBe(true)
+         |                              ^
+      62 |       expect(result.provider).toBe('replicate')
+      63 |       expect(mockGenerateFn).toHaveBeenCalledTimes(2)
+      64 |       expect(result.attemptedProviders).toContain('fal')
+
+      at Object.toBe (__tests__/lib/provider-chain.test.ts:61:30)
+
+  ● Provider Chain › executeImageChain › should return error when all providers fail
+
+    TypeError: Cannot read properties of undefined (reading 'length')
+
+      79 |       expect(result.finalError).toContain('All providers failed')
+      80 |       expect(mockGenerateFn).toHaveBeenCalled()
+    > 81 |       expect(result.attemptedProviders.length).toBeGreaterThan(0)
+         |                                        ^
+      82 |     })
+      83 |
+      84 |     it('should skip providers without API keys', async () => {
+
+      at Object.length (__tests__/lib/provider-chain.test.ts:81:40)
+
+  ● Provider Chain › executeImageChain › should skip providers without API keys
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+       96 |       const result = await executeImageChain('text-to-image', mockRequest, mockGenerateFn)
+       97 |
+    >  98 |       expect(result.success).toBe(true)
+          |                              ^
+       99 |       expect(result.provider).toBe('together')
+      100 |       // Should not attempt fal or replicate since they have no keys
+      101 |       expect(result.attemptedProviders).not.toContain('fal')
+
+      at Object.toBe (__tests__/lib/provider-chain.test.ts:98:30)
+
+  ● Provider Chain › executeImageChain › should handle no providers configured gracefully
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "No providers configured"
+    Received string:    "No AI providers configured for text-to-image. Please configure at least one of: FAL, TOGETHER, REPLICATE, COMFYUI, GOOGLE"
+
+      116 |
+      117 |       expect(result.success).toBe(false)
+    > 118 |       expect(result.finalError).toContain('No providers configured')
+          |                                 ^
+      119 |       expect(mockGenerateFn).not.toHaveBeenCalled()
+      120 |     })
+      121 |   })
+
+      at Object.toContain (__tests__/lib/provider-chain.test.ts:118:33)
+
+  ● Provider Chain › executeVideoChain › should use primary video provider
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      136 |       const result = await executeVideoChain(mockRequest, mockGenerateFn)
+      137 |
+    > 138 |       expect(result.success).toBe(true)
+          |                              ^
+      139 |       expect(result.provider).toBe('fal')
+      140 |     })
+      141 |
+
+      at Object.toBe (__tests__/lib/provider-chain.test.ts:138:30)
+
+  ● Provider Chain › executeVideoChain › should fallback for video generation
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      152 |       const result = await executeVideoChain(mockRequest, mockGenerateFn)
+      153 |
+    > 154 |       expect(result.success).toBe(true)
+          |                              ^
+      155 |       expect(result.provider).toBe('replicate')
+      156 |       expect(result.attemptedProviders).toContain('fal')
+      157 |     })
+
+      at Object.toBe (__tests__/lib/provider-chain.test.ts:154:30)
+
+  ● Provider Chain › checkProviderAvailability › should timeout health checks after 5 seconds
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      191 |     })
+      192 |
+    > 193 |     it('should timeout health checks after 5 seconds', async () => {
+          |     ^
+      194 |       ;(global.fetch as jest.Mock).mockImplementationOnce(
+      195 |         () => new Promise((resolve) => setTimeout(resolve, 10000))
+      196 |       )
+
+      at it (__tests__/lib/provider-chain.test.ts:193:5)
+      at describe (__tests__/lib/provider-chain.test.ts:160:3)
+      at Object.describe (__tests__/lib/provider-chain.test.ts:17:1)
+
+  ● Provider Chain › Retry Logic › should retry failed requests with exponential backoff
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      223 |       }, mockGenerateFn)
+      224 |
+    > 225 |       expect(result.success).toBe(true)
+          |                              ^
+      226 |       expect(mockGenerateFn).toHaveBeenCalledTimes(3)
+      227 |     })
+      228 |
+
+      at Object.toBe (__tests__/lib/provider-chain.test.ts:225:30)
+
+  ● Provider Chain › Retry Logic › should stop retrying after max attempts
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      227 |     })
+      228 |
+    > 229 |     it('should stop retrying after max attempts', async () => {
+          |     ^
+      230 |       const mockGenerateFn = jest.fn().mockRejectedValue(new Error('Permanent failure'))
+      231 |
+      232 |       const result = await executeImageChain('text-to-image', {
+
+      at it (__tests__/lib/provider-chain.test.ts:229:5)
+      at describe (__tests__/lib/provider-chain.test.ts:207:3)
+      at Object.describe (__tests__/lib/provider-chain.test.ts:17:1)
+
+PASS __tests__/api/generate.test.ts (39.427 s)
+  ● Console
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider fal failed: Primary provider failed
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:65:24)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider fal failed: Provider unavailable
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:88:24)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider together failed: Provider unavailable
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:88:24)
+
+    console.log
+      Trying provider: replicate (priority 3)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider replicate failed: Provider unavailable
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:88:24)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying video provider: fal
+
+      at log (lib/ai/provider-chain.ts:360:15)
+
+    console.log
+      Trying video provider: fal
+
+      at log (lib/ai/provider-chain.ts:360:15)
+
+    console.log
+      Trying video provider: fal
+
+      at log (lib/ai/provider-chain.ts:360:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Video provider fal failed: Video generation failed
+
+      398 |       });
+      399 |
+    > 400 |       console.error(`Video provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      401 |     }
+      402 |   }
+      403 |
+
+      at error (lib/ai/provider-chain.ts:400:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:194:24)
+
+    console.log
+      Trying video provider: replicate
+
+      at log (lib/ai/provider-chain.ts:360:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Video provider replicate failed: Video generation failed
+
+      398 |       });
+      399 |
+    > 400 |       console.error(`Video provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      401 |     }
+      402 |   }
+      403 |
+
+      at error (lib/ai/provider-chain.ts:400:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:194:24)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider fal failed: API key invalid
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:234:24)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider together failed: API key invalid
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:234:24)
+
+    console.log
+      Trying provider: replicate (priority 3)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider replicate failed: API key invalid
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:234:24)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Trying provider: fal (priority 1)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider fal failed: Permanent failure
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:288:24)
+
+    console.log
+      Trying provider: together (priority 2)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider together failed: Permanent failure
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:288:24)
+
+    console.log
+      Trying provider: replicate (priority 3)
+
+      at log (lib/ai/provider-chain.ts:274:15)
+
+    console.log
+      Attempt 1 failed, retrying in 1000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.log
+      Attempt 2 failed, retrying in 2000ms...
+
+      at log (lib/ai/provider-chain.ts:222:17)
+
+    console.error
+      Provider replicate failed: Permanent failure
+
+      314 |       });
+      315 |
+    > 316 |       console.error(`Provider ${providerConfig.name} failed:`, errorMessage);
+          |               ^
+      317 |     }
+      318 |   }
+      319 |
+
+      at error (lib/ai/provider-chain.ts:316:15)
+      at Object.<anonymous> (__tests__/api/generate.test.ts:288:24)
+
+
+Test Suites: 3 failed, 1 passed, 4 total
+Tests:       37 failed, 27 passed, 64 total
+Snapshots:   0 total
+Time:        40.117 s
+Ran all test suites.
+ ELIFECYCLE  Command failed with exit code 1.

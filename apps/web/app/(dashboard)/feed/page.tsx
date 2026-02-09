@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -10,11 +11,10 @@ import {
   Share2,
   Download,
   Copy,
-  MoreHorizontal,
-  Sparkles,
   TrendingUp,
   Clock,
   Star,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,68 +35,34 @@ const categories = [
   { id: "landscape", label: "Landscape" },
 ];
 
-// Mock data for gallery
-const mockGalleryItems = [
-  {
-    id: "1",
-    imageUrl: "https://via.placeholder.com/400x400/7c3aed/ffffff?text=AI+Art",
-    prompt: "A futuristic cityscape at sunset with flying cars and neon lights",
-    author: { name: "artist1", avatar: null },
-    likes: 1234,
-    comments: 56,
-    model: "Flux Dev",
-  },
-  {
-    id: "2",
-    imageUrl: "https://via.placeholder.com/400x500/ec4899/ffffff?text=AI+Art",
-    prompt: "Portrait of a cyberpunk character with glowing eyes",
-    author: { name: "creator2", avatar: null },
-    likes: 892,
-    comments: 34,
-    model: "SDXL",
-  },
-  {
-    id: "3",
-    imageUrl: "https://via.placeholder.com/400x300/06b6d4/ffffff?text=AI+Art",
-    prompt: "Magical forest with bioluminescent plants",
-    author: { name: "aiartist", avatar: null },
-    likes: 2341,
-    comments: 89,
-    model: "Flux Schnell",
-  },
-  {
-    id: "4",
-    imageUrl: "https://via.placeholder.com/400x450/f59e0b/ffffff?text=AI+Art",
-    prompt: "Ancient temple ruins covered in moss",
-    author: { name: "designer", avatar: null },
-    likes: 567,
-    comments: 23,
-    model: "SD 3",
-  },
-  {
-    id: "5",
-    imageUrl: "https://via.placeholder.com/400x400/10b981/ffffff?text=AI+Art",
-    prompt: "Underwater city with mermaids",
-    author: { name: "creator3", avatar: null },
-    likes: 1456,
-    comments: 67,
-    model: "Flux Dev",
-  },
-  {
-    id: "6",
-    imageUrl: "https://via.placeholder.com/400x350/8b5cf6/ffffff?text=AI+Art",
-    prompt: "Space station orbiting a gas giant",
-    author: { name: "scifiart", avatar: null },
-    likes: 789,
-    comments: 45,
-    model: "SDXL Lightning",
-  },
-];
+interface GalleryItem {
+  id: string;
+  imageUrl: string;
+  prompt: string;
+  user: { name: string; image: string | null };
+  likes: number;
+  model: string;
+  createdAt: string;
+}
 
 export default function FeedPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
+
+  const sortMap: Record<string, string> = {
+    trending: "popular",
+    new: "recent",
+    featured: "popular",
+  };
+  const sort = sortMap[selectedCategory] || "recent";
+
+  const { data, isLoading } = useSWR<{ items: GalleryItem[]; total: number }>(
+    `/api/gallery?sort=${sort}&limit=30&offset=${page * 30}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ""}`
+  );
+
+  const items = data?.items || [];
 
   const toggleLike = (id: string) => {
     setLikedItems((prev) => {
@@ -154,89 +120,96 @@ export default function FeedPage() {
 
       {/* Gallery Grid */}
       <div className="flex-1 overflow-auto p-6">
-        <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-          {mockGalleryItems.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="break-inside-avoid"
-            >
-              <div className="group relative rounded-xl overflow-hidden bg-card border border-border">
-                {/* Image */}
-                <div className="relative">
-                  <img
-                    src={item.imageUrl}
-                    alt={item.prompt}
-                    className="w-full object-cover"
-                  />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : items.length > 0 ? (
+          <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+            {items.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="break-inside-avoid"
+              >
+                <div className="group relative rounded-xl overflow-hidden bg-card border border-border">
+                  <div className="relative">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.prompt}
+                      className="w-full object-cover"
+                    />
 
-                  {/* Overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* Top actions */}
-                    <div className="absolute top-3 right-3 flex gap-2">
-                      <button className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
-                        <Download className="h-4 w-4" />
-                      </button>
-                      <button className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
-                        <Copy className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-3 right-3 flex gap-2">
+                        <button className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+                          <Download className="h-4 w-4" />
+                        </button>
+                        <button className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      </div>
 
-                    {/* Bottom info */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <p className="text-white text-sm line-clamp-2 mb-3">
-                        {item.prompt}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Avatar size="sm" />
-                          <span className="text-white/80 text-sm">
-                            {item.author.name}
-                          </span>
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <p className="text-white text-sm line-clamp-2 mb-3">
+                          {item.prompt}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Avatar src={item.user?.image} size="sm" />
+                            <span className="text-white/80 text-sm">
+                              {item.user?.name || "User"}
+                            </span>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {item.model}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className="text-xs">
-                          {item.model}
-                        </Badge>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Actions */}
-                <div className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => toggleLike(item.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 text-sm transition-colors",
-                        likedItems.has(item.id) ? "text-red-500" : "text-muted-foreground hover:text-red-500"
-                      )}
-                    >
-                      <Heart className={cn("h-4 w-4", likedItems.has(item.id) && "fill-current")} />
-                      {item.likes + (likedItems.has(item.id) ? 1 : 0)}
-                    </button>
-                    <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      <MessageCircle className="h-4 w-4" />
-                      {item.comments}
+                  <div className="p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => toggleLike(item.id)}
+                        className={cn(
+                          "flex items-center gap-1.5 text-sm transition-colors",
+                          likedItems.has(item.id) ? "text-red-500" : "text-muted-foreground hover:text-red-500"
+                        )}
+                      >
+                        <Heart className={cn("h-4 w-4", likedItems.has(item.id) && "fill-current")} />
+                        {item.likes + (likedItems.has(item.id) ? 1 : 0)}
+                      </button>
+                    </div>
+                    <button className="text-muted-foreground hover:text-foreground transition-colors">
+                      <Share2 className="h-4 w-4" />
                     </button>
                   </div>
-                  <button className="text-muted-foreground hover:text-foreground transition-colors">
-                    <Share2 className="h-4 w-4" />
-                  </button>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <Star className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">No creations yet</h3>
+            <p className="text-muted-foreground">
+              Generate images and make them public to see them here
+            </p>
+          </div>
+        )}
 
         {/* Load More */}
-        <div className="text-center mt-8">
-          <Button variant="outline" size="lg">
-            Load More
-          </Button>
-        </div>
+        {items.length > 0 && (
+          <div className="text-center mt-8">
+            <Button variant="outline" size="lg" onClick={() => setPage((p) => p + 1)}>
+              Load More
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

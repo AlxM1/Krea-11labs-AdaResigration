@@ -16,7 +16,7 @@ const addFavoriteSchema = z.object({
 // Get favorites
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -187,7 +187,7 @@ export async function GET(req: NextRequest) {
 // Add to favorites
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
 // Remove from favorites
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

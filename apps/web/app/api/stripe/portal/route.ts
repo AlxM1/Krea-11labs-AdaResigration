@@ -5,7 +5,7 @@ import { createPortalSession } from "@/lib/stripe";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await auth(req);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
