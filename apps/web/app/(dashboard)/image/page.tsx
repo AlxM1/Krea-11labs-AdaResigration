@@ -69,17 +69,17 @@ export default function ImageGenerationPage() {
         throw new Error(data.error || "Generation failed");
       }
 
-      // Add to local state (in real app, poll for completion)
+      // Add to local state with the actual response data
       addGeneration({
         id: data.id,
         prompt: params.prompt,
-        imageUrl: "", // Will be updated when complete
-        status: "processing",
+        imageUrl: data.imageUrl || "", // Use actual imageUrl from response
+        status: data.status || "completed", // Use actual status from response
         createdAt: new Date(),
         params,
       });
 
-      toast.success("Generation started!");
+      toast.success(data.status === "completed" ? "Image generated!" : "Generation started!");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Generation failed");
     } finally {
