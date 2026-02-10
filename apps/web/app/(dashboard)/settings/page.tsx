@@ -5,7 +5,6 @@ import { useUser } from "@/hooks/use-user";
 import {
   Settings,
   User,
-  CreditCard,
   Bell,
   Shield,
   Palette,
@@ -90,10 +89,6 @@ export default function SettingsPage() {
             <User className="h-4 w-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="billing" className="gap-2">
-            <CreditCard className="h-4 w-4" />
-            Billing
-          </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="h-4 w-4" />
             Notifications
@@ -170,72 +165,6 @@ export default function SettingsPage() {
               <Button variant="destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Account
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Billing Tab */}
-        <TabsContent value="billing" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Plan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold">Free Plan</h3>
-                    <Badge>Current</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">50 generations/day</p>
-                </div>
-                <Button variant="gradient">
-                  Upgrade to Pro
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Usage This Month</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Image Generations</span>
-                    <span>25 / 50</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full w-1/2 bg-primary" />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Video Generations</span>
-                    <span>3 / 10</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full w-[30%] bg-primary" />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Methods</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm mb-4">
-                No payment methods added
-              </p>
-              <Button variant="outline">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Add Payment Method
               </Button>
             </CardContent>
           </Card>

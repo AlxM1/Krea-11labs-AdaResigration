@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ShareButton } from "@/components/ui/share-button";
 import { DownloadButton } from "@/components/ui/download-button";
+import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import { useGenerationStore } from "@/stores/generation-store";
 import { imageModels, aspectRatios, stylePresets } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
@@ -136,8 +137,11 @@ export default function ImageGenerationPage() {
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Prompt Input */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium">Prompt</label>
+            <div className="flex items-center justify-between">
+              <LabelWithTooltip
+                label="Prompt"
+                tooltip="Describe the image you want to create. Be specific for better results."
+              />
               <Button
                 variant="ghost"
                 size="sm"
@@ -168,10 +172,11 @@ export default function ImageGenerationPage() {
 
           {/* Negative Prompt */}
           <div>
-            <label className="text-sm font-medium mb-2 block">
-              Negative Prompt{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
-            </label>
+            <LabelWithTooltip
+              label="Negative Prompt"
+              tooltip="Describe what you DON'T want in the image. Helps avoid unwanted elements."
+              optional
+            />
             <Textarea
               placeholder="What to avoid in the image..."
               value={params.negativePrompt}
@@ -182,7 +187,10 @@ export default function ImageGenerationPage() {
 
           {/* Model Selection */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Model</label>
+            <LabelWithTooltip
+              label="Model"
+              tooltip="The AI model used for generation. Local GPU models are free and unlimited."
+            />
             <Select
               value={params.model}
               onChange={(value) => {
@@ -204,7 +212,10 @@ export default function ImageGenerationPage() {
 
           {/* Aspect Ratio */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Aspect Ratio</label>
+            <LabelWithTooltip
+              label="Aspect Ratio"
+              tooltip="The shape/dimensions of the output image."
+            />
             <div className="flex flex-wrap gap-2">
               {aspectRatios.map((aspect) => (
                 <button
@@ -225,7 +236,10 @@ export default function ImageGenerationPage() {
 
           {/* Style Presets */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Style Preset</label>
+            <LabelWithTooltip
+              label="Style Preset"
+              tooltip="Apply a predefined artistic style to your generation."
+            />
             <Select
               value={selectedStyle}
               onChange={setSelectedStyle}
@@ -259,25 +273,38 @@ export default function ImageGenerationPage() {
                 exit={{ opacity: 0, height: 0 }}
                 className="space-y-4"
               >
-                <Slider
-                  label="Steps"
-                  value={params.steps}
-                  onChange={(value) => setParams({ steps: value })}
-                  min={1}
-                  max={50}
-                />
-
-                <Slider
-                  label="CFG Scale"
-                  value={params.cfgScale}
-                  onChange={(value) => setParams({ cfgScale: value })}
-                  min={1}
-                  max={20}
-                  step={0.5}
-                />
+                <div>
+                  <LabelWithTooltip
+                    label="Steps"
+                    tooltip="Number of denoising steps. More steps = higher quality but slower. 20-30 is usually good."
+                  />
+                  <Slider
+                    value={params.steps}
+                    onChange={(value) => setParams({ steps: value })}
+                    min={1}
+                    max={50}
+                  />
+                </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Seed</label>
+                  <LabelWithTooltip
+                    label="CFG Scale"
+                    tooltip="How closely the image follows your prompt. Higher = more literal. 7-12 is recommended."
+                  />
+                  <Slider
+                    value={params.cfgScale}
+                    onChange={(value) => setParams({ cfgScale: value })}
+                    min={1}
+                    max={20}
+                    step={0.5}
+                  />
+                </div>
+
+                <div>
+                  <LabelWithTooltip
+                    label="Seed"
+                    tooltip="Random number for reproducibility. Same seed + same prompt = same image."
+                  />
                   <div className="flex gap-2">
                     <input
                       type="number"
@@ -301,16 +328,17 @@ export default function ImageGenerationPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Batch Size
-                  </label>
-                  <div className="flex gap-2">
-                    {[1, 2, 4].map((size) => (
+                  <LabelWithTooltip
+                    label="Batch Size"
+                    tooltip="Number of images to generate at once. Higher uses more GPU memory."
+                  />
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1, 2, 4, 6, 8, 10, 16].map((size) => (
                       <button
                         key={size}
                         onClick={() => setParams({ batchSize: size })}
                         className={cn(
-                          "flex-1 py-2 text-sm rounded-lg border transition-colors",
+                          "py-2 text-sm rounded-lg border transition-colors",
                           params.batchSize === size
                             ? "border-primary bg-primary/10 text-primary"
                             : "border-border hover:border-primary/50"
@@ -338,9 +366,6 @@ export default function ImageGenerationPage() {
             <Sparkles className="h-5 w-5" />
             Generate
           </Button>
-          <p className="text-xs text-center text-muted-foreground mt-2">
-            Uses {params.batchSize} credit{params.batchSize > 1 ? "s" : ""}
-          </p>
         </div>
       </div>
 

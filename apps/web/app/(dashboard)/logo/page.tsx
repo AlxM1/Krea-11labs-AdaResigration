@@ -266,8 +266,7 @@ export default function LogoGenerationPage() {
             Generate Logo{count > 1 ? "s" : ""}
           </Button>
           <p className="text-xs text-center text-muted-foreground mt-2">
-            Generates {count} variation{count > 1 ? "s" : ""} | Uses {count}{" "}
-            credit{count > 1 ? "s" : ""}
+            Generates {count} variation{count > 1 ? "s" : ""}
           </p>
         </div>
       </div>

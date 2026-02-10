@@ -135,18 +135,6 @@ export default function DashboardPage() {
           value={user?.stats?.generations ?? 0}
           isLoading={isLoading}
         />
-        <StatsCard
-          icon={TrendingUp}
-          label="Credits Remaining"
-          value={usage?.credits?.remaining ?? user?.creditsRemaining ?? 0}
-          isLoading={isLoading}
-        />
-        <StatsCard
-          icon={Star}
-          label="Subscription"
-          value={user?.subscriptionTier ?? "FREE"}
-          isLoading={isLoading}
-        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

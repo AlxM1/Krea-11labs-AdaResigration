@@ -353,7 +353,7 @@ export default function VideoGenerationPage() {
             Generate Video
           </Button>
           <p className="text-xs text-center text-muted-foreground mt-2">
-            Estimated time: ~{duration * 10}s | Uses {duration} credits
+            Estimated time: ~{duration * 10}s
           </p>
         </div>
       </div>
