@@ -10,6 +10,7 @@ import { DownloadButton } from '@/components/ui/download-button'
 import { Loader2, Upload } from 'lucide-react'
 import Image from 'next/image'
 import { useDropzone } from 'react-dropzone'
+import toast from 'react-hot-toast'
 
 export default function ImageToImagePage() {
   const [prompt, setPrompt] = useState('')
@@ -57,9 +58,13 @@ export default function ImageToImagePage() {
       })
 
       const uploadData = await uploadResponse.json()
-      if (!uploadData.url) {
-        throw new Error('Failed to upload image')
+      if (!uploadResponse.ok || !uploadData.url) {
+        const errorMsg = uploadData.error || 'Failed to upload image'
+        toast.error(errorMsg)
+        throw new Error(errorMsg)
       }
+
+      console.log('[img2img frontend] Image uploaded:', uploadData.url)
 
       // Generate image-to-image
       const response = await fetch('/api/generate/image', {
@@ -69,20 +74,23 @@ export default function ImageToImagePage() {
           prompt,
           imageUrl: uploadData.url,
           strength,
-          mode: 'image-to-image',
+          model: 'comfyui-sdxl', // Use SDXL model for img2img
         }),
       })
 
       const data = await response.json()
 
-      if (data.imageUrl) {
-        setResult(data.imageUrl)
-      } else {
-        throw new Error(data.error || 'Generation failed')
+      if (!response.ok || !data.imageUrl) {
+        const errorMsg = data.error || 'Generation failed'
+        toast.error(errorMsg, { duration: 5000 })
+        throw new Error(errorMsg)
       }
+
+      setResult(data.imageUrl)
+      toast.success('Image transformed!')
     } catch (error) {
       console.error('Image-to-image error:', error)
-      alert('Failed to generate image. Please try again.')
+      // Error already shown via toast
     } finally {
       setGenerating(false)
     }

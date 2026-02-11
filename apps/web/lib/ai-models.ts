@@ -85,27 +85,63 @@ export const imageModels: AIModel[] = [
 ];
 
 export const videoModels = [
+  // Wan 2.2 - Local GPU (ComfyUI) - Primary text-to-video model
+  {
+    id: "wan-2.2-t2v",
+    name: "Wan 2.2 14B (Local GPU)",
+    provider: "ComfyUI",
+    description: "Free local generation - 720p/1080p on RTX 5090",
+    maxDuration: 10,
+    resolution: "1080p",
+  },
+  {
+    id: "wan-2.2-i2v",
+    name: "Wan 2.2 I2V (Local GPU)",
+    provider: "ComfyUI",
+    description: "Free image-to-video on RTX 5090",
+    maxDuration: 10,
+    resolution: "1080p",
+  },
+  // SVD - Image-to-Video fallback
+  {
+    id: "svd-xt-1.1",
+    name: "SVD XT 1.1 (Local GPU)",
+    provider: "ComfyUI",
+    description: "Free image-to-video on RTX 5090 - REQUIRES reference image upload",
+    maxDuration: 4,
+    resolution: "576p",
+  },
+  // CogVideoX - Not installed
+  {
+    id: "cogvideo-5b",
+    name: "CogVideoX-5B (Setup Required)",
+    provider: "ComfyUI",
+    description: "Text-to-video - Requires CogVideoX custom nodes installation",
+    maxDuration: 6,
+    resolution: "480p",
+  },
+  // fal.ai models (require credits)
   {
     id: "kling-2.5",
-    name: "Kling 2.5",
+    name: "Kling 2.5 (Requires fal.ai Credits)",
     provider: "Kuaishou",
-    description: "Best for fast motion and action",
+    description: "Best for fast motion and action - cloud-based",
     maxDuration: 10,
     resolution: "720p",
   },
   {
     id: "runway-gen4",
-    name: "Runway Gen-4",
+    name: "Runway Gen-4 (Requires fal.ai Credits)",
     provider: "Runway",
-    description: "Character consistency across shots",
+    description: "Character consistency across shots - cloud-based",
     maxDuration: 16,
     resolution: "720p",
   },
   {
     id: "luma-ray2",
-    name: "Luma Ray 2",
+    name: "Luma Ray 2 (Requires fal.ai Credits)",
     provider: "Luma Labs",
-    description: "Cinematic quality videos",
+    description: "Cinematic quality videos - cloud-based",
     maxDuration: 5,
     resolution: "720p",
   },

@@ -103,7 +103,7 @@ async function processImageGeneration(job: Job<ImageGenerationJob>): Promise<voi
 /**
  * Process video generation jobs
  */
-async function processVideoGeneration(job: Job<VideoGenerationJob>): Promise<void> {
+async function processVideoGeneration(job: Job<VideoGenerationJob>): Promise<{ id: string; videoUrl?: string; status: string; error?: string }> {
   const { videoId, prompt, imageUrl, model, duration, aspectRatio, userId } = job.data;
 
   const provider: AIProvider = (job.data as VideoGenerationJob & { provider?: AIProvider }).provider || "fal";
@@ -132,14 +132,30 @@ async function processVideoGeneration(job: Job<VideoGenerationJob>): Promise<voi
         message: result.error || "Video generation failed",
         data: { videoId },
       } satisfies NotificationJob);
-      return;
+
+      return { id: videoId, status: "failed", error: result.error };
+    }
+
+    // Download and save video to our storage (like image worker does)
+    let finalVideoUrl = result.videoUrl;
+    if (result.videoUrl) {
+      try {
+        console.log('[Video Worker] Downloading video from:', result.videoUrl);
+        const uploaded = await uploadFromUrl(result.videoUrl, userId);
+        finalVideoUrl = uploaded.url;
+        console.log('[Video Worker] Video saved to:', finalVideoUrl);
+      } catch (error) {
+        console.error('[Video Worker] Failed to download video:', error);
+        // Use provider URL directly if upload fails
+        console.log('[Video Worker] Using provider URL directly:', result.videoUrl);
+      }
     }
 
     await prisma.video.update({
       where: { id: videoId },
       data: {
         status: result.status === "completed" ? "COMPLETED" : "PROCESSING",
-        videoUrl: result.videoUrl,
+        videoUrl: finalVideoUrl,
       },
     });
 
@@ -149,15 +165,18 @@ async function processVideoGeneration(job: Job<VideoGenerationJob>): Promise<voi
         type: "generation_complete",
         title: "Video Ready",
         message: `Your video is ready`,
-        data: { videoId, videoUrl: result.videoUrl },
+        data: { videoId, videoUrl: finalVideoUrl },
       } satisfies NotificationJob);
     }
+
+    return { id: videoId, videoUrl: finalVideoUrl, status: result.status || "completed" };
   } catch (error) {
     await prisma.video.update({
       where: { id: videoId },
       data: { status: "FAILED" },
     });
-    throw error;
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    return { id: videoId, status: "failed", error: errorMsg };
   }
 }
 
@@ -533,7 +552,7 @@ export function initializeWorkers(): void {
     { concurrency: 3 }
   );
 
-  const videoWorker = createWorker<VideoGenerationJob>(
+  const videoWorker = createWorker<VideoGenerationJob, { id: string; videoUrl?: string; status: string; error?: string }>(
     QueueNames.VIDEO_GENERATION,
     processVideoGeneration,
     { concurrency: 2 }

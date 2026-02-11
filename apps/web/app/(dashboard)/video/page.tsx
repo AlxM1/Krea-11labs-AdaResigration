@@ -21,14 +21,15 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ShareButton } from "@/components/ui/share-button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { videoModels } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 export default function VideoGenerationPage() {
   const [prompt, setPrompt] = useState("");
-  const [selectedModel, setSelectedModel] = useState("kling-2.5");
-  const [duration, setDuration] = useState(5);
+  const [selectedModel, setSelectedModel] = useState("wan-2.2-t2v"); // Default to Wan 2.2 text-to-video
+  const [duration, setDuration] = useState(6); // CogVideo max is 6 seconds
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -36,6 +37,8 @@ export default function VideoGenerationPage() {
   const [generationType, setGenerationType] = useState<"text" | "image">("text");
   const [videoResult, setVideoResult] = useState<{ id: string; videoUrl?: string; status: string } | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [motionIntensity, setMotionIntensity] = useState(50);
+  const [cameraMotion, setCameraMotion] = useState(0);
 
   const handleEnhancePrompt = async () => {
     if (!prompt.trim()) return;
@@ -87,7 +90,15 @@ export default function VideoGenerationPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error || "Video generation failed");
+        // Show detailed error message if available
+        const errorMsg = data.message || data.error || "Video generation failed";
+        toast.error(errorMsg, { duration: 8000 }); // Show for 8 seconds
+
+        // Log provider availability info if present
+        if (data.providers) {
+          console.error("Video provider availability:", data.providers);
+        }
+
         setIsGenerating(false);
         return;
       }
@@ -99,17 +110,21 @@ export default function VideoGenerationPage() {
           const statusRes = await fetch(`/api/jobs/${jobId}`);
           const statusData = await statusRes.json();
 
-          if (statusData.status === "completed") {
+          console.log('[Video Poll] Job status:', statusData);
+
+          if (statusData.state === "completed" && statusData.returnvalue) {
             clearInterval(pollInterval);
-            setVideoResult(statusData);
+            setVideoResult(statusData.returnvalue);
             setIsGenerating(false);
             toast.success("Video generated!");
-          } else if (statusData.status === "failed") {
+          } else if (statusData.state === "failed") {
             clearInterval(pollInterval);
             setIsGenerating(false);
-            toast.error("Video generation failed");
+            const errorMsg = statusData.failedReason || statusData.returnvalue?.error || "Video generation failed";
+            toast.error(errorMsg, { duration: 8000 });
           }
-        } catch {
+        } catch (error) {
+          console.error('[Video Poll] Error:', error);
           // Continue polling
         }
       }, 3000);
@@ -141,15 +156,16 @@ export default function VideoGenerationPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Left Panel - Controls */}
-      <div className="w-96 border-r border-border flex flex-col">
-        <div className="p-4 border-b border-border">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Video className="h-5 w-5" />
-            Video Generation
-          </h1>
-        </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="flex h-[calc(100vh-4rem)]">
+        {/* Left Panel - Controls */}
+        <div className="w-96 border-r border-border flex flex-col">
+          <div className="p-4 border-b border-border">
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <Video className="h-5 w-5" />
+              Video Generation
+            </h1>
+          </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Generation Type Tabs */}
@@ -159,12 +175,22 @@ export default function VideoGenerationPage() {
             className="w-full"
           >
             <TabsList className="w-full">
-              <TabsTrigger value="text" className="flex-1">
-                Text to Video
-              </TabsTrigger>
-              <TabsTrigger value="image" className="flex-1">
-                Image to Video
-              </TabsTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="text" className="flex-1">
+                    Text to Video
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Generate video from text description</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value="image" className="flex-1">
+                    Image to Video
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Animate a reference image into video</TooltipContent>
+              </Tooltip>
             </TabsList>
 
             <TabsContent value="text" className="mt-4">
@@ -282,19 +308,27 @@ export default function VideoGenerationPage() {
           <div>
             <label className="text-sm font-medium mb-2 block">Aspect Ratio</label>
             <div className="flex gap-2">
-              {["16:9", "9:16", "1:1"].map((ratio) => (
-                <button
-                  key={ratio}
-                  onClick={() => setAspectRatio(ratio)}
-                  className={cn(
-                    "flex-1 py-2 text-sm rounded-lg border transition-colors",
-                    aspectRatio === ratio
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50"
-                  )}
-                >
-                  {ratio}
-                </button>
+              {[
+                { ratio: "16:9", tip: "Widescreen (1920x1080)" },
+                { ratio: "9:16", tip: "Portrait/Mobile (1080x1920)" },
+                { ratio: "1:1", tip: "Square (1080x1080)" },
+              ].map(({ ratio, tip }) => (
+                <Tooltip key={ratio}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setAspectRatio(ratio)}
+                      className={cn(
+                        "flex-1 py-2 text-sm rounded-lg border transition-colors",
+                        aspectRatio === ratio
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      {ratio}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{tip}</TooltipContent>
+                </Tooltip>
               ))}
             </div>
           </div>
@@ -323,15 +357,15 @@ export default function VideoGenerationPage() {
               >
                 <Slider
                   label="Motion Intensity"
-                  value={50}
-                  onChange={() => {}}
+                  value={motionIntensity}
+                  onChange={setMotionIntensity}
                   min={0}
                   max={100}
                 />
                 <Slider
                   label="Camera Motion"
-                  value={0}
-                  onChange={() => {}}
+                  value={cameraMotion}
+                  onChange={setCameraMotion}
                   min={0}
                   max={100}
                 />
@@ -425,5 +459,6 @@ export default function VideoGenerationPage() {
         </Tabs>
       </div>
     </div>
+    </TooltipProvider>
   );
 }

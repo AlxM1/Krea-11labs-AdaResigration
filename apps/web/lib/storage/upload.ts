@@ -252,17 +252,21 @@ export async function uploadFromUrl(
     throw new Error(`Invalid content type: ${contentType}`);
   }
 
-  // Limit file size (50MB max)
+  // Determine max size based on content type (videos can be larger)
+  const isVideo = contentType.startsWith("video/");
+  const maxSize = isVideo ? 200 * 1024 * 1024 : 50 * 1024 * 1024; // 200MB for videos, 50MB for images
+
+  // Limit file size
   const contentLength = response.headers.get("content-length");
-  if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
-    throw new Error("File too large (max 50MB)");
+  if (contentLength && parseInt(contentLength) > maxSize) {
+    throw new Error(`File too large (max ${isVideo ? '200' : '50'}MB)`);
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
 
   // Double check size after download
-  if (buffer.length > 50 * 1024 * 1024) {
-    throw new Error("File too large (max 50MB)");
+  if (buffer.length > maxSize) {
+    throw new Error(`File too large (max ${isVideo ? '200' : '50'}MB)`);
   }
 
   const ext = contentType.split("/")[1]?.split(";")[0] || "png";

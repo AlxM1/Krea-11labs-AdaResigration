@@ -4,25 +4,26 @@
 
 @layer base {
   :root {
-    --background: 0 0% 3.9%;
+    /* Kling AI Clone Theme - Dark */
+    --background: 0 0% 3.9%; /* #0a0a0a */
     --foreground: 0 0% 98%;
-    --card: 0 0% 6%;
+    --card: 0 0% 10.2%; /* #1a1a1a */
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 6%;
+    --popover: 0 0% 10.2%;
     --popover-foreground: 0 0% 98%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
+    --primary: 221 83% 53%; /* Blue-purple gradient start */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 262 83% 58%; /* Purple for gradients */
+    --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 262 83% 58%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 262 83% 58%;
+    --accent: 221 83% 53%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 16.5%; /* #2a2a2a */
+    --input: 0 0% 16.5%;
+    --ring: 221 83% 53%;
     --radius: 0.75rem;
   }
 }
@@ -67,16 +68,27 @@
   scrollbar-width: none;
 }
 
-/* Gradient text */
+/* Gradient text - Kling AI style */
 .gradient-text {
-  @apply bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent;
+  @apply bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent;
+}
+
+/* Primary gradient button */
+.btn-gradient {
+  @apply bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200;
 }
 
 /* Animated gradient background */
 .gradient-bg {
-  background: linear-gradient(-45deg, #ee7752, #e73c7e, #7c3aed, #23a6d5);
+  background: linear-gradient(-45deg, #3b82f6, #8b5cf6, #6366f1, #a855f7);
   background-size: 400% 400%;
   animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Glass effect */

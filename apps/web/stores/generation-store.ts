@@ -16,6 +16,7 @@ export interface Generation {
   id: string;
   prompt: string;
   imageUrl: string;
+  images?: string[]; // All images from batch generation
   thumbnailUrl?: string;
   status: "pending" | "processing" | "completed" | "failed";
   createdAt: Date;
@@ -50,10 +51,10 @@ interface GenerationState {
 const defaultParams: GenerationParams = {
   prompt: "",
   negativePrompt: "",
-  model: "flux-schnell",
+  model: "comfyui-sdxl", // SDXL (Local GPU) - free, no API costs
   width: 1024,
   height: 1024,
-  steps: 4,
+  steps: 20, // SDXL default steps
   cfgScale: 7.5,
   seed: -1,
   batchSize: 1,

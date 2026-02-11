@@ -78,14 +78,15 @@ export default function UpscalePage() {
       }
 
       // Upscale image
-      const response = await fetch('/api/generate/image', {
+      const response = await fetch('/api/enhance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: uploadData.url,
-          scale,
+          scale: scale.toString(),
           model,
-          mode: 'upscale',
+          denoise: 50,
+          faceEnhance: model === 'gfpgan' || model === 'codeformer',
         }),
       })
 

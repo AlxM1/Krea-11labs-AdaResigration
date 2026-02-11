@@ -4,24 +4,24 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const querySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(30),
-  offset: z.coerce.number().min(0).default(0),
-  type: z.enum(["all", "image", "video", "3d"]).default("all"),
-  sort: z.enum(["recent", "popular", "trending"]).default("recent"),
-  model: z.string().optional(),
-  userId: z.string().optional(),
+  limit: z.coerce.number().min(1).max(100).optional().default(30),
+  offset: z.coerce.number().min(0).optional().default(0),
+  type: z.enum(["all", "image", "video", "3d"]).optional().default("all"),
+  sort: z.enum(["recent", "popular", "trending"]).optional().default("recent"),
+  model: z.string().nullable().optional(),
+  userId: z.string().nullable().optional(),
 });
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const query = querySchema.parse({
-      limit: searchParams.get("limit"),
-      offset: searchParams.get("offset"),
-      type: searchParams.get("type"),
-      sort: searchParams.get("sort"),
-      model: searchParams.get("model"),
-      userId: searchParams.get("userId"),
+      limit: searchParams.get("limit") ?? undefined,
+      offset: searchParams.get("offset") ?? undefined,
+      type: searchParams.get("type") ?? undefined,
+      sort: searchParams.get("sort") ?? undefined,
+      model: searchParams.get("model") ?? undefined,
+      userId: searchParams.get("userId") ?? undefined,
     });
 
     // Build where clause

@@ -33,6 +33,7 @@ export interface ImageGenerationJob {
   steps: number;
   cfgScale: number;
   seed?: number;
+  batchSize?: number;
 }
 
 export interface VideoGenerationJob {
@@ -167,9 +168,9 @@ export async function addJob<T>(
 /**
  * Create a worker for processing jobs
  */
-export function createWorker<T>(
+export function createWorker<T, R = void>(
   queueName: QueueName,
-  processor: (job: Job<T>) => Promise<void>,
+  processor: (job: Job<T>) => Promise<R>,
   options?: {
     concurrency?: number;
   }
@@ -189,8 +190,9 @@ export function createWorker<T>(
     async (job: Job<T>) => {
       console.log(`[Worker:${queueName}] Processing job ${job.id}`);
       try {
-        await processor(job);
+        const result = await processor(job);
         console.log(`[Worker:${queueName}] Completed job ${job.id}`);
+        return result;
       } catch (error) {
         console.error(`[Worker:${queueName}] Failed job ${job.id}:`, error);
         throw error;

@@ -4,14 +4,15 @@ import { auth } from "@/lib/auth";
 import { generateVideo, AIProvider } from "@/lib/ai/providers";
 import { addJob, isQueueAvailable, QueueNames, VideoGenerationJob } from "@/lib/queue";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 const videoGenerateSchema = z.object({
   prompt: z.string().min(1).max(2000),
   imageUrl: z.string().url().optional(),
-  model: z.string().default("kling-2.5"),
-  duration: z.number().min(2).max(10).default(5),
+  model: z.string().default("wan-2.2-t2v"), // Default to Wan 2.2 text-to-video
+  duration: z.number().min(2).max(10).default(6),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
-  // Provider selection (google for Veo 3.1, fal for Runway, comfyui for local SVD)
+  // Provider selection (google for Veo 3.1, fal for Runway, comfyui for Wan/CogVideo/SVD)
   provider: z.enum(["fal", "google", "comfyui", "replicate"]).optional(),
   // If true, queue the job and return immediately
   async: z.boolean().default(true),
@@ -33,7 +34,48 @@ export async function POST(req: NextRequest) {
     }
 
     const params = validated.data;
-    const provider: AIProvider = params.provider || "fal";
+
+    // Check provider availability (fal.ai credits exhausted, need ComfyUI or alternative)
+    const comfyuiAvailable = !!process.env.COMFYUI_URL;
+    const falAvailable = !!process.env.FAL_KEY;
+    const googleAvailable = !!process.env.GOOGLE_AI_API_KEY;
+
+    // Determine provider based on model and availability
+    let provider: AIProvider;
+    if (params.provider) {
+      provider = params.provider;
+    } else if (params.model.toLowerCase().includes("svd") || params.model.toLowerCase().includes("cogvideo") || params.model.toLowerCase().includes("wan")) {
+      // SVD, CogVideo, and Wan models always use ComfyUI (local GPU)
+      if (!comfyuiAvailable) {
+        return NextResponse.json(
+          {
+            error: "ComfyUI not available",
+            message: "Local GPU video generation requires ComfyUI.\nConfigure COMFYUI_URL environment variable.",
+          },
+          { status: 503 }
+        );
+      }
+      provider = "comfyui";
+    } else if (comfyuiAvailable) {
+      provider = "comfyui"; // Prefer local GPU (free)
+    } else if (googleAvailable) {
+      provider = "google"; // Google Veo 3.1
+    } else if (falAvailable) {
+      provider = "fal"; // fal.ai (credits may be exhausted)
+    } else {
+      return NextResponse.json(
+        {
+          error: "No video generation providers available",
+          message: "Video generation requires either:\n1. ComfyUI with AnimateDiff/SVD models (local GPU)\n2. Google AI API key (Veo 3.1)\n3. fal.ai API key (credits required)\n\nConfigure at least one provider in your environment variables.",
+          providers: {
+            comfyui: comfyuiAvailable ? "available" : "not configured",
+            google: googleAvailable ? "available" : "not configured",
+            fal: falAvailable ? "configured (credits may be exhausted)" : "not configured",
+          }
+        },
+        { status: 503 }
+      );
+    }
 
     // Create video record
     const video = await prisma.video.create({
@@ -77,17 +119,32 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Synchronous fallback: generate directly
-    const result = await generateVideo(
-      {
-        prompt: params.prompt,
-        imageUrl: params.imageUrl,
-        duration: params.duration,
-        aspectRatio: params.aspectRatio,
-        model: params.model,
-      },
-      provider
+    // Synchronous fallback: generate directly with timeout
+    const timeoutMs = 120000; // 120 seconds timeout (videos take longer)
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Video generation timed out after 120 seconds")), timeoutMs)
     );
+
+    const result = await Promise.race([
+      generateVideo(
+        {
+          prompt: params.prompt,
+          imageUrl: params.imageUrl,
+          duration: params.duration,
+          aspectRatio: params.aspectRatio,
+          model: params.model,
+        },
+        provider
+      ),
+      timeoutPromise,
+    ]).catch((error) => {
+      console.error("Video generation failed or timed out:", error);
+      return {
+        id: crypto.randomUUID(),
+        status: "failed" as const,
+        error: error.message || "Video generation timed out",
+      };
+    });
 
     if (result.status === "failed") {
       await prisma.video.update({

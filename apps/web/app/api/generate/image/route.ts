@@ -15,7 +15,7 @@ const generateSchema = z.object({
   steps: z.number().min(1).max(100).default(4),
   cfgScale: z.number().min(1).max(20).default(7.5),
   seed: z.number().default(-1),
-  batchSize: z.number().min(1).max(4).default(1),
+  batchSize: z.number().min(1).max(16).default(1),
   // Provider selection
   provider: z.enum(["fal", "replicate", "together", "google", "comfyui"]).optional(),
   // Prompt enhancement options
@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
           steps: params.steps,
           cfgScale: params.cfgScale,
           seed: params.seed > 0 ? params.seed : undefined,
+          batchSize: params.batchSize,
           provider,
         },
         { jobId: `img-${generation.id}` }
@@ -149,6 +150,7 @@ export async function POST(req: NextRequest) {
         cfgScale: params.cfgScale,
         seed: params.seed > 0 ? params.seed : undefined,
         model: actualModel,
+        batchSize: params.batchSize,
       },
       provider
     );
@@ -172,31 +174,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Upload generated image to storage (optional - can also use provider URL directly)
-    let finalImageUrl = aiResponse.imageUrl;
-    try {
-      const uploadResult = await uploadFromUrl(aiResponse.imageUrl, userId);
-      finalImageUrl = uploadResult.url;
-    } catch (uploadError) {
-      // If upload fails, use the original URL
-      console.error("Failed to upload to storage, using provider URL:", uploadError);
+    // Upload generated images to storage (handles batch generation)
+    const imageUrls = aiResponse.images || [aiResponse.imageUrl];
+    const finalImageUrls: string[] = [];
+
+    for (const imageUrl of imageUrls) {
+      if (!imageUrl) continue;
+      try {
+        const uploadResult = await uploadFromUrl(imageUrl, userId);
+        finalImageUrls.push(uploadResult.url);
+      } catch (uploadError) {
+        // If upload fails, use the original URL
+        console.error("Failed to upload to storage, using provider URL:", uploadError);
+        finalImageUrls.push(imageUrl);
+      }
     }
+
+    const primaryImageUrl = finalImageUrls[0] || aiResponse.imageUrl;
 
     // Update generation record with result
     await prisma.generation.update({
       where: { id: generation.id },
       data: {
         status: "COMPLETED",
-        imageUrl: finalImageUrl,
-        thumbnailUrl: finalImageUrl,
+        imageUrl: primaryImageUrl,
+        thumbnailUrl: primaryImageUrl,
         seed: aiResponse.seed ? BigInt(aiResponse.seed) : null,
+        parameters: {
+          ...(generation.parameters as object),
+          allImages: finalImageUrls, // Store all batch images
+        },
       },
     });
 
     return NextResponse.json({
       id: generation.id,
       status: "completed",
-      imageUrl: finalImageUrl,
+      imageUrl: primaryImageUrl,
+      images: finalImageUrls, // Return all batch images
       seed: aiResponse.seed,
       provider: provider,
       prompt: finalPrompt,

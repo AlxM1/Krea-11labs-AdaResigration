@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { generateImage } from "@/lib/ai/providers";
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { addJob, isQueueAvailable, QueueNames, LogoGenerationJob } from "@/lib/queue";
+import { ComfyUIProvider } from "@/lib/ai/comfyui-provider";
 import { z } from "zod";
 
 const logoSchema = z.object({
@@ -69,10 +70,30 @@ export async function POST(req: NextRequest) {
         data: { status: "PROCESSING" },
       });
 
-      const aiResult = await generateImage(
-        { prompt: logoPrompt, width: 1024, height: 1024, steps: 8 },
-        "fal"
-      );
+      // Try ComfyUI if FAL_KEY not available
+      let aiResult;
+      const falKey = process.env.FAL_KEY;
+      if (!falKey || falKey === "") {
+        console.log('[Logo] Using ComfyUI (FAL_KEY not configured)');
+        const comfyui = new ComfyUIProvider({
+          baseUrl: process.env.COMFYUI_URL || "http://127.0.0.1:8188",
+          outputUrl: process.env.COMFYUI_OUTPUT_URL,
+          defaultModel: process.env.COMFYUI_DEFAULT_MODEL || "sd_xl_base_1.0.safetensors",
+          sdxlModel: process.env.COMFYUI_SDXL_MODEL || "sd_xl_base_1.0.safetensors",
+          fluxModel: process.env.COMFYUI_FLUX_MODEL || "flux1-schnell.safetensors",
+        });
+        aiResult = await comfyui.generateImage({
+          prompt: logoPrompt,
+          width: 1024,
+          height: 1024,
+          steps: 8,
+        });
+      } else {
+        aiResult = await generateImage(
+          { prompt: logoPrompt, width: 1024, height: 1024, steps: 8 },
+          "fal"
+        );
+      }
 
       if (aiResult.status === "failed" || !aiResult.imageUrl) {
         await prisma.generation.update({

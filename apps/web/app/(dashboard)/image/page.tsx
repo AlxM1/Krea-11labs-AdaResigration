@@ -75,6 +75,7 @@ export default function ImageGenerationPage() {
         id: data.id,
         prompt: params.prompt,
         imageUrl: data.imageUrl || "", // Use actual imageUrl from response
+        images: data.images || [data.imageUrl], // Store all batch images
         status: data.status || "completed", // Use actual status from response
         createdAt: new Date(),
         params,
@@ -387,28 +388,54 @@ export default function ImageGenerationPage() {
                   <p className="text-muted-foreground">Generating your image...</p>
                 </div>
               ) : generations.length > 0 && generations[0].imageUrl ? (
-                <div className="relative max-w-2xl w-full">
-                  <img
-                    src={generations[0].imageUrl}
-                    alt={generations[0].prompt}
-                    className="w-full rounded-xl border border-border"
-                  />
-                  <div className="absolute bottom-4 right-4 flex gap-2">
-                    <DownloadButton
-                      imageUrl={generations[0].imageUrl}
-                      filename={`image-${generations[0].id}`}
-                    />
-                    <Button variant="secondary" size="icon">
-                      <Heart className="h-4 w-4" />
-                    </Button>
-                    <ShareButton
-                      generationId={generations[0].id}
-                      initialIsPublic={generations[0].isPublic}
-                    />
-                    <Button variant="secondary" size="icon">
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <div className="w-full max-w-4xl">
+                  {/* Display grid of images if batch > 1 */}
+                  {generations[0].images && generations[0].images.length > 1 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      {generations[0].images.map((imageUrl, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={imageUrl}
+                            alt={`${generations[0].prompt} - ${index + 1}`}
+                            className="w-full rounded-xl border border-border"
+                          />
+                          <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <DownloadButton
+                              imageUrl={imageUrl}
+                              filename={`image-${generations[0].id}-${index + 1}`}
+                            />
+                            <Button variant="secondary" size="icon">
+                              <Heart className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="relative max-w-2xl mx-auto">
+                      <img
+                        src={generations[0].imageUrl}
+                        alt={generations[0].prompt}
+                        className="w-full rounded-xl border border-border"
+                      />
+                      <div className="absolute bottom-4 right-4 flex gap-2">
+                        <DownloadButton
+                          imageUrl={generations[0].imageUrl}
+                          filename={`image-${generations[0].id}`}
+                        />
+                        <Button variant="secondary" size="icon">
+                          <Heart className="h-4 w-4" />
+                        </Button>
+                        <ShareButton
+                          generationId={generations[0].id}
+                          initialIsPublic={generations[0].isPublic}
+                        />
+                        <Button variant="secondary" size="icon">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center">

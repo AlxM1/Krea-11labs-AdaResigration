@@ -24,7 +24,16 @@ export async function GET(
       const queue = getQueue(queueName);
       if (!queue) continue;
 
-      const job = await queue.getJob(jobId);
+      // Try with the exact job ID first
+      let job = await queue.getJob(jobId);
+
+      // If not found, try with prefixed formats (video-{id}, image-{id}, etc.)
+      if (!job && queueName === QueueNames.VIDEO_GENERATION) {
+        job = await queue.getJob(`video-${jobId}`);
+      } else if (!job && queueName === QueueNames.IMAGE_GENERATION) {
+        job = await queue.getJob(`image-${jobId}`);
+      }
+
       if (!job) continue;
 
       const state = await job.getState();

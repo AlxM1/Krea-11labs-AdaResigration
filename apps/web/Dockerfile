@@ -9,7 +9,7 @@ COPY .npmrc pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/
 
 # Install dependencies (hoisted node-linker for standalone compatibility)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Stage 2: Build
 FROM node:20-alpine AS builder

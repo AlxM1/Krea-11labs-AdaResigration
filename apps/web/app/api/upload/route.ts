@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getPresignedUploadUrl, uploadBase64Image } from "@/lib/storage/upload";
 import { z } from "zod";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
+import { randomUUID } from "crypto";
 
 // Schema for presigned URL request
 const presignedUrlSchema = z.object({
@@ -18,7 +21,7 @@ const directUploadSchema = z.object({
   folder: z.string().optional(),
 });
 
-// Get presigned upload URL
+// Handle file uploads
 export async function POST(req: NextRequest) {
   try {
     const session = await auth(req);
@@ -27,6 +30,64 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const contentType = req.headers.get("content-type") || "";
+
+    // Check if this is a multipart form data upload (file upload)
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+
+      if (!file) {
+        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      }
+
+      // Validate file type
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        return NextResponse.json(
+          { error: "Only image and video files are allowed" },
+          { status: 400 }
+        );
+      }
+
+      // Validate file size (max 100MB)
+      if (file.size > 100 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: "File size exceeds 100MB limit" },
+          { status: 400 }
+        );
+      }
+
+      // Generate unique filename
+      const ext = file.name.split(".").pop() || "bin";
+      const filename = `${randomUUID()}.${ext}`;
+
+      // Save to temp directory for immediate use (e.g., img2img reference images)
+      const uploadDir = join(process.env.UPLOAD_DIR || "/app/uploads", "temp");
+      const filePath = join(uploadDir, filename);
+
+      // Ensure directory exists
+      await mkdir(uploadDir, { recursive: true });
+
+      // Write file to disk
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      await writeFile(filePath, buffer);
+
+      console.log('[Upload] File saved:', { filename, size: file.size, type: file.type });
+
+      // Return file URL
+      const fileUrl = `/api/uploads/temp/${filename}`;
+
+      return NextResponse.json({
+        success: true,
+        url: fileUrl,
+        filename,
+        size: file.size,
+        type: file.type,
+      });
+    }
+
+    // Otherwise, try to parse as JSON for base64 or presigned URL requests
     const body = await req.json();
 
     // Check if it's a presigned URL request or direct upload

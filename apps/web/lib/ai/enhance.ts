@@ -2,6 +2,8 @@
  * Image Enhancement/Upscaling utilities
  */
 
+import { ComfyUIProvider } from "./comfyui-provider";
+
 export interface EnhanceRequest {
   imageUrl: string;
   scale: 1 | 2 | 4 | 8;
@@ -20,17 +22,15 @@ export interface EnhanceResponse {
 }
 
 /**
- * Upscale image using fal.ai
+ * Upscale image using fal.ai or ComfyUI fallback
  */
 export async function upscaleImage(request: EnhanceRequest): Promise<EnhanceResponse> {
   const apiKey = process.env.FAL_KEY;
 
-  if (!apiKey) {
-    return {
-      id: crypto.randomUUID(),
-      status: "failed",
-      error: "FAL_KEY not configured",
-    };
+  // Try ComfyUI first if available
+  if (!apiKey || apiKey === "") {
+    console.log('[Upscale] FAL_KEY not configured, using ComfyUI fallback');
+    return upscaleWithComfyUI(request);
   }
 
   try {
@@ -166,6 +166,45 @@ export async function removeBackground(imageUrl: string): Promise<EnhanceRespons
       id: crypto.randomUUID(),
       status: "failed",
       error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Upscale image using ComfyUI (fallback when fal.ai not available)
+ */
+async function upscaleWithComfyUI(request: EnhanceRequest): Promise<EnhanceResponse> {
+  try {
+    const comfyui = new ComfyUIProvider({
+      baseUrl: process.env.COMFYUI_URL || "http://127.0.0.1:8188",
+      outputUrl: process.env.COMFYUI_OUTPUT_URL,
+      defaultModel: process.env.COMFYUI_DEFAULT_MODEL || "sd_xl_base_1.0.safetensors",
+      sdxlModel: process.env.COMFYUI_SDXL_MODEL || "sd_xl_base_1.0.safetensors",
+    });
+
+    const result = await comfyui.upscaleImage({
+      imageUrl: request.imageUrl,
+      scale: request.scale,
+    });
+
+    if (result.status === "failed") {
+      return {
+        id: crypto.randomUUID(),
+        status: "failed",
+        error: result.error || "ComfyUI upscale failed",
+      };
+    }
+
+    return {
+      id: crypto.randomUUID(),
+      status: "completed",
+      imageUrl: result.imageUrl,
+    };
+  } catch (error) {
+    return {
+      id: crypto.randomUUID(),
+      status: "failed",
+      error: error instanceof Error ? error.message : "ComfyUI upscale failed",
     };
   }
 }

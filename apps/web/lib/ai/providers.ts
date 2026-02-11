@@ -32,6 +32,7 @@ export interface GenerationRequest {
   model?: string;
   imageUrl?: string; // For img2img
   strength?: number;
+  batchSize?: number; // Number of images to generate (1-16)
 }
 
 export interface GenerationResponse {
