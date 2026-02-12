@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { generateVideo, AIProvider } from "@/lib/ai/providers";
+import { uploadFromUrl } from "@/lib/storage/upload";
 import { addJob, isQueueAvailable, QueueNames, VideoGenerationJob } from "@/lib/queue";
 import { z } from "zod";
 import { randomUUID } from "crypto";
@@ -9,7 +10,7 @@ import { randomUUID } from "crypto";
 const videoGenerateSchema = z.object({
   prompt: z.string().min(1).max(2000),
   imageUrl: z.string().url().optional(),
-  model: z.string().default("wan-2.2-t2v"), // Default to Wan 2.2 text-to-video
+  model: z.string().default("svd"), // Default to SVD (Stable Video Diffusion) - confirmed working
   duration: z.number().min(2).max(10).default(6),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
   // Provider selection (google for Veo 3.1, fal for Runway, comfyui for Wan/CogVideo/SVD)
@@ -120,9 +121,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Synchronous fallback: generate directly with timeout
-    const timeoutMs = 120000; // 120 seconds timeout (videos take longer)
+    // SVD text-to-video involves two stages (image gen + SVD), each ~72s, so 5 min is needed
+    const timeoutMs = 300000; // 300 seconds (5 minutes) timeout for video generation
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Video generation timed out after 120 seconds")), timeoutMs)
+      setTimeout(() => reject(new Error("Video generation timed out after 300 seconds")), timeoutMs)
     );
 
     const result = await Promise.race([
@@ -158,18 +160,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // If the video URL is from ComfyUI (internal), it's already been saved to local storage
+    // by the provider. For external URLs, try to save to local storage.
+    let finalVideoUrl = result.videoUrl;
+    if (result.videoUrl && !result.videoUrl.startsWith("/api/uploads/")) {
+      try {
+        const uploaded = await uploadFromUrl(result.videoUrl, userId);
+        finalVideoUrl = uploaded.url;
+      } catch {
+        // Use the provider URL if upload fails
+        finalVideoUrl = result.videoUrl;
+      }
+    }
+
     await prisma.video.update({
       where: { id: video.id },
       data: {
         status: result.status === "completed" ? "COMPLETED" : "PROCESSING",
-        videoUrl: result.videoUrl,
+        videoUrl: finalVideoUrl,
       },
     });
 
     return NextResponse.json({
       id: video.id,
       status: result.status,
-      videoUrl: result.videoUrl,
+      videoUrl: finalVideoUrl,
       provider: provider,
     });
   } catch (error) {

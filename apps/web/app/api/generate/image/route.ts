@@ -9,7 +9,7 @@ import { z } from "zod";
 const generateSchema = z.object({
   prompt: z.string().min(1).max(2000),
   negativePrompt: z.string().max(1000).optional(),
-  model: z.string().default("flux-schnell"),
+  model: z.string().default("comfyui-flux"),
   width: z.number().min(256).max(2048).default(1024),
   height: z.number().min(256).max(2048).default(1024),
   steps: z.number().min(1).max(100).default(4),
@@ -69,8 +69,10 @@ export async function POST(req: NextRequest) {
     // Route ComfyUI models to local GPU (primary provider)
     if (params.model.startsWith("comfyui-")) {
       provider = "comfyui";
-      // Map comfyui-sdxl to actual checkpoint name
-      if (params.model === "comfyui-sdxl") {
+      // Map model IDs to actual checkpoint names
+      if (params.model === "comfyui-flux") {
+        actualModel = "flux1-krea-dev.safetensors";
+      } else if (params.model === "comfyui-sdxl") {
         actualModel = "sd_xl_base_1.0.safetensors";
       } else {
         actualModel = params.model.replace("comfyui-", "");

@@ -12,6 +12,7 @@ import {
   getRealtimePipeline,
   handleWebSocketMessage,
 } from "./realtime/server";
+import { setSocketIO } from "./socket-emitter";
 
 export async function startServices() {
   // Start BullMQ workers
@@ -36,6 +37,25 @@ async function startSocketIOServer() {
   const io = new SocketIOServer(wsPort, {
     cors: { origin: "*" },
     transports: ["websocket", "polling"],
+  });
+
+  // Register globally so workers can emit events
+  setSocketIO(io);
+
+  // Notifications namespace — clients join their user room
+  const notificationsNs = io.of("/notifications");
+  notificationsNs.on("connection", (socket) => {
+    const userId = socket.handshake.query.userId as string;
+    if (userId) {
+      socket.join(`user:${userId}`);
+      console.log(`[Socket.IO /notifications] User ${userId} connected`);
+    }
+
+    socket.on("disconnect", () => {
+      if (userId) {
+        console.log(`[Socket.IO /notifications] User ${userId} disconnected`);
+      }
+    });
   });
 
   const pipeline = getRealtimePipeline();

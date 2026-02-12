@@ -6,12 +6,13 @@ import { uploadFromUrl } from "@/lib/storage/upload";
 import { z } from "zod";
 
 const enhanceSchema = z.object({
-  imageUrl: z.string().url(),
+  imageUrl: z.string().min(1),
   scale: z.enum(["1", "2", "4", "8"]).default("2"),
   model: z.enum(["real-esrgan", "gfpgan", "codeformer", "krya-enhance"]).default("krya-enhance"),
   denoise: z.number().min(0).max(100).default(50),
   faceEnhance: z.boolean().default(false),
 });
+
 
 export async function POST(req: NextRequest) {
   try {

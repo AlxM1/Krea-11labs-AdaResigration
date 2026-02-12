@@ -990,11 +990,11 @@ const WORKFLOWS = {
     },
   }),
 
-  // Image Upscaling with Latent Upscaler
+  // Image Upscaling with UpscaleModelLoader + ImageUpscaleWithModel (proper model-based upscale)
   upscaleImage: (params: {
     imageData: string;
     scale: number;
-    checkpoint: string;
+    upscaleModel?: string;
   }) => ({
     "1": {
       inputs: {
@@ -1005,77 +1005,98 @@ const WORKFLOWS = {
     },
     "2": {
       inputs: {
-        ckpt_name: params.checkpoint,
+        model_name: params.upscaleModel || "RealESRGAN_x4plus.pth",
       },
-      class_type: "CheckpointLoaderSimple",
+      class_type: "UpscaleModelLoader",
     },
     "3": {
       inputs: {
-        pixels: ["1", 0],
-        vae: ["2", 2],
+        upscale_model: ["2", 0],
+        image: ["1", 0],
       },
-      class_type: "VAEEncode",
+      class_type: "ImageUpscaleWithModel",
     },
     "4": {
       inputs: {
-        upscale_method: "nearest-exact",
-        width: ["5", 0],
-        height: ["5", 1],
-        crop: "disabled",
-        samples: ["3", 0],
+        filename_prefix: "krya_upscale",
+        images: ["3", 0],
       },
-      class_type: "LatentUpscale",
+      class_type: "SaveImage",
     },
-    "5": {
+  }),
+
+  // Image Enhancement via img2img with low denoise (preserves original while improving quality)
+  enhanceImage: (params: {
+    imageData: string;
+    denoise: number; // 0.3-0.5 recommended
+    steps: number;
+    cfgScale: number;
+    seed: number;
+    model: string;
+    prompt?: string;
+  }) => ({
+    "3": {
       inputs: {
-        upscale_method: "nearest-exact",
-        megapixels: params.scale,
-        image: ["1", 0],
-      },
-      class_type: "ImageScale",
-    },
-    "6": {
-      inputs: {
-        seed: Math.floor(Math.random() * 2147483647),
-        steps: 20,
-        cfg: 7,
+        seed: params.seed,
+        steps: params.steps,
+        cfg: params.cfgScale,
         sampler_name: "euler",
         scheduler: "normal",
-        denoise: 0.5,
-        model: ["2", 0],
-        positive: ["8", 0],
-        negative: ["9", 0],
-        latent_image: ["4", 0],
+        denoise: params.denoise,
+        model: ["4", 0],
+        positive: ["6", 0],
+        negative: ["7", 0],
+        latent_image: ["12", 0],
       },
       class_type: "KSampler",
     },
+    "4": {
+      inputs: {
+        ckpt_name: params.model,
+      },
+      class_type: "CheckpointLoaderSimple",
+    },
+    "6": {
+      inputs: {
+        text: params.prompt || "high quality, detailed, sharp, crisp, masterpiece, best quality",
+        clip: ["4", 1],
+      },
+      class_type: "CLIPTextEncode",
+    },
     "7": {
       inputs: {
-        samples: ["6", 0],
-        vae: ["2", 2],
+        text: "blurry, low quality, distorted, artifacts, noise, pixelated, jpeg artifacts",
+        clip: ["4", 1],
       },
-      class_type: "VAEDecode",
+      class_type: "CLIPTextEncode",
     },
     "8": {
       inputs: {
-        text: "high quality, detailed, sharp, crisp",
-        clip: ["2", 1],
+        samples: ["3", 0],
+        vae: ["4", 2],
       },
-      class_type: "CLIPTextEncode",
+      class_type: "VAEDecode",
     },
     "9": {
       inputs: {
-        text: "blurry, low quality, distorted, artifacts",
-        clip: ["2", 1],
+        filename_prefix: "krya_enhance",
+        images: ["8", 0],
       },
-      class_type: "CLIPTextEncode",
+      class_type: "SaveImage",
     },
     "10": {
       inputs: {
-        filename_prefix: "krya_upscale",
-        images: ["7", 0],
+        image: params.imageData,
+        upload: "image",
       },
-      class_type: "SaveImage",
+      class_type: "LoadImage",
+    },
+    "12": {
+      inputs: {
+        pixels: ["10", 0],
+        vae: ["4", 2],
+      },
+      class_type: "VAEEncode",
     },
   }),
 };
@@ -1088,7 +1109,7 @@ function mapVideoModel(model?: string): VideoModel {
   const modelLower = (model || "").toLowerCase();
   if (modelLower.includes("wan") && modelLower.includes("i2v")) return "wan-i2v";
   if (modelLower.includes("wan") && modelLower.includes("t2v")) return "wan-t2v";
-  if (modelLower.includes("wan")) return "wan-t2v"; // Default Wan to text-to-video
+  if (modelLower.includes("wan")) return "svd"; // Wan nodes not available, fallback to SVD
   if (modelLower.includes("cogvideo") && modelLower.includes("i2v")) return "cogvideo-i2v";
   if (modelLower.includes("cogvideo") || modelLower.includes("cog")) return "cogvideo";
   if (modelLower.includes("hunyuan") || modelLower.includes("hyvideo")) return "hunyuan";
@@ -1124,9 +1145,9 @@ export function getComfyUIConfig(): ComfyUIConfig {
   return {
     baseUrl: process.env.COMFYUI_URL || "http://127.0.0.1:8188",
     outputUrl: process.env.COMFYUI_OUTPUT_URL || "http://127.0.0.1:8188/view",
-    // Image models
-    defaultModel: process.env.COMFYUI_DEFAULT_MODEL || "sd_xl_base_1.0.safetensors",
-    fluxModel: process.env.COMFYUI_FLUX_MODEL || "flux1-dev.safetensors",
+    // Image models - FLUX Krea Dev is primary
+    defaultModel: process.env.COMFYUI_DEFAULT_MODEL || "flux1-krea-dev.safetensors",
+    fluxModel: process.env.COMFYUI_FLUX_MODEL || "flux1-krea-dev.safetensors",
     sdxlModel: process.env.COMFYUI_SDXL_MODEL || "sd_xl_base_1.0.safetensors",
     // Video models
     svdModel: process.env.COMFYUI_SVD_MODEL || "svd_xt_1_1.safetensors",
@@ -1136,7 +1157,7 @@ export function getComfyUIConfig(): ComfyUIConfig {
     ltxModel: process.env.COMFYUI_LTX_MODEL || "ltx/ltx-video-2b-v0.9.safetensors",
     wanT2VModel: process.env.COMFYUI_WAN_T2V_MODEL || "wan2.2-t2v/Wan2.2-T2V-A14B",
     wanI2VModel: process.env.COMFYUI_WAN_I2V_MODEL || "wan2.2-i2v/Wan2.2-I2V-A14B",
-    defaultVideoModel: (process.env.COMFYUI_DEFAULT_VIDEO_MODEL as VideoModel) || "wan-t2v",
+    defaultVideoModel: (process.env.COMFYUI_DEFAULT_VIDEO_MODEL as VideoModel) || "svd",
   };
 }
 
@@ -1388,14 +1409,15 @@ async function downloadAndSaveImage(
 function mapModelToCheckpoint(model: string, config: ComfyUIConfig): { checkpoint: string; isFlux: boolean } {
   const modelLower = model?.toLowerCase() || "";
 
-  if (modelLower.includes("flux")) {
-    return { checkpoint: config.fluxModel || "flux1-schnell.safetensors", isFlux: true };
-  }
   if (modelLower.includes("sdxl") || modelLower.includes("xl")) {
     return { checkpoint: config.sdxlModel || "sd_xl_base_1.0.safetensors", isFlux: false };
   }
+  if (modelLower.includes("flux")) {
+    return { checkpoint: config.fluxModel || "flux1-krea-dev.safetensors", isFlux: true };
+  }
 
-  return { checkpoint: config.defaultModel || "sd_xl_base_1.0.safetensors", isFlux: false };
+  // Default to FLUX Krea Dev (primary model)
+  return { checkpoint: config.defaultModel || "flux1-krea-dev.safetensors", isFlux: true };
 }
 
 /**
@@ -1435,7 +1457,7 @@ export class ComfyUIProvider {
             prompt: request.prompt,
             width: request.width || 1024,
             height: request.height || 1024,
-            steps: request.steps || 4,
+            steps: request.steps || 20,
             seed,
             model: checkpoint,
             batchSize: request.batchSize,
@@ -1692,21 +1714,38 @@ export class ComfyUIProvider {
         };
       }
 
-      // Construct internal ComfyUI URLs for downloading (not behind Authentik)
-      const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
-      const internalPort = process.env.COMFYUI_PORT || "8189";
-      const internalBaseUrl = `http://${internalHost}:${internalPort}`;
+      if (result.images.length === 0) {
+        return {
+          id: result.promptId,
+          status: "failed",
+          error: "No video output produced by ComfyUI",
+        };
+      }
 
-      const videoUrls = result.images.map(img =>
-        `${internalBaseUrl}/view?filename=${img.filename}&subfolder=${img.subfolder}&type=${img.type}`
-      );
-
-      return {
-        id: result.promptId,
-        status: "completed",
-        videoUrl: videoUrls[0], // Video URL from VHS_VideoCombine
-        duration,
-      };
+      // Download video from ComfyUI and save to local storage
+      try {
+        const savedUrl = await downloadAndSaveImage(result.images[0], this.config, "system");
+        console.log(`[ComfyUI Video] Video saved to local storage: ${savedUrl}`);
+        return {
+          id: result.promptId,
+          status: "completed",
+          videoUrl: savedUrl,
+          duration,
+        };
+      } catch (downloadError) {
+        // Fallback: return internal ComfyUI URL if download fails
+        console.error("[ComfyUI Video] Failed to download video, returning ComfyUI URL:", downloadError);
+        const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
+        const internalPort = process.env.COMFYUI_PORT || "8189";
+        const internalBaseUrl = `http://${internalHost}:${internalPort}`;
+        const videoUrl = `${internalBaseUrl}/view?filename=${result.images[0].filename}&subfolder=${result.images[0].subfolder}&type=${result.images[0].type}`;
+        return {
+          id: result.promptId,
+          status: "completed",
+          videoUrl,
+          duration,
+        };
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "ComfyUI video generation failed";
 
@@ -1834,20 +1873,81 @@ export class ComfyUIProvider {
   }
 
   /**
-   * Upscale image using ComfyUI latent upscaler
+   * Enhance image using img2img with low denoise (preserves original, improves quality)
    */
-  async upscaleImage(request: { imageUrl: string; scale: number }): Promise<GenerationResponse> {
+  async enhanceImage(request: { imageUrl: string; denoise?: number; prompt?: string }): Promise<GenerationResponse> {
     try {
-      console.log('[ComfyUI Upscale] Starting upscale:', request);
+      console.log('[ComfyUI Enhance] Starting image enhancement:', request);
 
       // Upload image to ComfyUI
       const imageData = await this.uploadImageToComfyUI(request.imageUrl);
+      const seed = Math.floor(Math.random() * 2147483647);
+
+      // Build enhance workflow (img2img with low denoise)
+      const workflow = WORKFLOWS.enhanceImage({
+        imageData,
+        denoise: request.denoise || 0.35,
+        steps: 20,
+        cfgScale: 7,
+        seed,
+        model: this.config.sdxlModel || "sd_xl_base_1.0.safetensors",
+        prompt: request.prompt,
+      });
+
+      // Queue and wait for completion
+      const result = await queuePrompt(workflow, this.config);
+
+      if (result.error) {
+        return {
+          id: crypto.randomUUID(),
+          status: "failed",
+          error: result.error,
+        };
+      }
+
+      // Download and save the enhanced image
+      if (result.images.length > 0) {
+        const imageUrl = await downloadAndSaveImage(result.images[0], this.config, "system");
+        return {
+          id: result.promptId,
+          status: "completed",
+          imageUrl,
+        };
+      }
+
+      return {
+        id: result.promptId,
+        status: "failed",
+        error: "No image generated",
+      };
+    } catch (error) {
+      console.error('[ComfyUI Enhance] Error:', error);
+      return {
+        id: crypto.randomUUID(),
+        status: "failed",
+        error: error instanceof Error ? error.message : "Enhancement failed",
+      };
+    }
+  }
+
+  /**
+   * Upscale image using UpscaleModelLoader + ImageUpscaleWithModel
+   */
+  async upscaleImage(request: { imageUrl: string; scale: number }): Promise<GenerationResponse> {
+    try {
+      console.log('[ComfyUI Upscale] Starting model-based upscale:', request);
+
+      // Upload image to ComfyUI
+      const imageData = await this.uploadImageToComfyUI(request.imageUrl);
+
+      // Use 4x-UltraSharp for best quality upscaling
+      const upscaleModel = "4x-UltraSharp.pth";
 
       // Build upscale workflow
       const workflow = WORKFLOWS.upscaleImage({
         imageData,
         scale: request.scale,
-        checkpoint: this.config.sdxlModel || "sd_xl_base_1.0.safetensors",
+        upscaleModel,
       });
 
       // Queue and wait for completion

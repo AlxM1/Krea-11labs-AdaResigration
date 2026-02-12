@@ -51,11 +51,11 @@ interface GenerationState {
 const defaultParams: GenerationParams = {
   prompt: "",
   negativePrompt: "",
-  model: "comfyui-sdxl", // SDXL (Local GPU) - free, no API costs
+  model: "comfyui-flux", // FLUX Krea Dev (Local GPU) - best quality, free
   width: 1024,
   height: 1024,
-  steps: 20, // SDXL default steps
-  cfgScale: 7.5,
+  steps: 20, // FLUX Krea Dev default steps
+  cfgScale: 1.0, // FLUX uses CFG 1.0
   seed: -1,
   batchSize: 1,
 };

@@ -89,7 +89,7 @@ export default function NodesPage() {
   const getNodeType = (typeId: string) => nodeTypes.find((n) => n.id === typeId);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-[calc(100vh-3.5rem)]">
       {/* Left Panel - Node Library */}
       <div className="w-64 border-r border-border flex flex-col">
         <div className="p-4 border-b border-border">

@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://*.fal.media https://*.replicate.delivery https://*.dicebear.com https://*.blob.core.windows.net",
+    "img-src 'self' data: blob: http://localhost:* https://*.fal.media https://*.replicate.delivery https://*.dicebear.com https://*.blob.core.windows.net",
     "font-src 'self' data:",
     "connect-src 'self' https://*.fal.ai https://*.replicate.com wss://*",
     "media-src 'self' blob: https://*.fal.media https://*.replicate.delivery",

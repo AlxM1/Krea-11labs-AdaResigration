@@ -28,7 +28,7 @@ import toast from "react-hot-toast";
 
 export default function VideoGenerationPage() {
   const [prompt, setPrompt] = useState("");
-  const [selectedModel, setSelectedModel] = useState("wan-2.2-t2v"); // Default to Wan 2.2 text-to-video
+  const [selectedModel, setSelectedModel] = useState("svd"); // Default to SVD (Stable Video Diffusion) - confirmed working
   const [duration, setDuration] = useState(6); // CogVideo max is 6 seconds
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -157,7 +157,7 @@ export default function VideoGenerationPage() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-[calc(100vh-4rem)]">
+      <div className="flex h-[calc(100vh-3.5rem)]">
         {/* Left Panel - Controls */}
         <div className="w-96 border-r border-border flex flex-col">
           <div className="p-4 border-b border-border">

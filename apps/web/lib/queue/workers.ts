@@ -8,6 +8,7 @@ import { prisma } from "../db";
 import { generateImage, generateVideo, AIProvider } from "../ai/providers";
 import { upscaleImage, enhanceFaces } from "../ai/enhance";
 import { uploadFromUrl } from "../storage/upload";
+import { emitJobComplete, emitToUser } from "../socket-emitter";
 import {
   QueueNames,
   createWorker,
@@ -81,6 +82,16 @@ async function processImageGeneration(job: Job<ImageGenerationJob>): Promise<voi
       },
     });
 
+    // Push real-time notification via WebSocket
+    emitJobComplete(job.data.userId, {
+      type: "image",
+      generationId,
+      imageUrl: finalImageUrl,
+      status: "completed",
+      title: "Image Ready",
+      message: `Your image "${prompt.slice(0, 50)}..." is ready`,
+    });
+
     await addJob(QueueNames.NOTIFICATIONS, {
       userId: job.data.userId,
       type: "generation_complete",
@@ -89,6 +100,16 @@ async function processImageGeneration(job: Job<ImageGenerationJob>): Promise<voi
       data: { generationId, imageUrl: finalImageUrl },
     } satisfies NotificationJob);
   } catch (error) {
+    // Push failure via WebSocket
+    emitJobComplete(job.data.userId, {
+      type: "image",
+      generationId,
+      status: "failed",
+      error: error instanceof Error ? error.message : "Unknown error",
+      title: "Generation Failed",
+      message: "Image generation failed",
+    });
+
     await prisma.generation.update({
       where: { id: generationId },
       data: {
@@ -160,6 +181,15 @@ async function processVideoGeneration(job: Job<VideoGenerationJob>): Promise<{ i
     });
 
     if (result.status === "completed") {
+      emitJobComplete(userId, {
+        type: "video",
+        videoId,
+        videoUrl: finalVideoUrl,
+        status: "completed",
+        title: "Video Ready",
+        message: "Your video is ready",
+      });
+
       await addJob(QueueNames.NOTIFICATIONS, {
         userId,
         type: "generation_complete",
@@ -171,6 +201,15 @@ async function processVideoGeneration(job: Job<VideoGenerationJob>): Promise<{ i
 
     return { id: videoId, videoUrl: finalVideoUrl, status: result.status || "completed" };
   } catch (error) {
+    emitJobComplete(userId, {
+      type: "video",
+      videoId,
+      status: "failed",
+      error: error instanceof Error ? error.message : "Unknown error",
+      title: "Video Failed",
+      message: "Video generation failed",
+    });
+
     await prisma.video.update({
       where: { id: videoId },
       data: { status: "FAILED" },
@@ -232,7 +271,25 @@ async function processImageEnhancement(job: Job<ImageEnhancementJob>): Promise<v
         height: result.enhancedSize?.height,
       },
     });
+
+    emitJobComplete(userId, {
+      type: "enhancement",
+      generationId,
+      imageUrl: finalUrl,
+      status: "completed",
+      title: "Enhancement Complete",
+      message: "Your enhanced image is ready",
+    });
   } catch (error) {
+    emitJobComplete(userId, {
+      type: "enhancement",
+      generationId,
+      status: "failed",
+      error: error instanceof Error ? error.message : "Unknown error",
+      title: "Enhancement Failed",
+      message: "Image enhancement failed",
+    });
+
     await prisma.generation.update({
       where: { id: generationId },
       data: { status: "FAILED" },
@@ -310,6 +367,14 @@ async function processModelTraining(job: Job<ModelTrainingJob>): Promise<void> {
             modelUrl: statusData.output?.weights || statusData.output?.version,
             completedAt: new Date(),
           },
+        });
+
+        emitJobComplete(userId, {
+          type: "training",
+          modelId,
+          status: "completed",
+          title: "Training Complete",
+          message: `Your model "${name}" is ready to use`,
         });
 
         await addJob(QueueNames.NOTIFICATIONS, {
@@ -529,7 +594,7 @@ async function processStyleTransfer(job: Job<StyleTransferJob>): Promise<void> {
 async function processNotification(job: Job<NotificationJob>): Promise<void> {
   const { userId, type, title, message, data } = job.data;
 
-  await prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       userId,
       type,
@@ -537,6 +602,15 @@ async function processNotification(job: Job<NotificationJob>): Promise<void> {
       message,
       data: data || {},
     },
+  });
+
+  // Push notification via WebSocket
+  emitToUser(userId, "notification", {
+    id: notification.id,
+    type,
+    title,
+    message,
+    data: data || {},
   });
 }
 

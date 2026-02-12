@@ -10,106 +10,48 @@ export interface AIModel {
 }
 
 export const imageModels: AIModel[] = [
-  // Local GPU (ComfyUI) - Primary, free
+  // FLUX Krea Dev - Primary model (local GPU, best quality)
   {
-    id: "comfyui-sdxl",
-    name: "SDXL (Local GPU)",
+    id: "comfyui-flux",
+    name: "FLUX Krea Dev (Best Quality)",
     provider: "ComfyUI",
-    description: "Free local generation on RTX 5090 - no API costs",
+    description: "FLUX.1 Krea Dev on RTX 5090 - best quality, free, no API costs",
     type: "quality",
     defaultSteps: 20,
     maxResolution: 2048,
     isPremium: false,
   },
-  // fal.ai models (require credits)
+  // SDXL - Fallback (local GPU, faster)
   {
-    id: "flux-schnell",
-    name: "FLUX.1 Schnell (Credits Needed)",
-    provider: "fal.ai",
-    description: "Fast, high-quality - requires fal.ai credits",
+    id: "comfyui-sdxl",
+    name: "SDXL 1.0 (Fast)",
+    provider: "ComfyUI",
+    description: "Stable Diffusion XL on RTX 5090 - faster, supports negative prompts",
     type: "fast",
-    defaultSteps: 4,
-    maxResolution: 1024,
-    isPremium: true,
-  },
-  {
-    id: "flux-dev",
-    name: "FLUX.1 Dev (Credits Needed)",
-    provider: "fal.ai",
-    description: "Premium quality - requires fal.ai credits",
-    type: "quality",
-    defaultSteps: 30,
+    defaultSteps: 20,
     maxResolution: 2048,
-    isPremium: true,
-  },
-  {
-    id: "sdxl-lightning",
-    name: "SDXL Lightning (Credits Needed)",
-    provider: "fal.ai",
-    description: "Extremely fast - requires fal.ai credits",
-    type: "fast",
-    defaultSteps: 4,
-    maxResolution: 1024,
-    isPremium: true,
-  },
-  {
-    id: "sdxl-turbo",
-    name: "SDXL Turbo (Credits Needed)",
-    provider: "fal.ai",
-    description: "Real-time generation - requires fal.ai credits",
-    type: "fast",
-    defaultSteps: 4,
-    maxResolution: 512,
-    isPremium: true,
-  },
-  {
-    id: "stable-diffusion-3",
-    name: "SD3 (Credits Needed)",
-    provider: "fal.ai",
-    description: "Latest SD model - requires fal.ai credits",
-    type: "quality",
-    defaultSteps: 28,
-    maxResolution: 1536,
-    isPremium: true,
-  },
-  {
-    id: "playground-v2.5",
-    name: "Playground v2.5 (Credits Needed)",
-    provider: "fal.ai",
-    description: "Artistic images - requires fal.ai credits",
-    type: "balanced",
-    defaultSteps: 25,
-    maxResolution: 1024,
-    isPremium: true,
+    isPremium: false,
   },
 ];
 
 export const videoModels = [
-  // Wan 2.2 - Local GPU (ComfyUI) - Primary text-to-video model
+  // SVD - Primary video model (confirmed working)
   {
-    id: "wan-2.2-t2v",
-    name: "Wan 2.2 14B (Local GPU)",
-    provider: "ComfyUI",
-    description: "Free local generation - 720p/1080p on RTX 5090",
-    maxDuration: 10,
-    resolution: "1080p",
-  },
-  {
-    id: "wan-2.2-i2v",
-    name: "Wan 2.2 I2V (Local GPU)",
-    provider: "ComfyUI",
-    description: "Free image-to-video on RTX 5090",
-    maxDuration: 10,
-    resolution: "1080p",
-  },
-  // SVD - Image-to-Video fallback
-  {
-    id: "svd-xt-1.1",
+    id: "svd",
     name: "SVD XT 1.1 (Local GPU)",
     provider: "ComfyUI",
-    description: "Free image-to-video on RTX 5090 - REQUIRES reference image upload",
+    description: "Free text/image-to-video on RTX 5090 - confirmed working",
     maxDuration: 4,
     resolution: "576p",
+  },
+  // Wan 2.2 - Requires native nodes (not available)
+  {
+    id: "wan-2.2-t2v",
+    name: "Wan 2.2 14B (Setup Required)",
+    provider: "ComfyUI",
+    description: "Requires Wan native nodes - falls back to SVD",
+    maxDuration: 10,
+    resolution: "1080p",
   },
   // CogVideoX - Not installed
   {

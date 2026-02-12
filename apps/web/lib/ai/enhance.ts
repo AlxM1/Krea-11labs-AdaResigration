@@ -25,6 +25,18 @@ export interface EnhanceResponse {
  * Upscale image using fal.ai or ComfyUI fallback
  */
 export async function upscaleImage(request: EnhanceRequest): Promise<EnhanceResponse> {
+  // Use ComfyUI enhancement for krya-enhance model (img2img with low denoise)
+  if (request.model === "krya-enhance") {
+    console.log('[Enhance] Using ComfyUI img2img enhancement (krya-enhance)');
+    return enhanceWithComfyUI(request);
+  }
+
+  // Use ComfyUI model-based upscale for real-esrgan
+  if (request.model === "real-esrgan") {
+    console.log('[Upscale] Using ComfyUI model-based upscale (real-esrgan)');
+    return upscaleWithComfyUI(request);
+  }
+
   const apiKey = process.env.FAL_KEY;
 
   // Try ComfyUI first if available
@@ -166,6 +178,47 @@ export async function removeBackground(imageUrl: string): Promise<EnhanceRespons
       id: crypto.randomUUID(),
       status: "failed",
       error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Enhance image using ComfyUI img2img with low denoise (preserves original, improves quality)
+ */
+async function enhanceWithComfyUI(request: EnhanceRequest): Promise<EnhanceResponse> {
+  try {
+    const comfyui = new ComfyUIProvider({
+      baseUrl: process.env.COMFYUI_URL || "http://127.0.0.1:8188",
+      outputUrl: process.env.COMFYUI_OUTPUT_URL,
+      sdxlModel: process.env.COMFYUI_SDXL_MODEL || "sd_xl_base_1.0.safetensors",
+    });
+
+    // Map denoise 0-100 to 0.0-1.0, clamped to 0.2-0.5 for enhancement
+    const denoise = Math.min(0.5, Math.max(0.2, (request.denoise || 50) / 100));
+
+    const result = await comfyui.enhanceImage({
+      imageUrl: request.imageUrl,
+      denoise,
+    });
+
+    if (result.status === "failed") {
+      return {
+        id: crypto.randomUUID(),
+        status: "failed",
+        error: result.error || "ComfyUI enhancement failed",
+      };
+    }
+
+    return {
+      id: crypto.randomUUID(),
+      status: "completed",
+      imageUrl: result.imageUrl,
+    };
+  } catch (error) {
+    return {
+      id: crypto.randomUUID(),
+      status: "failed",
+      error: error instanceof Error ? error.message : "ComfyUI enhancement failed",
     };
   }
 }

@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Type,
   Palette,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,14 @@ const colorPalettes = [
   { id: "gray", label: "Mono", colors: ["#F8FAFC", "#94A3B8", "#1E293B"] },
 ];
 
+interface LogoResult {
+  id: string;
+  status: string;
+  imageUrl?: string;
+  error?: string;
+  styleModifier?: string;
+}
+
 export default function LogoGenerationPage() {
   const [companyName, setCompanyName] = useState("");
   const [selectedStyle, setSelectedStyle] = useState("minimalist");
@@ -41,7 +50,8 @@ export default function LogoGenerationPage() {
   const [useCustomColor, setUseCustomColor] = useState(false);
   const [count, setCount] = useState(4);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [results, setResults] = useState<string[]>([]);
+  const [results, setResults] = useState<LogoResult[]>([]);
+  const [progress, setProgress] = useState(0);
 
   const getActiveColors = (): string[] => {
     if (useCustomColor) {
@@ -62,6 +72,7 @@ export default function LogoGenerationPage() {
 
     setIsGenerating(true);
     setResults([]);
+    setProgress(0);
 
     try {
       const res = await fetch("/api/generate/logo", {
@@ -82,13 +93,16 @@ export default function LogoGenerationPage() {
         throw new Error(data.error || "Logo generation failed");
       }
 
-      const logoUrls: string[] = data.images || data.results || [];
-      if (logoUrls.length > 0) {
-        setResults(logoUrls);
-        toast.success(`Generated ${logoUrls.length} logo variation${logoUrls.length > 1 ? "s" : ""}!`);
-      } else if (data.imageUrl) {
-        setResults([data.imageUrl]);
-        toast.success("Logo generated!");
+      // API returns { results: [{id, status, imageUrl, styleModifier}, ...] }
+      if (data.results && Array.isArray(data.results)) {
+        const logos: LogoResult[] = data.results;
+        setResults(logos);
+        const completed = logos.filter((r: LogoResult) => r.status === "completed").length;
+        if (completed > 0) {
+          toast.success(`Generated ${completed} logo variation${completed > 1 ? "s" : ""}!`);
+        } else {
+          toast.error("All variations failed to generate");
+        }
       } else {
         toast.error("No results returned");
       }
@@ -98,6 +112,7 @@ export default function LogoGenerationPage() {
       );
     } finally {
       setIsGenerating(false);
+      setProgress(0);
     }
   };
 
@@ -108,17 +123,19 @@ export default function LogoGenerationPage() {
     a.click();
   };
 
+  const completedResults = results.filter((r) => r.status === "completed" && r.imageUrl);
+
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-[calc(100vh-3.5rem)]">
       {/* Left Panel - Controls */}
       <div className="w-96 border-r border-border flex flex-col">
         <div className="p-4 border-b border-border">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Hexagon className="h-5 w-5" />
-            Logo Generation
+            Logo Creator
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Create unique logos with AI
+            AI-powered logo generation with 16 style variations
           </p>
         </div>
 
@@ -138,7 +155,7 @@ export default function LogoGenerationPage() {
 
           {/* Style Selection */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Style</label>
+            <label className="text-sm font-medium mb-2 block">Base Style</label>
             <div className="flex flex-wrap gap-2">
               {logoStyles.map((style) => (
                 <button
@@ -233,13 +250,13 @@ export default function LogoGenerationPage() {
             <label className="text-sm font-medium mb-2 block">
               Variations
             </label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4].map((num) => (
+            <div className="grid grid-cols-4 gap-2">
+              {[4, 8, 12, 16].map((num) => (
                 <button
                   key={num}
                   onClick={() => setCount(num)}
                   className={cn(
-                    "flex-1 py-2 text-sm rounded-lg border transition-colors",
+                    "py-2 text-sm rounded-lg border transition-colors",
                     count === num
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:border-primary/50"
@@ -249,6 +266,9 @@ export default function LogoGenerationPage() {
                 </button>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Each variation uses a different style modifier
+            </p>
           </div>
         </div>
 
@@ -263,29 +283,27 @@ export default function LogoGenerationPage() {
             isLoading={isGenerating}
           >
             <Sparkles className="h-5 w-5" />
-            Generate Logo{count > 1 ? "s" : ""}
+            Generate {count} Logos
           </Button>
           <p className="text-xs text-center text-muted-foreground mt-2">
-            Generates {count} variation{count > 1 ? "s" : ""}
+            ~{count * 12}s estimated ({count} variations on local GPU)
           </p>
         </div>
       </div>
 
       {/* Right Panel - Output */}
       <div className="flex-1 flex flex-col">
-        <div className="h-14 border-b border-border px-4 flex items-center justify-between">
+        <div className="h-14 border-b border-border px-4 flex items-center justify-between shrink-0">
           <span className="font-medium">Results</span>
-          {results.length > 0 && (
+          {completedResults.length > 0 && (
             <div className="flex items-center gap-2">
               <Badge variant="success">
-                {results.length} logo{results.length > 1 ? "s" : ""}
+                {completedResults.length} logo{completedResults.length > 1 ? "s" : ""}
               </Badge>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setResults([]);
-                }}
+                onClick={() => setResults([])}
                 className="text-muted-foreground"
               >
                 <RefreshCw className="h-4 w-4 mr-1" />
@@ -304,10 +322,10 @@ export default function LogoGenerationPage() {
                   <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
                 </div>
                 <p className="text-muted-foreground">
-                  Generating {count} logo variation{count > 1 ? "s" : ""}...
+                  Generating {count} logo variations...
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  This may take a moment
+                  Each variation uses a unique style. This may take a few minutes.
                 </p>
               </div>
             </div>
@@ -316,46 +334,61 @@ export default function LogoGenerationPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              className={cn(
-                "grid gap-6 h-full",
-                results.length === 1
-                  ? "grid-cols-1 max-w-lg mx-auto"
-                  : results.length === 2
-                    ? "grid-cols-2 max-w-3xl mx-auto"
-                    : "grid-cols-2"
-              )}
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
             >
-              {results.map((url, index) => (
+              {results.map((result, index) => (
                 <motion.div
-                  key={index}
+                  key={result.id || index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
                 >
                   <Card className="group relative overflow-hidden">
-                    <div className="aspect-square bg-muted/30 flex items-center justify-center p-6">
-                      <img
-                        src={url}
-                        alt={`Logo variation ${index + 1}`}
-                        className="max-w-full max-h-full object-contain rounded-lg"
-                      />
+                    <div className="aspect-square bg-white flex items-center justify-center p-4">
+                      {result.status === "completed" && result.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={result.imageUrl}
+                          alt=""
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <Hexagon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                          <p className="text-xs text-gray-400">
+                            {result.error || "Failed"}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(url, index)}
-                        className="bg-background/80 backdrop-blur-sm"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </Button>
-                    </div>
-                    <div className="absolute top-3 left-3">
-                      <Badge variant="outline" className="bg-background/80 backdrop-blur-sm">
+                    {/* Style label */}
+                    {result.styleModifier && (
+                      <div className="absolute top-2 left-2">
+                        <Badge variant="outline" className="bg-background/80 backdrop-blur-sm text-[10px]">
+                          {result.styleModifier}
+                        </Badge>
+                      </div>
+                    )}
+                    {/* Variation number */}
+                    <div className="absolute top-2 right-2">
+                      <Badge variant="outline" className="bg-background/80 backdrop-blur-sm text-[10px]">
                         #{index + 1}
                       </Badge>
                     </div>
+                    {/* Download overlay */}
+                    {result.status === "completed" && result.imageUrl && (
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(result.imageUrl!, index)}
+                          className="bg-background/80 backdrop-blur-sm"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                      </div>
+                    )}
                   </Card>
                 </motion.div>
               ))}
@@ -369,7 +402,7 @@ export default function LogoGenerationPage() {
                 <h3 className="text-lg font-semibold mb-2">No logos yet</h3>
                 <p className="text-muted-foreground max-w-md">
                   Enter your company name, choose a style and colors, then click
-                  Generate to create logo variations
+                  Generate to create up to 16 unique logo variations
                 </p>
               </div>
             </div>

@@ -125,7 +125,7 @@ export default function ImageGenerationPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-[calc(100vh-3.5rem)]">
       {/* Left Panel - Generation Controls */}
       <div className="w-96 border-r border-border flex flex-col">
         <div className="p-4 border-b border-border">
@@ -196,9 +196,11 @@ export default function ImageGenerationPage() {
               value={params.model}
               onChange={(value) => {
                 const model = imageModels.find((m) => m.id === value);
+                const isFlux = value.includes("flux");
                 setParams({
                   model: value,
-                  steps: model?.defaultSteps || 4,
+                  steps: model?.defaultSteps || 20,
+                  cfgScale: isFlux ? 1.0 : 7.5,
                 });
               }}
               options={imageModels.map((model) => ({

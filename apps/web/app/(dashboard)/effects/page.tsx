@@ -1,13 +1,14 @@
-'use client'
+"use client";
 
-import { redirect } from 'next/navigation'
-import { useEffect } from 'react'
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function EffectsPage() {
-  useEffect(() => {
-    // Redirect to style-transfer page which handles AI effects
-    redirect('/style-transfer')
-  }, [])
+  const router = useRouter();
 
-  return null
+  useEffect(() => {
+    router.replace("/style-transfer");
+  }, [router]);
+
+  return null;
 }
