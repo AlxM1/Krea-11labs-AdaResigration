@@ -88,101 +88,116 @@ export async function POST(req: NextRequest) {
       baseUrl: comfyuiUrl,
     });
 
-    const results = [];
+    // Stream results as NDJSON so each logo appears immediately on the frontend.
+    // This avoids HTTP timeout issues for large batches (16 logos × ~20-30s each = 5-8 min).
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < count; i++) {
+          const styleModifier = STYLE_MODIFIERS[i % STYLE_MODIFIERS.length];
 
-    for (let i = 0; i < count; i++) {
-      const styleModifier = STYLE_MODIFIERS[i % STYLE_MODIFIERS.length];
+          const logoPrompt = baseDescription
+            ? `professional logo design, ${styleModifier}, ${baseDescription}${colorStr}, white background, vector style, clean lines, centered composition, no text`
+            : `professional logo design, ${styleModifier}, for "${companyName}"${colorStr}, white background, vector style, clean lines, centered composition, no text`;
 
-      // Build variation-specific prompt
-      const logoPrompt = baseDescription
-        ? `professional logo design, ${styleModifier}, ${baseDescription}${colorStr}, white background, vector style, clean lines, centered composition, no text`
-        : `professional logo design, ${styleModifier}, for "${companyName}"${colorStr}, white background, vector style, clean lines, centered composition, no text`;
+          const generation = await prisma.generation.create({
+            data: {
+              userId,
+              type: "TEXT_TO_IMAGE",
+              prompt: logoPrompt,
+              model: "comfyui-flux",
+              status: "PENDING",
+              parameters: {
+                tool: "logo-generation",
+                companyName,
+                style,
+                styleModifier,
+                colors,
+                variation: i + 1,
+              },
+            },
+          });
 
-      const generation = await prisma.generation.create({
-        data: {
-          userId,
-          type: "TEXT_TO_IMAGE",
-          prompt: logoPrompt,
-          model: "comfyui-flux",
-          status: "PENDING",
-          parameters: {
-            tool: "logo-generation",
-            companyName,
-            style,
-            styleModifier,
-            colors,
-            variation: i + 1,
-          },
-        },
-      });
-
-      // Synchronous generation
-      await prisma.generation.update({
-        where: { id: generation.id },
-        data: { status: "PROCESSING" },
-      });
-
-      try {
-        console.log(`[Logo] Generating variation ${i + 1}/${count}: ${styleModifier}`);
-
-        const aiResult = await comfyui.generateImage({
-          prompt: logoPrompt,
-          negativePrompt: "text, words, letters, watermark, signature, blurry, low quality, distorted",
-          width: 1024,
-          height: 1024,
-          steps: 20,
-          seed: -1, // Random seed for each variation
-        });
-
-        if (aiResult.status === "failed" || !aiResult.imageUrl) {
           await prisma.generation.update({
             where: { id: generation.id },
-            data: { status: "FAILED" },
+            data: { status: "PROCESSING" },
           });
-          results.push({ id: generation.id, status: "failed", error: aiResult.error, styleModifier });
-          continue;
+
+          try {
+            console.log(`[Logo] Generating variation ${i + 1}/${count}: ${styleModifier}`);
+
+            const aiResult = await comfyui.generateImage({
+              prompt: logoPrompt,
+              negativePrompt: "text, words, letters, watermark, signature, blurry, low quality, distorted",
+              width: 1024,
+              height: 1024,
+              steps: 20,
+              seed: -1,
+            });
+
+            if (aiResult.status === "failed" || !aiResult.imageUrl) {
+              await prisma.generation.update({
+                where: { id: generation.id },
+                data: { status: "FAILED" },
+              });
+              controller.enqueue(encoder.encode(
+                JSON.stringify({ id: generation.id, status: "failed", error: aiResult.error, styleModifier }) + "\n"
+              ));
+              continue;
+            }
+
+            // Download from ComfyUI internal URL and save to local storage
+            let finalUrl: string | null = null;
+            try {
+              const uploaded = await uploadFromUrl(aiResult.imageUrl, userId);
+              finalUrl = uploaded.url;
+            } catch (uploadErr) {
+              console.error(`[Logo] Failed to upload variation ${i + 1} to local storage:`, uploadErr);
+              await prisma.generation.update({
+                where: { id: generation.id },
+                data: { status: "FAILED" },
+              });
+              controller.enqueue(encoder.encode(
+                JSON.stringify({ id: generation.id, status: "failed", error: "Failed to save generated image", styleModifier }) + "\n"
+              ));
+              continue;
+            }
+
+            await prisma.generation.update({
+              where: { id: generation.id },
+              data: { status: "COMPLETED", imageUrl: finalUrl, thumbnailUrl: finalUrl },
+            });
+
+            controller.enqueue(encoder.encode(
+              JSON.stringify({ id: generation.id, status: "completed", imageUrl: finalUrl, styleModifier }) + "\n"
+            ));
+          } catch (error) {
+            console.error(`[Logo] Variation ${i + 1} failed:`, error);
+            await prisma.generation.update({
+              where: { id: generation.id },
+              data: { status: "FAILED" },
+            });
+            controller.enqueue(encoder.encode(
+              JSON.stringify({
+                id: generation.id,
+                status: "failed",
+                error: error instanceof Error ? error.message : "Generation failed",
+                styleModifier,
+              }) + "\n"
+            ));
+          }
         }
+        controller.close();
+      },
+    });
 
-        // Download from ComfyUI internal URL and save to local storage
-        // IMPORTANT: Never return internal ComfyUI URLs (http://10.x.x.x:...) to the client -
-        // browsers can't reach private IPs. Always upload to local storage first.
-        let finalUrl: string | null = null;
-        try {
-          const uploaded = await uploadFromUrl(aiResult.imageUrl, userId);
-          finalUrl = uploaded.url;
-        } catch (uploadErr) {
-          console.error(`[Logo] Failed to upload variation ${i + 1} to local storage:`, uploadErr);
-          // Mark as failed if we can't save - the internal ComfyUI URL is not reachable from browsers
-          await prisma.generation.update({
-            where: { id: generation.id },
-            data: { status: "FAILED" },
-          });
-          results.push({ id: generation.id, status: "failed", error: "Failed to save generated image", styleModifier });
-          continue;
-        }
-
-        await prisma.generation.update({
-          where: { id: generation.id },
-          data: { status: "COMPLETED", imageUrl: finalUrl, thumbnailUrl: finalUrl },
-        });
-
-        results.push({ id: generation.id, status: "completed", imageUrl: finalUrl, styleModifier });
-      } catch (error) {
-        console.error(`[Logo] Variation ${i + 1} failed:`, error);
-        await prisma.generation.update({
-          where: { id: generation.id },
-          data: { status: "FAILED" },
-        });
-        results.push({
-          id: generation.id,
-          status: "failed",
-          error: error instanceof Error ? error.message : "Generation failed",
-          styleModifier,
-        });
-      }
-    }
-
-    return NextResponse.json({ results });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "application/x-ndjson",
+        "Cache-Control": "no-cache",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (error) {
     console.error("Logo generation error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

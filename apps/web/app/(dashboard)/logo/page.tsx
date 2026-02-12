@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Hexagon,
@@ -9,7 +9,6 @@ import {
   RefreshCw,
   Type,
   Palette,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +50,8 @@ export default function LogoGenerationPage() {
   const [count, setCount] = useState(4);
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState<LogoResult[]>([]);
-  const [progress, setProgress] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   const getActiveColors = (): string[] => {
     if (useCustomColor) {
@@ -64,7 +64,7 @@ export default function LogoGenerationPage() {
     );
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     if (!companyName.trim()) {
       toast.error("Please enter a company name");
       return;
@@ -72,7 +72,8 @@ export default function LogoGenerationPage() {
 
     setIsGenerating(true);
     setResults([]);
-    setProgress(0);
+    setCompletedCount(0);
+    setTotalCount(count);
 
     try {
       const res = await fetch("/api/generate/logo", {
@@ -83,28 +84,65 @@ export default function LogoGenerationPage() {
           style: selectedStyle,
           colors: getActiveColors(),
           count,
-          async: false,
         }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
+        const data = await res.json();
         throw new Error(data.error || "Logo generation failed");
       }
 
-      // API returns { results: [{id, status, imageUrl, styleModifier}, ...] }
-      if (data.results && Array.isArray(data.results)) {
-        const logos: LogoResult[] = data.results;
-        setResults(logos);
-        const completed = logos.filter((r: LogoResult) => r.status === "completed").length;
-        if (completed > 0) {
-          toast.success(`Generated ${completed} logo variation${completed > 1 ? "s" : ""}!`);
-        } else {
-          toast.error("All variations failed to generate");
+      // Read NDJSON stream - each line is a logo result
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error("No response stream");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let completed = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const result: LogoResult = JSON.parse(line);
+            setResults((prev) => [...prev, result]);
+            if (result.status === "completed") {
+              completed++;
+              setCompletedCount(completed);
+            }
+          } catch {
+            console.warn("[Logo] Failed to parse stream line:", line);
+          }
         }
+      }
+
+      // Handle any remaining buffer
+      if (buffer.trim()) {
+        try {
+          const result: LogoResult = JSON.parse(buffer);
+          setResults((prev) => [...prev, result]);
+          if (result.status === "completed") {
+            completed++;
+            setCompletedCount(completed);
+          }
+        } catch {
+          console.warn("[Logo] Failed to parse final buffer:", buffer);
+        }
+      }
+
+      if (completed > 0) {
+        toast.success(`Generated ${completed} logo variation${completed > 1 ? "s" : ""}!`);
       } else {
-        toast.error("No results returned");
+        toast.error("All variations failed to generate");
       }
     } catch (error) {
       toast.error(
@@ -112,9 +150,8 @@ export default function LogoGenerationPage() {
       );
     } finally {
       setIsGenerating(false);
-      setProgress(0);
     }
-  };
+  }, [companyName, selectedStyle, selectedPalette, customColor, useCustomColor, count]);
 
   const handleDownload = (url: string, index: number) => {
     const a = document.createElement("a");
@@ -279,15 +316,21 @@ export default function LogoGenerationPage() {
             className="w-full gap-2"
             size="lg"
             onClick={handleGenerate}
-            disabled={!companyName.trim()}
+            disabled={!companyName.trim() || isGenerating}
             isLoading={isGenerating}
           >
             <Sparkles className="h-5 w-5" />
             Generate {count} Logos
           </Button>
-          <p className="text-xs text-center text-muted-foreground mt-2">
-            ~{count * 12}s estimated ({count} variations on local GPU)
-          </p>
+          {isGenerating && totalCount > 0 ? (
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              {results.length} of {totalCount} completed
+            </p>
+          ) : (
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              ~{count * 12}s estimated ({count} variations on local GPU)
+            </p>
+          )}
         </div>
       </div>
 
@@ -295,53 +338,39 @@ export default function LogoGenerationPage() {
       <div className="flex-1 flex flex-col">
         <div className="h-14 border-b border-border px-4 flex items-center justify-between shrink-0">
           <span className="font-medium">Results</span>
-          {completedResults.length > 0 && (
+          {results.length > 0 && (
             <div className="flex items-center gap-2">
-              <Badge variant="success">
-                {completedResults.length} logo{completedResults.length > 1 ? "s" : ""}
+              <Badge variant={isGenerating ? "default" : "success"}>
+                {completedResults.length} logo{completedResults.length !== 1 ? "s" : ""}
+                {isGenerating && ` / ${totalCount}`}
               </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setResults([])}
-                className="text-muted-foreground"
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Clear
-              </Button>
+              {!isGenerating && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setResults([]);
+                    setCompletedCount(0);
+                  }}
+                  className="text-muted-foreground"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              )}
             </div>
           )}
         </div>
 
         <div className="flex-1 p-6 overflow-auto">
-          {isGenerating ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="relative w-20 h-20 mx-auto mb-4">
-                  <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-                  <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                </div>
-                <p className="text-muted-foreground">
-                  Generating {count} logo variations...
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Each variation uses a unique style. This may take a few minutes.
-                </p>
-              </div>
-            </div>
-          ) : results.length > 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-            >
+          {results.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {results.map((result, index) => (
                 <motion.div
                   key={result.id || index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3 }}
                 >
                   <Card className="group relative overflow-hidden">
                     <div className="aspect-square bg-white flex items-center justify-center p-4">
@@ -392,7 +421,40 @@ export default function LogoGenerationPage() {
                   </Card>
                 </motion.div>
               ))}
-            </motion.div>
+
+              {/* Placeholder cards for remaining logos being generated */}
+              {isGenerating && Array.from({ length: totalCount - results.length }).map((_, i) => (
+                <div key={`pending-${i}`} className="animate-pulse">
+                  <Card className="overflow-hidden">
+                    <div className="aspect-square bg-muted flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">
+                          Generating...
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              ))}
+            </div>
+          ) : isGenerating ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.from({ length: totalCount }).map((_, i) => (
+                <div key={`pending-${i}`} className="animate-pulse">
+                  <Card className="overflow-hidden">
+                    <div className="aspect-square bg-muted flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">
+                          Waiting...
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
