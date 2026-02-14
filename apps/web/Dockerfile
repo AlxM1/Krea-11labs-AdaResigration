@@ -41,24 +41,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone build (includes apps/web structure)
+# Copy standalone build (monorepo structure: node_modules/ + apps/web/server.js)
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-# Copy static assets to the correct location (root level for standalone mode)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
-# Copy Prisma schema
+# Copy static assets relative to the app directory
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+# Copy Prisma schema (for runtime introspection)
 COPY --from=builder /app/prisma ./prisma
-# Copy Prisma generated client and all Prisma runtime dependencies
-RUN mkdir -p ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
-COPY --from=builder /app/node_modules/@prisma/client-runtime-utils ./node_modules/@prisma/client-runtime-utils
-COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
-COPY --from=builder /app/node_modules/@prisma/engines-version ./node_modules/@prisma/engines-version
-COPY --from=builder /app/node_modules/@prisma/debug ./node_modules/@prisma/debug
-
-# Install sharp with all dependencies directly in runner (standalone + pnpm doesn't copy transitive deps)
-RUN cd /tmp && npm init -y && npm install sharp@0.33.2 && cp -r node_modules/sharp /app/node_modules/sharp && cp -r node_modules/@img /app/node_modules/@img && cp -r node_modules/detect-libc /app/node_modules/detect-libc && cp -r node_modules/color /app/node_modules/color 2>/dev/null; cp -r node_modules/semver /app/node_modules/semver 2>/dev/null; cp -r node_modules/color-string /app/node_modules/color-string 2>/dev/null; cp -r node_modules/color-name /app/node_modules/color-name 2>/dev/null; cp -r node_modules/color-convert /app/node_modules/color-convert 2>/dev/null; cp -r node_modules/simple-swizzle /app/node_modules/simple-swizzle 2>/dev/null; cp -r node_modules/is-arrayish /app/node_modules/is-arrayish 2>/dev/null; rm -rf /tmp/node_modules /tmp/package.json /tmp/package-lock.json
 
 # Create uploads directory
 RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
@@ -75,4 +64,4 @@ ENV WS_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 ENV UPLOAD_DIR="/app/uploads"
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
