@@ -22,14 +22,17 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ShareButton } from "@/components/ui/share-button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { videoModels } from "@/lib/ai-models";
+import { useModels } from "@/hooks/use-models";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 export default function VideoGenerationPage() {
+  const { models: t2vModels, bestModel: bestT2v } = useModels("text-to-video");
+  const { models: i2vModels, bestModel: bestI2v } = useModels("image-to-video");
+
   const [prompt, setPrompt] = useState("");
-  const [selectedModel, setSelectedModel] = useState("svd"); // Default to SVD (Stable Video Diffusion) - confirmed working
-  const [duration, setDuration] = useState(6); // CogVideo max is 6 seconds
+  const [selectedModel, setSelectedModel] = useState("");
+  const [duration, setDuration] = useState(4);
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -39,6 +42,15 @@ export default function VideoGenerationPage() {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [motionIntensity, setMotionIntensity] = useState(50);
   const [cameraMotion, setCameraMotion] = useState(0);
+
+  // Pick models based on generation type
+  const videoModels = generationType === "image" ? i2vModels : t2vModels;
+  const bestModel = generationType === "image" ? bestI2v : bestT2v;
+
+  // Auto-select best model
+  if (bestModel && !selectedModel) {
+    setSelectedModel(bestModel.id);
+  }
 
   const handleEnhancePrompt = async () => {
     if (!prompt.trim()) return;
@@ -285,7 +297,7 @@ export default function VideoGenerationPage() {
               onChange={setSelectedModel}
               options={videoModels.map((model) => ({
                 value: model.id,
-                label: `${model.name} (${model.resolution})`,
+                label: model.name,
               }))}
             />
             <p className="text-xs text-muted-foreground mt-1">
@@ -300,7 +312,7 @@ export default function VideoGenerationPage() {
               value={duration}
               onChange={setDuration}
               min={2}
-              max={videoModels.find((m) => m.id === selectedModel)?.maxDuration || 10}
+              max={10}
             />
           </div>
 

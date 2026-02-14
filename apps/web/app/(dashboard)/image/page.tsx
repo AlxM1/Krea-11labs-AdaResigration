@@ -24,7 +24,8 @@ import { ShareButton } from "@/components/ui/share-button";
 import { DownloadButton } from "@/components/ui/download-button";
 import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import { useGenerationStore } from "@/stores/generation-store";
-import { imageModels, aspectRatios, stylePresets } from "@/lib/ai-models";
+import { aspectRatios, stylePresets } from "@/lib/ai-models";
+import { useModels } from "@/hooks/use-models";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -38,11 +39,24 @@ export default function ImageGenerationPage() {
     addGeneration,
   } = useGenerationStore();
 
+  const { models: imageModels, bestModel } = useModels("text-to-image");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedAspect, setSelectedAspect] = useState("1:1");
   const [selectedStyle, setSelectedStyle] = useState("none");
   const [enhancePrompt, setEnhancePrompt] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
+
+  // Auto-select best model on mount
+  const [initialized, setInitialized] = useState(false);
+  if (bestModel && !initialized) {
+    const isFlux = bestModel.id.includes("flux");
+    setParams({
+      model: bestModel.id,
+      steps: (bestModel.config.steps as number) || 20,
+      cfgScale: (bestModel.config.cfg as number) || (isFlux ? 1.0 : 7.5),
+    });
+    setInitialized(true);
+  }
 
   const handleGenerate = async () => {
     if (!params.prompt.trim()) {
@@ -199,13 +213,13 @@ export default function ImageGenerationPage() {
                 const isFlux = value.includes("flux");
                 setParams({
                   model: value,
-                  steps: model?.defaultSteps || 20,
-                  cfgScale: isFlux ? 1.0 : 7.5,
+                  steps: (model?.config?.steps as number) || 20,
+                  cfgScale: (model?.config?.cfg as number) || (isFlux ? 1.0 : 7.5),
                 });
               }}
               options={imageModels.map((model) => ({
                 value: model.id,
-                label: `${model.name} ${model.isPremium ? "(Pro)" : ""}`,
+                label: model.name,
               }))}
             />
             <p className="text-xs text-muted-foreground mt-1">

@@ -8,6 +8,7 @@ import { DownloadButton } from '@/components/ui/download-button'
 import { Loader2, Upload } from 'lucide-react'
 import Image from 'next/image'
 import { useDropzone } from 'react-dropzone'
+import { useModels } from '@/hooks/use-models'
 
 const UPSCALE_FACTORS = [
   { value: 2, label: '2x (Medium)' },
@@ -15,17 +16,17 @@ const UPSCALE_FACTORS = [
   { value: 8, label: '8x (Ultra)' },
 ]
 
-const UPSCALE_MODELS = [
-  { value: 'real-esrgan', label: 'Real-ESRGAN', description: 'Best for photos' },
-  { value: 'gfpgan', label: 'GFPGAN', description: 'Face enhancement' },
-  { value: 'codeformer', label: 'CodeFormer', description: 'Face restoration' },
-]
-
 export default function UpscalePage() {
+  const { models: upscaleModels, bestModel } = useModels('upscale')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [scale, setScale] = useState(4)
-  const [model, setModel] = useState('real-esrgan')
+  const [model, setModel] = useState('')
   const [generating, setGenerating] = useState(false)
+
+  // Auto-select best model
+  if (bestModel && !model) {
+    setModel(bestModel.id)
+  }
   const [result, setResult] = useState<string | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [originalDimensions, setOriginalDimensions] = useState({ width: 0, height: 0 })
@@ -190,17 +191,17 @@ export default function UpscalePage() {
               <div>
                 <Label>Upscaling Model</Label>
                 <div className="space-y-2 mt-2">
-                  {UPSCALE_MODELS.map((upscaleModel) => (
+                  {upscaleModels.map((upscaleModel) => (
                     <button
-                      key={upscaleModel.value}
-                      onClick={() => setModel(upscaleModel.value)}
+                      key={upscaleModel.id}
+                      onClick={() => setModel(upscaleModel.id)}
                       className={`w-full p-3 rounded-lg border text-left transition ${
-                        model === upscaleModel.value
+                        model === upscaleModel.id
                           ? 'border-blue-500 bg-blue-500/10'
                           : 'border-gray-800 bg-gray-950 hover:border-gray-700'
                       }`}
                     >
-                      <div className="font-medium">{upscaleModel.label}</div>
+                      <div className="font-medium">{upscaleModel.name}</div>
                       <div className="text-xs text-gray-500">
                         {upscaleModel.description}
                       </div>
@@ -230,9 +231,9 @@ export default function UpscalePage() {
           <Card className="p-4 bg-gray-900 border-gray-800">
             <h3 className="font-semibold mb-2">Tips</h3>
             <ul className="text-sm text-gray-400 space-y-1">
-              <li>• Real-ESRGAN: Best for general photos and images</li>
-              <li>• GFPGAN: Specialized for face enhancement</li>
-              <li>• CodeFormer: Advanced face restoration</li>
+              {upscaleModels.map((m) => (
+                <li key={m.id}>• {m.name}: {m.description}</li>
+              ))}
               <li>• Higher scales take longer to process</li>
             </ul>
           </Card>

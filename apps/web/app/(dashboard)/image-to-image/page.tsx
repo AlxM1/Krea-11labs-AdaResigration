@@ -6,19 +6,28 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
+import { Select } from '@/components/ui/select'
 import { DownloadButton } from '@/components/ui/download-button'
 import { Loader2, Upload } from 'lucide-react'
 import Image from 'next/image'
 import { useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
+import { useModels } from '@/hooks/use-models'
 
 export default function ImageToImagePage() {
+  const { models, bestModel } = useModels('image-to-image')
   const [prompt, setPrompt] = useState('')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [strength, setStrength] = useState(0.75)
+  const [selectedModel, setSelectedModel] = useState('')
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+
+  // Auto-select best model
+  if (bestModel && !selectedModel) {
+    setSelectedModel(bestModel.id)
+  }
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
@@ -74,7 +83,7 @@ export default function ImageToImagePage() {
           prompt,
           imageUrl: uploadData.url,
           strength,
-          model: 'comfyui-sdxl', // Use SDXL model for img2img
+          model: selectedModel || 'sdxl',
         }),
       })
 
@@ -154,6 +163,21 @@ export default function ImageToImagePage() {
                   rows={4}
                   className="mt-2 bg-gray-950 border-gray-800"
                 />
+              </div>
+
+              <div>
+                <Label>Model</Label>
+                <Select
+                  value={selectedModel}
+                  onChange={setSelectedModel}
+                  options={models.map((m) => ({
+                    value: m.id,
+                    label: m.name,
+                  }))}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {models.find((m) => m.id === selectedModel)?.description}
+                </p>
               </div>
 
               <div>

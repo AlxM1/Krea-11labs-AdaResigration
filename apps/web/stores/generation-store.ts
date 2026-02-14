@@ -51,7 +51,7 @@ interface GenerationState {
 const defaultParams: GenerationParams = {
   prompt: "",
   negativePrompt: "",
-  model: "comfyui-flux", // FLUX Krea Dev (Local GPU) - best quality, free
+  model: "flux-fp8", // FLUX Dev fp8 (Local GPU) - best quality, free
   width: 1024,
   height: 1024,
   steps: 20, // FLUX Krea Dev default steps

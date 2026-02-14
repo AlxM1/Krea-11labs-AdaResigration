@@ -21,14 +21,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
-
-const enhancerModels = [
-  { value: "krya-enhance", label: "Krya Enhance", description: "AI-powered detail generation" },
-  { value: "real-esrgan", label: "Real-ESRGAN", description: "Photo upscaling" },
-  { value: "gfpgan", label: "GFPGAN", description: "Face restoration" },
-  { value: "codeformer", label: "CodeFormer", description: "Face enhancement" },
-  { value: "topaz-style", label: "Neutral Upscale", description: "Clean upscaling" },
-];
+import { useModels } from "@/hooks/use-models";
 
 const scaleOptions = [
   { value: "1", label: "1x", pixels: "Same size" },
@@ -38,9 +31,15 @@ const scaleOptions = [
 ];
 
 export default function EnhancerPage() {
+  const { models: enhancerModels, bestModel } = useModels("enhance");
   const [inputImage, setInputImage] = useState<string | null>(null);
   const [outputImage, setOutputImage] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState("krya-enhance");
+  const [selectedModel, setSelectedModel] = useState("");
+
+  // Auto-select best model
+  if (bestModel && !selectedModel) {
+    setSelectedModel(bestModel.id);
+  }
   const [scale, setScale] = useState("2");
   const [denoise, setDenoise] = useState(50);
   const [sharpness, setSharpness] = useState(50);
@@ -85,13 +84,46 @@ export default function EnhancerPage() {
 
     setIsProcessing(true);
 
-    // Simulate enhancement
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    try {
+      // Convert data URL to file and upload
+      const blob = await fetch(inputImage).then((r) => r.blob());
+      const formData = new FormData();
+      formData.append("file", blob, "input.png");
 
-    // In production, this would call the enhancement API
-    setOutputImage(inputImage); // Demo: use same image
-    setIsProcessing(false);
-    toast.success("Image enhanced successfully!");
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const uploadData = await uploadResponse.json();
+      if (!uploadData.url) {
+        throw new Error("Failed to upload image");
+      }
+
+      const response = await fetch("/api/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: uploadData.url,
+          scale: scale,
+          model: selectedModel,
+          denoise,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.imageUrl) {
+        setOutputImage(data.imageUrl);
+        toast.success("Image enhanced successfully!");
+      } else {
+        throw new Error(data.error || "Enhancement failed");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Enhancement failed");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleDownload = () => {
@@ -129,10 +161,10 @@ export default function EnhancerPage() {
             <Select
               value={selectedModel}
               onChange={setSelectedModel}
-              options={enhancerModels.map((m) => ({ value: m.value, label: m.label }))}
+              options={enhancerModels.map((m) => ({ value: m.id, label: m.name }))}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {enhancerModels.find((m) => m.value === selectedModel)?.description}
+              {enhancerModels.find((m) => m.id === selectedModel)?.description}
             </p>
           </div>
 

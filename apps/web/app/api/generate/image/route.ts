@@ -5,11 +5,13 @@ import { generateImage, AIProvider, enhancePrompt, generateNegativePrompt } from
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { addJob, isQueueAvailable, QueueNames, ImageGenerationJob } from "@/lib/queue";
 import { z } from "zod";
+import { getModelById } from "@/lib/ai/model-registry";
+import { MODEL_ID_TO_CHECKPOINT } from "@/lib/ai-models";
 
 const generateSchema = z.object({
   prompt: z.string().min(1).max(2000),
   negativePrompt: z.string().max(1000).optional(),
-  model: z.string().default("comfyui-flux"),
+  model: z.string().default("flux-fp8"),
   width: z.number().min(256).max(2048).default(1024),
   height: z.number().min(256).max(2048).default(1024),
   steps: z.number().min(1).max(100).default(4),
@@ -66,17 +68,19 @@ export async function POST(req: NextRequest) {
     let provider: AIProvider;
     let actualModel = params.model;
 
-    // Route ComfyUI models to local GPU (primary provider)
-    if (params.model.startsWith("comfyui-")) {
+    // Try registry lookup first, then static map, then legacy logic
+    const registryModel = getModelById(params.model);
+    const staticEntry = MODEL_ID_TO_CHECKPOINT[params.model];
+
+    if (registryModel && registryModel.provider === "comfyui") {
       provider = "comfyui";
-      // Map model IDs to actual checkpoint names
-      if (params.model === "comfyui-flux") {
-        actualModel = "flux1-dev-fp8.safetensors";
-      } else if (params.model === "comfyui-sdxl") {
-        actualModel = "sd_xl_base_1.0.safetensors";
-      } else {
-        actualModel = params.model.replace("comfyui-", "");
-      }
+      actualModel = registryModel.filename;
+    } else if (staticEntry) {
+      provider = "comfyui";
+      actualModel = staticEntry.filename;
+    } else if (params.model.startsWith("comfyui-")) {
+      provider = "comfyui";
+      actualModel = params.model.replace("comfyui-", "");
     } else {
       // Default to fal.ai for all cloud models (fallback provider)
       provider = params.provider || "fal";
