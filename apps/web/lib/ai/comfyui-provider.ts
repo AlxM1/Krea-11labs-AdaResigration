@@ -913,7 +913,7 @@ const WORKFLOWS = {
     },
   }),
 
-  // Wan 2.2 - Text to Video (GGUF with dual experts)
+  // Wan 2.2 - Text to Video (MoE dual experts via WanVideo custom nodes)
   textToVideoWan: (params: {
     prompt: string;
     negativePrompt?: string;
@@ -923,80 +923,114 @@ const WORKFLOWS = {
     fps: number;
     steps: number;
     seed: number;
-    modelPath?: string;
   }) => ({
+    // Low noise expert (extra model for MoE)
     "1": {
       inputs: {
-        unet_name: "wan2.2_t2v_high_noise_14B_Q8_0.gguf",
+        extra_model: "wan2.2_t2v_low_noise_14B_Q8_0.gguf",
       },
-      class_type: "UnetLoaderGGUF",
+      class_type: "WanVideoExtraModelSelect",
     },
+    // Block swap for VRAM management (offload blocks to CPU)
     "2": {
       inputs: {
-        unet_name: "wan2.2_t2v_low_noise_14B_Q8_0.gguf",
+        blocks_to_swap: 20,
+        offload_img_emb: true,
+        offload_txt_emb: true,
       },
-      class_type: "UnetLoaderGGUF",
+      class_type: "WanVideoBlockSwap",
     },
+    // High noise expert (primary model, takes extra_model + block_swap)
     "3": {
       inputs: {
-        clip_name1: "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
-        clip_name2: "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
-        type: "sd3",
+        model: "wan2.2_t2v_high_noise_14B_Q8_0.gguf",
+        base_precision: "bf16",
+        quantization: "disabled",
+        load_device: "main_device",
+        extra_model: ["1", 0],
+        block_swap_args: ["2", 0],
       },
-      class_type: "DualCLIPLoader",
+      class_type: "WanVideoModelLoader",
     },
+    // CLIP loader with Wan type for UMT5
     "4": {
       inputs: {
-        vae_name: "wan_2.1_vae.safetensors",
+        clip_name: "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        type: "wan",
       },
-      class_type: "VAELoader",
+      class_type: "CLIPLoader",
     },
-    "5": {
+    // Positive text encoding
+    "5a": {
       inputs: {
         text: params.prompt,
-        clip: ["3", 0],
+        clip: ["4", 0],
       },
       class_type: "CLIPTextEncode",
     },
-    "6": {
+    // Negative text encoding
+    "5b": {
       inputs: {
         text: params.negativePrompt || "low quality, blurry, distorted, static, worst quality",
-        clip: ["3", 0],
+        clip: ["4", 0],
       },
       class_type: "CLIPTextEncode",
     },
-    "7": {
+    // Bridge CONDITIONING → WANVIDEOTEXTEMBEDS
+    "5c": {
+      inputs: {
+        positive: ["5a", 0],
+        negative: ["5b", 0],
+      },
+      class_type: "WanVideoTextEmbedBridge",
+    },
+    // Empty embeds for t2v (latent space)
+    "6": {
       inputs: {
         width: params.width,
         height: params.height,
-        length: params.frames,
-        batch_size: 1,
+        num_frames: params.frames,
       },
-      class_type: "EmptyWanLatentVideo",
+      class_type: "WanVideoEmptyEmbeds",
     },
+    // VAE loader
+    "7": {
+      inputs: {
+        model_name: "wan_2.1_vae.safetensors",
+        precision: "fp16",
+      },
+      class_type: "WanVideoVAELoader",
+    },
+    // Sampler (text_embeds from bridge)
     "8": {
       inputs: {
-        seed: params.seed,
+        model: ["3", 0],
+        image_embeds: ["6", 0],
+        text_embeds: ["5c", 0],
         steps: params.steps,
-        cfg: 7.0,
-        sampler_name: "dpmpp_2m",
-        scheduler: "karras",
-        denoise: 1.0,
-        high_noise_model: ["1", 0],
-        low_noise_model: ["2", 0],
-        positive: ["5", 0],
-        negative: ["6", 0],
-        latent_image: ["7", 0],
+        cfg: 5.0,
+        shift: 5.0,
+        seed: params.seed,
+        force_offload: true,
+        scheduler: "unipc",
+        riflex_freq_index: 0,
       },
-      class_type: "WanSampler",
+      class_type: "WanVideoSampler",
     },
+    // Decode
     "9": {
       inputs: {
+        vae: ["7", 0],
         samples: ["8", 0],
-        vae: ["4", 0],
+        enable_vae_tiling: true,
+        tile_x: 480,
+        tile_y: 272,
+        tile_stride_x: 240,
+        tile_stride_y: 136,
       },
-      class_type: "VAEDecode",
+      class_type: "WanVideoDecode",
     },
+    // Video output
     "10": {
       inputs: {
         frame_rate: params.fps,
@@ -1014,110 +1048,155 @@ const WORKFLOWS = {
     },
   }),
 
-  // Wan 2.2 - Image to Video (GGUF with dual experts + CLIPVision)
+  // Wan 2.2 - Image to Video (MoE dual experts + CLIP Vision via WanVideo custom nodes)
   imageToVideoWan: (params: {
     imageData: string;
     prompt?: string;
     negativePrompt?: string;
+    width: number;
+    height: number;
     frames: number;
     fps: number;
     steps: number;
     seed: number;
-    modelPath?: string;
   }) => ({
+    // Low noise expert (extra model for MoE)
     "1": {
       inputs: {
-        unet_name: "wan2.2_i2v_high_noise_14B_Q8_0.gguf",
+        extra_model: "wan2.2_i2v_low_noise_14B_Q8_0.gguf",
       },
-      class_type: "UnetLoaderGGUF",
+      class_type: "WanVideoExtraModelSelect",
     },
+    // Block swap for VRAM management
     "2": {
       inputs: {
-        unet_name: "wan2.2_i2v_low_noise_14B_Q8_0.gguf",
+        blocks_to_swap: 20,
+        offload_img_emb: true,
+        offload_txt_emb: true,
       },
-      class_type: "UnetLoaderGGUF",
+      class_type: "WanVideoBlockSwap",
     },
+    // High noise expert (primary i2v model)
     "3": {
       inputs: {
-        clip_name1: "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
-        clip_name2: "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
-        type: "sd3",
+        model: "wan2.2_i2v_high_noise_14B_Q8_0.gguf",
+        base_precision: "bf16",
+        quantization: "disabled",
+        load_device: "main_device",
+        extra_model: ["1", 0],
+        block_swap_args: ["2", 0],
       },
-      class_type: "DualCLIPLoader",
+      class_type: "WanVideoModelLoader",
     },
+    // CLIP loader with Wan type for UMT5
     "4": {
       inputs: {
-        vae_name: "wan_2.1_vae.safetensors",
+        clip_name: "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        type: "wan",
       },
-      class_type: "VAELoader",
+      class_type: "CLIPLoader",
     },
-    "5": {
+    // Positive text encoding
+    "5a": {
       inputs: {
-        clip_name: "clip_vision_h.safetensors",
+        text: params.prompt || "high quality, smooth motion",
+        clip: ["4", 0],
       },
-      class_type: "CLIPVisionLoader",
+      class_type: "CLIPTextEncode",
     },
+    // Negative text encoding
+    "5b": {
+      inputs: {
+        text: params.negativePrompt || "low quality, blurry, distorted, static, worst quality",
+        clip: ["4", 0],
+      },
+      class_type: "CLIPTextEncode",
+    },
+    // Bridge CONDITIONING → WANVIDEOTEXTEMBEDS
+    "5c": {
+      inputs: {
+        positive: ["5a", 0],
+        negative: ["5b", 0],
+      },
+      class_type: "WanVideoTextEmbedBridge",
+    },
+    // VAE loader
     "6": {
+      inputs: {
+        model_name: "wan_2.1_vae.safetensors",
+        precision: "fp16",
+      },
+      class_type: "WanVideoVAELoader",
+    },
+    // Load input image
+    "7": {
       inputs: {
         image: params.imageData,
         upload: "image",
       },
       class_type: "LoadImage",
     },
-    "7": {
-      inputs: {
-        clip_vision: ["5", 0],
-        image: ["6", 0],
-      },
-      class_type: "CLIPVisionEncode",
-    },
+    // CLIP Vision loader
     "8": {
       inputs: {
-        text: params.prompt || "high quality, smooth motion",
-        clip: ["3", 0],
+        clip_name: "clip_vision_h.safetensors",
       },
-      class_type: "CLIPTextEncode",
+      class_type: "CLIPVisionLoader",
     },
+    // CLIP Vision encode
     "9": {
       inputs: {
-        text: params.negativePrompt || "low quality, blurry, distorted, static, worst quality",
-        clip: ["3", 0],
+        clip_vision: ["8", 0],
+        image: ["7", 0],
       },
-      class_type: "CLIPTextEncode",
+      class_type: "WanVideoClipVisionEncode",
     },
+    // Image-to-video encoding (creates image embeds from the uploaded image)
     "10": {
       inputs: {
-        width: 1280,
-        height: 720,
-        length: params.frames,
-        batch_size: 1,
+        width: params.width || 832,
+        height: params.height || 480,
+        num_frames: params.frames,
+        noise_aug_strength: 0.0,
+        start_latent_strength: 1.0,
+        end_latent_strength: 0.0,
+        force_offload: true,
+        vae: ["6", 0],
+        clip_embeds: ["9", 0],
+        start_image: ["7", 0],
       },
-      class_type: "EmptyWanLatentVideo",
+      class_type: "WanVideoImageToVideoEncode",
     },
+    // Sampler (text_embeds from bridge)
     "11": {
       inputs: {
-        seed: params.seed,
+        model: ["3", 0],
+        image_embeds: ["10", 0],
+        text_embeds: ["5c", 0],
         steps: params.steps,
-        cfg: 7.0,
-        sampler_name: "dpmpp_2m",
-        scheduler: "karras",
-        denoise: 1.0,
-        high_noise_model: ["1", 0],
-        low_noise_model: ["2", 0],
-        positive: ["8", 0],
-        negative: ["9", 0],
-        latent_image: ["10", 0],
-        clip_vision_embed: ["7", 0],
+        cfg: 5.0,
+        shift: 5.0,
+        seed: params.seed,
+        force_offload: true,
+        scheduler: "unipc",
+        riflex_freq_index: 0,
       },
-      class_type: "WanSampler",
+      class_type: "WanVideoSampler",
     },
+    // Decode
     "12": {
       inputs: {
+        vae: ["6", 0],
         samples: ["11", 0],
-        vae: ["4", 0],
+        enable_vae_tiling: true,
+        tile_x: 480,
+        tile_y: 272,
+        tile_stride_x: 240,
+        tile_stride_y: 136,
       },
-      class_type: "VAEDecode",
+      class_type: "WanVideoDecode",
     },
+    // Video output
     "13": {
       inputs: {
         frame_rate: params.fps,
@@ -1756,8 +1835,8 @@ export class ComfyUIProvider {
       "cogvideo-i2v": { fps: 8, width: 720, height: 480, steps: 50, maxFrames: 49 },
       hunyuan: { fps: 24, width: 1280, height: 720, steps: 30, maxFrames: 129 },
       ltx: { fps: 24, width: 768, height: 512, steps: 30, maxFrames: 97 },
-      "wan-t2v": { fps: 16, width: 1280, height: 720, steps: 50, maxFrames: 161 },
-      "wan-i2v": { fps: 16, width: 1280, height: 720, steps: 50, maxFrames: 161 },
+      "wan-t2v": { fps: 16, width: 832, height: 480, steps: 30, maxFrames: 81 },
+      "wan-i2v": { fps: 16, width: 832, height: 480, steps: 30, maxFrames: 81 },
     };
 
     const modelConfig = modelConfigs[videoModel];
@@ -1768,6 +1847,11 @@ export class ComfyUIProvider {
     const steps = modelConfig.steps;
 
     try {
+      // Free VRAM before any video generation (Wan needs ~16GB+)
+      console.log('[ComfyUI Video] Freeing VRAM before video generation...');
+      await freeVRAM(this.config);
+      await new Promise(r => setTimeout(r, 2000));
+
       // Handle image-to-video
       if (request.imageUrl) {
         const imageData = await this.uploadImageToComfyUI(request.imageUrl);
@@ -1775,9 +1859,11 @@ export class ComfyUIProvider {
 
         switch (videoModel) {
           case "wan-i2v":
-          case "wan-t2v":
-            console.log('[ComfyUI Video] Using SVD for image-to-video (Wan nodes not installed)');
-            workflow = WORKFLOWS.imageToVideoSVD({ imageData, frames, fps, motionBucket: 127, seed });
+            console.log('[ComfyUI Video] Using Wan 2.2 MoE for image-to-video');
+            workflow = WORKFLOWS.imageToVideoWan({
+              imageData, prompt: request.prompt, frames, fps, steps, seed,
+              width, height,
+            });
             break;
           case "cogvideo-i2v":
           case "cogvideo":
@@ -1795,16 +1881,20 @@ export class ComfyUIProvider {
         return this.executeVideoWorkflow(workflow, duration);
       }
 
-      // Text-to-video: SVD-based models need 2-stage pipeline (image gen → free VRAM → SVD)
-      const needsSVDSplit = videoModel === "svd" || videoModel === "wan-t2v" || videoModel === "wan-i2v";
-
-      if (needsSVDSplit) {
-        return this.generateTextToVideoSplit(request, { seed, frames, fps, duration });
-      }
-
-      // Single-stage text-to-video (CogVideo, Hunyuan, LTX)
+      // Text-to-video routing
       let workflow: Record<string, unknown>;
       switch (videoModel) {
+        case "wan-t2v":
+          // Wan 2.2 MoE — single-stage direct text-to-video (NOT SVD split)
+          console.log('[ComfyUI Video] Using Wan 2.2 MoE for text-to-video');
+          workflow = WORKFLOWS.textToVideoWan({
+            prompt: request.prompt, negativePrompt: "blurry, low quality, distorted",
+            width, height, frames, fps, steps, seed,
+          });
+          return this.executeVideoWorkflow(workflow, duration);
+        case "svd":
+          // SVD needs 2-stage pipeline (SDXL image gen → free VRAM → SVD animate)
+          return this.generateTextToVideoSplit(request, { seed, frames, fps, duration });
         case "cogvideo":
         case "cogvideo-i2v":
           workflow = WORKFLOWS.textToVideoCogVideoX({
@@ -1825,6 +1915,7 @@ export class ComfyUIProvider {
           });
           break;
         default:
+          // Fallback to SVD split pipeline
           return this.generateTextToVideoSplit(request, { seed, frames, fps, duration });
       }
 

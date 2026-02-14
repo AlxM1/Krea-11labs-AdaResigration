@@ -22,11 +22,11 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const query = querySchema.parse({
-      limit: searchParams.get("limit"),
-      offset: searchParams.get("offset"),
-      type: searchParams.get("type"),
-      status: searchParams.get("status"),
-      includePublic: searchParams.get("includePublic"),
+      limit: searchParams.get("limit") ?? undefined,
+      offset: searchParams.get("offset") ?? undefined,
+      type: searchParams.get("type") ?? undefined,
+      status: searchParams.get("status") ?? undefined,
+      includePublic: searchParams.get("includePublic") ?? undefined,
     });
 
     // Build where clause

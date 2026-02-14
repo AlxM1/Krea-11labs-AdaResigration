@@ -172,39 +172,41 @@ function buildModelsFromDiscovery(
     });
   }
 
-  // ── Video: Wan 2.2 (requires WanSampler node) ──
+  // ── Video: Wan 2.2 (requires WanVideoSampler custom node) ──
 
-  const hasWanSampler = customNodes["WanSampler"] === true;
+  const hasWanVideo = customNodes["WanVideoSampler"] === true;
 
-  const hasWanT2vGguf = ggufModels.some((m) => m.includes("wan2.2_t2v_high")) &&
-    ggufModels.some((m) => m.includes("wan2.2_t2v_low"));
-  if (hasWanT2vGguf && hasWanSampler) {
+  // Check GGUF models and also WanVideoModelLoader-compatible models
+  const allWanModels = [...new Set([...ggufModels, ...diffusionModels])];
+  const hasWanT2v = allWanModels.some((m) => m.includes("wan2.2_t2v_high")) &&
+    allWanModels.some((m) => m.includes("wan2.2_t2v_low"));
+  if (hasWanT2v && hasWanVideo) {
     models.push({
       id: "wan-t2v",
       name: "Wan 2.2 14B T2V",
       filename: "wan2.2_t2v_high_noise_14B_Q8_0.gguf",
       provider: "comfyui",
       tasks: ["text-to-video"],
-      description: "Wan 2.2 text-to-video GGUF - high quality",
+      description: "Wan 2.2 MoE text-to-video - highest quality, local GPU",
       isAvailable: true,
       priority: 1,
-      config: { fps: 16, width: 1280, height: 720, steps: 50, maxFrames: 161 },
+      config: { fps: 16, width: 832, height: 480, steps: 30, cfg: 5.0, shift: 5.0, scheduler: "unipc", maxFrames: 81 },
     });
   }
 
-  const hasWanI2vGguf = ggufModels.some((m) => m.includes("wan2.2_i2v_high")) &&
-    ggufModels.some((m) => m.includes("wan2.2_i2v_low"));
-  if (hasWanI2vGguf && hasWanSampler) {
+  const hasWanI2v = allWanModels.some((m) => m.includes("wan2.2_i2v_high")) &&
+    allWanModels.some((m) => m.includes("wan2.2_i2v_low"));
+  if (hasWanI2v && hasWanVideo) {
     models.push({
       id: "wan-i2v",
       name: "Wan 2.2 14B I2V",
       filename: "wan2.2_i2v_high_noise_14B_Q8_0.gguf",
       provider: "comfyui",
       tasks: ["image-to-video"],
-      description: "Wan 2.2 image-to-video GGUF - high quality",
+      description: "Wan 2.2 MoE image-to-video - highest quality, local GPU",
       isAvailable: true,
       priority: 1,
-      config: { fps: 16, width: 1280, height: 720, steps: 50, maxFrames: 161 },
+      config: { fps: 16, width: 832, height: 480, steps: 30, cfg: 5.0, shift: 5.0, scheduler: "unipc", maxFrames: 81 },
     });
   }
 
@@ -291,15 +293,15 @@ export async function refreshRegistry(): Promise<void> {
         ]);
 
       // Probe custom node availability in parallel
-      const [hasWanSampler, hasCogVideo, hasHunyuan, hasLTX] = await Promise.all([
-        isNodeAvailable("WanSampler"),
+      const [hasWanVideoSampler, hasCogVideo, hasHunyuan, hasLTX] = await Promise.all([
+        isNodeAvailable("WanVideoSampler"),
         isNodeAvailable("CogVideoXModelLoader"),
         isNodeAvailable("HunyuanVideoModelLoader"),
         isNodeAvailable("LTXVModelLoader"),
       ]);
 
       const customNodes: Record<string, boolean> = {
-        WanSampler: hasWanSampler,
+        WanVideoSampler: hasWanVideoSampler,
         CogVideoXModelLoader: hasCogVideo,
         HunyuanVideoModelLoader: hasHunyuan,
         LTXVModelLoader: hasLTX,
