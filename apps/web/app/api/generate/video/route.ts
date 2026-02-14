@@ -121,10 +121,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Synchronous fallback: generate directly with timeout
-    // SVD text-to-video involves two stages (image gen + SVD), each ~72s, so 5 min is needed
-    const timeoutMs = 300000; // 300 seconds (5 minutes) timeout for video generation
+    // SVD text-to-video involves two stages (image gen + SVD), each ~72s, plus model loading
+    const timeoutMs = 600000; // 600 seconds (10 minutes) timeout for video generation
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Video generation timed out after 300 seconds")), timeoutMs)
+      setTimeout(() => reject(new Error("Video generation timed out after 600 seconds")), timeoutMs)
     );
 
     const result = await Promise.race([

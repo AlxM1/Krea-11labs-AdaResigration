@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       provider = "comfyui";
       // Map model IDs to actual checkpoint names
       if (params.model === "comfyui-flux") {
-        actualModel = "flux1-krea-dev.safetensors";
+        actualModel = "flux1-dev-fp8.safetensors";
       } else if (params.model === "comfyui-sdxl") {
         actualModel = "sd_xl_base_1.0.safetensors";
       } else {

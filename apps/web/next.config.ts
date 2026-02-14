@@ -36,7 +36,7 @@ const nextConfig: NextConfig = {
     },
   },
   // Ensure native Node.js packages are not bundled (required for standalone)
-  serverExternalPackages: ["socket.io", "bullmq", "ioredis", "pg", "@prisma/client", "pino", "pino-pretty"],
+  serverExternalPackages: ["socket.io", "bullmq", "ioredis", "pg", "@prisma/client", "pino", "pino-pretty", "sharp"],
   // Output standalone build for Docker
   output: "standalone",
 };

@@ -173,6 +173,7 @@ export function createWorker<T, R = void>(
   processor: (job: Job<T>) => Promise<R>,
   options?: {
     concurrency?: number;
+    lockDuration?: number;
   }
 ): Worker | null {
   const connOpts = getRedisConnectionOptions();
@@ -201,6 +202,7 @@ export function createWorker<T, R = void>(
     {
       connection: connOpts,
       concurrency: options?.concurrency || 1,
+      lockDuration: options?.lockDuration || 30000,
     }
   );
 

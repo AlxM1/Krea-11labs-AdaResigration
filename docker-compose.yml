@@ -49,3 +49,4 @@ services:
 networks:
   raiser-net:
     external: true
+    name: raiser_raiser-net

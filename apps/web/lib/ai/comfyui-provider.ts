@@ -14,6 +14,180 @@ import { uploadFromUrl } from "../storage/upload";
 // ComfyUI WebSocket client ID
 let clientId: string | null = null;
 
+// ─── VRAM Management & Health Tracking ───
+
+/** HTTP timeout for non-generation requests (health checks, queue ops, /free) */
+const HTTP_TIMEOUT = 10000; // 10s
+
+/** Timeout for queuing a prompt */
+const QUEUE_TIMEOUT = 15000; // 15s
+
+/** Default timeout for image generation polling */
+const IMAGE_GENERATION_TIMEOUT = 180000; // 3 minutes
+
+/** Default timeout for video generation polling */
+const VIDEO_GENERATION_TIMEOUT = 600000; // 10 minutes
+
+/** How long with no progress before declaring a job stuck */
+const STUCK_DETECTION_THRESHOLD = 90000; // 90 seconds
+
+/** Health tracking state */
+let consecutiveHealthFailures = 0;
+const MAX_HEALTH_FAILURES = 3;
+let lastHealthCheck = 0;
+const HEALTH_CHECK_INTERVAL = 30000; // 30s cache
+
+/**
+ * Get the internal ComfyUI base URL (bypasses reverse proxy)
+ */
+function getInternalBaseUrl(): string {
+  const host = process.env.COMFYUI_HOST || "127.0.0.1";
+  const port = process.env.COMFYUI_PORT || "8189";
+  return `http://${host}:${port}`;
+}
+
+/**
+ * Force unload all models and free VRAM
+ * Call before every generation to prevent model switching freezes
+ */
+async function freeVRAM(config: ComfyUIConfig): Promise<boolean> {
+  try {
+    const response = await fetch(`${config.baseUrl}/free`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ unload_models: true, free_memory: true }),
+      signal: AbortSignal.timeout(HTTP_TIMEOUT),
+    });
+    if (response.ok) {
+      console.log("[ComfyUI] VRAM freed: models unloaded");
+      return true;
+    }
+    console.warn(`[ComfyUI] Free VRAM returned ${response.status}`);
+    return false;
+  } catch (error) {
+    console.warn("[ComfyUI] Failed to free VRAM:", error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
+/**
+ * Interrupt the currently running ComfyUI job
+ */
+async function interruptGeneration(config: ComfyUIConfig): Promise<boolean> {
+  try {
+    const response = await fetch(`${config.baseUrl}/interrupt`, {
+      method: "POST",
+      signal: AbortSignal.timeout(HTTP_TIMEOUT),
+    });
+    console.log(`[ComfyUI] Interrupt: ${response.ok ? "success" : response.status}`);
+    return response.ok;
+  } catch (error) {
+    console.warn("[ComfyUI] Failed to interrupt:", error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
+/**
+ * Clear the ComfyUI queue (remove all pending jobs)
+ */
+async function clearQueue(config: ComfyUIConfig): Promise<boolean> {
+  try {
+    const response = await fetch(`${config.baseUrl}/queue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clear: true }),
+      signal: AbortSignal.timeout(HTTP_TIMEOUT),
+    });
+    console.log(`[ComfyUI] Queue cleared: ${response.ok ? "success" : response.status}`);
+    return response.ok;
+  } catch (error) {
+    console.warn("[ComfyUI] Failed to clear queue:", error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
+/**
+ * Get current queue status from ComfyUI
+ */
+async function getQueueStatus(config: ComfyUIConfig): Promise<{
+  running: number;
+  pending: number;
+} | null> {
+  try {
+    const response = await fetch(`${config.baseUrl}/queue`, {
+      signal: AbortSignal.timeout(HTTP_TIMEOUT),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return {
+      running: data.queue_running?.length || 0,
+      pending: data.queue_pending?.length || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Full recovery procedure: interrupt → clear queue → free VRAM → wait
+ */
+async function recoverComfyUI(config: ComfyUIConfig): Promise<boolean> {
+  console.log("[ComfyUI] Starting recovery procedure...");
+  await interruptGeneration(config);
+  await new Promise(r => setTimeout(r, 2000));
+  await clearQueue(config);
+  await new Promise(r => setTimeout(r, 1000));
+  const freed = await freeVRAM(config);
+  await new Promise(r => setTimeout(r, 3000)); // Let GPU settle
+  console.log(`[ComfyUI] Recovery complete (VRAM freed: ${freed})`);
+  return freed;
+}
+
+/**
+ * Check if ComfyUI is healthy (with caching and failure tracking)
+ */
+async function isComfyUIHealthy(config: ComfyUIConfig): Promise<boolean> {
+  const now = Date.now();
+  if (now - lastHealthCheck < HEALTH_CHECK_INTERVAL && consecutiveHealthFailures === 0) {
+    return true; // Recently checked and healthy
+  }
+
+  try {
+    const response = await fetch(`${config.baseUrl}/system_stats`, {
+      signal: AbortSignal.timeout(HTTP_TIMEOUT),
+    });
+    if (response.ok) {
+      consecutiveHealthFailures = 0;
+      lastHealthCheck = now;
+      return true;
+    }
+    consecutiveHealthFailures++;
+  } catch {
+    consecutiveHealthFailures++;
+  }
+
+  if (consecutiveHealthFailures >= MAX_HEALTH_FAILURES) {
+    console.error(`[ComfyUI] UNHEALTHY: ${consecutiveHealthFailures} consecutive health check failures`);
+    // Attempt recovery
+    await recoverComfyUI(config);
+    // Re-check after recovery
+    try {
+      const response = await fetch(`${config.baseUrl}/system_stats`, {
+        signal: AbortSignal.timeout(HTTP_TIMEOUT),
+      });
+      if (response.ok) {
+        consecutiveHealthFailures = 0;
+        lastHealthCheck = now;
+        console.log("[ComfyUI] Recovery successful, system is healthy again");
+        return true;
+      }
+    } catch { /* still unhealthy */ }
+    return false;
+  }
+
+  return true; // Not yet at failure threshold
+}
+
 /**
  * ComfyUI workflow templates
  */
@@ -91,7 +265,7 @@ const WORKFLOWS = {
     },
   }),
 
-  // Flux-specific workflow (uses different nodes)
+  // Flux-specific workflow (fp8 checkpoint via CheckpointLoaderSimple + KSampler)
   fluxTextToImage: (params: {
     prompt: string;
     width: number;
@@ -101,17 +275,53 @@ const WORKFLOWS = {
     model: string;
     batchSize?: number;
   }) => ({
+    "4": {
+      inputs: {
+        ckpt_name: params.model,
+      },
+      class_type: "CheckpointLoaderSimple",
+    },
     "6": {
       inputs: {
         text: params.prompt,
-        clip: ["11", 0],
+        clip: ["4", 1],
       },
       class_type: "CLIPTextEncode",
     },
+    "7": {
+      inputs: {
+        text: "",
+        clip: ["4", 1],
+      },
+      class_type: "CLIPTextEncode",
+    },
+    "5": {
+      inputs: {
+        width: params.width,
+        height: params.height,
+        batch_size: params.batchSize || 1,
+      },
+      class_type: "EmptyLatentImage",
+    },
+    "3": {
+      inputs: {
+        seed: params.seed,
+        steps: params.steps,
+        cfg: 1.0,
+        sampler_name: "euler",
+        scheduler: "simple",
+        denoise: 1.0,
+        model: ["4", 0],
+        positive: ["6", 0],
+        negative: ["7", 0],
+        latent_image: ["5", 0],
+      },
+      class_type: "KSampler",
+    },
     "8": {
       inputs: {
-        samples: ["13", 0],
-        vae: ["10", 0],
+        samples: ["3", 0],
+        vae: ["4", 2],
       },
       class_type: "VAEDecode",
     },
@@ -121,73 +331,6 @@ const WORKFLOWS = {
         images: ["8", 0],
       },
       class_type: "SaveImage",
-    },
-    "10": {
-      inputs: {
-        vae_name: "ae.safetensors",
-      },
-      class_type: "VAELoader",
-    },
-    "11": {
-      inputs: {
-        clip_name1: "t5xxl_fp16.safetensors",
-        clip_name2: "clip_l.safetensors",
-        type: "flux",
-      },
-      class_type: "DualCLIPLoader",
-    },
-    "12": {
-      inputs: {
-        unet_name: params.model,
-        weight_dtype: "default",
-      },
-      class_type: "UNETLoader",
-    },
-    "13": {
-      inputs: {
-        noise: ["25", 0],
-        guider: ["22", 0],
-        sampler: ["16", 0],
-        sigmas: ["17", 0],
-        latent_image: ["27", 0],
-      },
-      class_type: "SamplerCustomAdvanced",
-    },
-    "16": {
-      inputs: {
-        sampler_name: "euler",
-      },
-      class_type: "KSamplerSelect",
-    },
-    "17": {
-      inputs: {
-        scheduler: "simple",
-        steps: params.steps,
-        denoise: 1,
-        model: ["12", 0],
-      },
-      class_type: "BasicScheduler",
-    },
-    "22": {
-      inputs: {
-        model: ["12", 0],
-        conditioning: ["6", 0],
-      },
-      class_type: "BasicGuider",
-    },
-    "25": {
-      inputs: {
-        noise_seed: params.seed,
-      },
-      class_type: "RandomNoise",
-    },
-    "27": {
-      inputs: {
-        width: params.width,
-        height: params.height,
-        batch_size: params.batchSize || 1,
-      },
-      class_type: "EmptySD3LatentImage",
     },
   }),
 
@@ -1146,8 +1289,8 @@ export function getComfyUIConfig(): ComfyUIConfig {
     baseUrl: process.env.COMFYUI_URL || "http://127.0.0.1:8188",
     outputUrl: process.env.COMFYUI_OUTPUT_URL || "http://127.0.0.1:8188/view",
     // Image models - FLUX Krea Dev is primary
-    defaultModel: process.env.COMFYUI_DEFAULT_MODEL || "flux1-krea-dev.safetensors",
-    fluxModel: process.env.COMFYUI_FLUX_MODEL || "flux1-krea-dev.safetensors",
+    defaultModel: process.env.COMFYUI_DEFAULT_MODEL || "flux1-dev-fp8.safetensors",
+    fluxModel: process.env.COMFYUI_FLUX_MODEL || "flux1-dev-fp8.safetensors",
     sdxlModel: process.env.COMFYUI_SDXL_MODEL || "sd_xl_base_1.0.safetensors",
     // Video models
     svdModel: process.env.COMFYUI_SVD_MODEL || "svd_xt_1_1.safetensors",
@@ -1162,19 +1305,11 @@ export function getComfyUIConfig(): ComfyUIConfig {
 }
 
 /**
- * Check if ComfyUI is available
+ * Check if ComfyUI is available (exported for external use)
  */
 export async function checkComfyUIHealth(): Promise<boolean> {
-  try {
-    const config = getComfyUIConfig();
-    const response = await fetch(`${config.baseUrl}/system_stats`, {
-      method: "GET",
-      signal: AbortSignal.timeout(5000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
+  const config = getComfyUIConfig();
+  return isComfyUIHealthy(config);
 }
 
 /**
@@ -1188,15 +1323,21 @@ export async function getComfyUIModels(): Promise<{
   const config = getComfyUIConfig();
 
   try {
-    const response = await fetch(`${config.baseUrl}/object_info/CheckpointLoaderSimple`);
+    const response = await fetch(`${config.baseUrl}/object_info/CheckpointLoaderSimple`, {
+      signal: AbortSignal.timeout(HTTP_TIMEOUT),
+    });
     const data = await response.json();
     const checkpoints = data?.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0] || [];
 
-    const loraResponse = await fetch(`${config.baseUrl}/object_info/LoraLoader`);
+    const loraResponse = await fetch(`${config.baseUrl}/object_info/LoraLoader`, {
+      signal: AbortSignal.timeout(HTTP_TIMEOUT),
+    });
     const loraData = await loraResponse.json();
     const loras = loraData?.LoraLoader?.input?.required?.lora_name?.[0] || [];
 
-    const vaeResponse = await fetch(`${config.baseUrl}/object_info/VAELoader`);
+    const vaeResponse = await fetch(`${config.baseUrl}/object_info/VAELoader`, {
+      signal: AbortSignal.timeout(HTTP_TIMEOUT),
+    });
     const vaeData = await vaeResponse.json();
     const vaes = vaeData?.VAELoader?.input?.required?.vae_name?.[0] || [];
 
@@ -1208,96 +1349,79 @@ export async function getComfyUIModels(): Promise<{
 }
 
 /**
- * Retry configuration for ComfyUI connections
- */
-const RETRY_CONFIG = {
-  maxAttempts: 3,
-  initialDelayMs: 1000,
-  maxDelayMs: 5000,
-  backoffMultiplier: 2,
-};
-
-/**
- * Execute function with retry logic
- */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  attemptNumber: number = 1
-): Promise<T> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (attemptNumber >= RETRY_CONFIG.maxAttempts) {
-      throw error;
-    }
-
-    const delay = Math.min(
-      RETRY_CONFIG.initialDelayMs * Math.pow(RETRY_CONFIG.backoffMultiplier, attemptNumber - 1),
-      RETRY_CONFIG.maxDelayMs
-    );
-
-    console.log(`ComfyUI request failed, retrying in ${delay}ms (attempt ${attemptNumber}/${RETRY_CONFIG.maxAttempts})`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-
-    return withRetry(fn, attemptNumber + 1);
-  }
-}
-
-/**
- * Queue a prompt in ComfyUI and wait for completion (with retry logic)
+ * Queue a prompt in ComfyUI with:
+ * - Health check before submission
+ * - Force VRAM free before every job
+ * - Retry with full recovery on failure
+ * - Proper timeouts
  */
 async function queuePrompt(
   workflow: Record<string, unknown>,
-  config: ComfyUIConfig
+  config: ComfyUIConfig,
+  options?: { timeout?: number; isVideo?: boolean }
 ): Promise<{ promptId: string; images: ComfyUIImage[]; error?: string }> {
-  // Get or create client ID
   if (!clientId) {
     clientId = crypto.randomUUID();
   }
 
-  try {
-    // Queue the prompt with retry
-    const { prompt_id } = await withRetry(async () => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout for queue
+  const pollingTimeout = options?.timeout || (options?.isVideo ? VIDEO_GENERATION_TIMEOUT : IMAGE_GENERATION_TIMEOUT);
+  const maxAttempts = 2; // 1 initial + 1 retry after recovery
 
-      try {
-        const response = await fetch(`${config.baseUrl}/prompt`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: workflow,
-            client_id: clientId,
-          }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-          const error = await response.text();
-          throw new Error(`ComfyUI error: ${error}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        clearTimeout(timeout);
-        throw error;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      // Step 1: Health check
+      const healthy = await isComfyUIHealthy(config);
+      if (!healthy) {
+        throw new Error("ComfyUI is unresponsive. Please restart ComfyUI and try again.");
       }
-    });
 
-    // Poll for completion
-    const images = await waitForCompletion(prompt_id, config);
+      // Step 2: Free VRAM before every job (prevents model switching freezes)
+      console.log(`[ComfyUI] Attempt ${attempt}/${maxAttempts}: Freeing VRAM before job...`);
+      await freeVRAM(config);
+      await new Promise(r => setTimeout(r, 1000)); // Let GPU settle after free
 
-    return { promptId: prompt_id, images };
-  } catch (error) {
-    console.error("ComfyUI queuePrompt error:", error);
-    return {
-      promptId: "",
-      images: [],
-      error: error instanceof Error ? error.message : "Unknown ComfyUI error",
-    };
+      // Step 3: Submit prompt
+      const response = await fetch(`${config.baseUrl}/prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: workflow,
+          client_id: clientId,
+        }),
+        signal: AbortSignal.timeout(QUEUE_TIMEOUT),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`ComfyUI prompt error: ${errorText}`);
+      }
+
+      const { prompt_id } = await response.json();
+      console.log(`[ComfyUI] Prompt queued: ${prompt_id}`);
+
+      // Step 4: Wait for completion with progress monitoring
+      const images = await waitForCompletion(prompt_id, config, pollingTimeout);
+      return { promptId: prompt_id, images };
+
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[ComfyUI] Attempt ${attempt}/${maxAttempts} failed: ${errorMsg}`);
+
+      if (attempt < maxAttempts) {
+        // Recovery: interrupt, clear queue, free VRAM, wait
+        console.log("[ComfyUI] Attempting recovery before retry...");
+        await recoverComfyUI(config);
+      } else {
+        return {
+          promptId: "",
+          images: [],
+          error: errorMsg,
+        };
+      }
+    }
   }
+
+  return { promptId: "", images: [], error: "All attempts failed" };
 }
 
 interface ComfyUIImage {
@@ -1307,25 +1431,42 @@ interface ComfyUIImage {
 }
 
 /**
- * Wait for a ComfyUI prompt to complete and return image metadata
+ * Wait for a ComfyUI prompt to complete with:
+ * - Progress monitoring via /queue endpoint
+ * - Stuck detection (no progress for STUCK_DETECTION_THRESHOLD)
+ * - Proper timeouts on all HTTP requests
  */
 async function waitForCompletion(
   promptId: string,
   config: ComfyUIConfig,
-  timeout = 300000 // 5 minutes
+  timeout = IMAGE_GENERATION_TIMEOUT
 ): Promise<ComfyUIImage[]> {
   const startTime = Date.now();
-  const images: ComfyUIImage[] = [];
+  let lastProgressTime = Date.now();
+  let lastQueueState = "";
+  let pollCount = 0;
 
   while (Date.now() - startTime < timeout) {
+    pollCount++;
+
     try {
-      const response = await fetch(`${config.baseUrl}/history/${promptId}`);
+      // Poll /history for completion
+      const response = await fetch(`${config.baseUrl}/history/${promptId}`, {
+        signal: AbortSignal.timeout(HTTP_TIMEOUT),
+      });
       const history = await response.json();
 
       if (history[promptId]) {
-        const outputs = history[promptId].outputs;
+        // Check for errors first
+        if (history[promptId].status?.status_str === "error") {
+          const errorDetails = JSON.stringify(history[promptId].status, null, 2);
+          console.error("[ComfyUI] Workflow error:", errorDetails);
+          throw new Error(`ComfyUI workflow execution failed: ${errorDetails}`);
+        }
 
-        // Extract image metadata from all output nodes
+        const outputs = history[promptId].outputs;
+        const images: ComfyUIImage[] = [];
+
         for (const nodeId in outputs) {
           const nodeOutput = outputs[nodeId];
           if (nodeOutput.images) {
@@ -1337,7 +1478,6 @@ async function waitForCompletion(
               });
             }
           }
-          // Handle video outputs
           if (nodeOutput.gifs) {
             for (const gif of nodeOutput.gifs) {
               images.push({
@@ -1350,28 +1490,60 @@ async function waitForCompletion(
         }
 
         if (images.length > 0) {
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[ComfyUI] Generation complete in ${elapsed}s (${images.length} outputs)`);
           return images;
         }
+      }
 
-        // Check for errors
-        if (history[promptId].status?.status_str === "error") {
-          const errorDetails = JSON.stringify(history[promptId].status, null, 2);
-          console.error("ComfyUI workflow error details:", errorDetails);
-          throw new Error(`ComfyUI workflow execution failed: ${errorDetails}`);
+      // Progress monitoring: check /queue every 5 polls (~5s)
+      if (pollCount % 5 === 0) {
+        const queueStatus = await getQueueStatus(config);
+        if (queueStatus) {
+          const state = `running:${queueStatus.running},pending:${queueStatus.pending}`;
+          if (state !== lastQueueState) {
+            lastQueueState = state;
+            lastProgressTime = Date.now();
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+            console.log(`[ComfyUI] [${elapsed}s] Queue: ${state}`);
+          }
+
+          // Stuck detection: queue shows no jobs running AND no pending, but no output yet
+          if (queueStatus.running === 0 && queueStatus.pending === 0 && !history[promptId]) {
+            const stuckDuration = Date.now() - lastProgressTime;
+            if (stuckDuration > STUCK_DETECTION_THRESHOLD) {
+              console.error(`[ComfyUI] Job appears stuck: no queue activity for ${(stuckDuration / 1000).toFixed(0)}s`);
+              throw new Error("ComfyUI job stuck: no queue activity detected");
+            }
+          }
+        } else {
+          // Can't reach /queue — ComfyUI might be frozen
+          const stuckDuration = Date.now() - lastProgressTime;
+          if (stuckDuration > STUCK_DETECTION_THRESHOLD) {
+            console.error("[ComfyUI] Cannot reach /queue endpoint — ComfyUI may be frozen");
+            throw new Error("ComfyUI unresponsive: cannot reach queue endpoint");
+          }
         }
       }
 
-      // Wait before polling again
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise(r => setTimeout(r, 1000));
     } catch (error) {
-      if (error instanceof Error && error.message.includes("failed")) {
+      if (error instanceof Error && (
+        error.message.includes("failed") ||
+        error.message.includes("stuck") ||
+        error.message.includes("unresponsive")
+      )) {
         throw error;
       }
-      // Continue polling on network errors
+      // Continue polling on transient network errors but track them
+      const stuckDuration = Date.now() - lastProgressTime;
+      if (stuckDuration > STUCK_DETECTION_THRESHOLD) {
+        throw new Error("ComfyUI generation stalled: repeated network errors");
+      }
     }
   }
 
-  throw new Error("ComfyUI generation timed out");
+  throw new Error(`ComfyUI generation timed out after ${(timeout / 1000).toFixed(0)}s`);
 }
 
 /**
@@ -1383,22 +1555,17 @@ async function downloadAndSaveImage(
   config: ComfyUIConfig,
   userId: string
 ): Promise<string> {
-  // Construct internal ComfyUI URL (e.g., http://10.25.10.60:8189/view)
-  // Use COMFYUI_HOST and COMFYUI_PORT for internal access
-  const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
-  const internalPort = process.env.COMFYUI_PORT || "8189";
-  const internalBaseUrl = `http://${internalHost}:${internalPort}`;
-
+  const internalBaseUrl = getInternalBaseUrl();
   const imageUrl = `${internalBaseUrl}/view?filename=${image.filename}&subfolder=${image.subfolder}&type=${image.type}`;
 
-  console.log(`[ComfyUI] Downloading image from internal URL: ${imageUrl}`);
+  console.log(`[ComfyUI] Downloading from internal URL: ${imageUrl}`);
 
   try {
     const uploadResult = await uploadFromUrl(imageUrl, userId);
-    console.log(`[ComfyUI] Image saved to local storage: ${uploadResult.url}`);
+    console.log(`[ComfyUI] Saved to local storage: ${uploadResult.url}`);
     return uploadResult.url;
   } catch (error) {
-    console.error(`[ComfyUI] Failed to download/save image:`, error);
+    console.error(`[ComfyUI] Failed to download/save:`, error);
     throw error;
   }
 }
@@ -1413,11 +1580,11 @@ function mapModelToCheckpoint(model: string, config: ComfyUIConfig): { checkpoin
     return { checkpoint: config.sdxlModel || "sd_xl_base_1.0.safetensors", isFlux: false };
   }
   if (modelLower.includes("flux")) {
-    return { checkpoint: config.fluxModel || "flux1-krea-dev.safetensors", isFlux: true };
+    return { checkpoint: config.fluxModel || "flux1-dev-fp8.safetensors", isFlux: true };
   }
 
-  // Default to FLUX Krea Dev (primary model)
-  return { checkpoint: config.defaultModel || "flux1-krea-dev.safetensors", isFlux: true };
+  // Default to FLUX Dev fp8 (primary model)
+  return { checkpoint: config.defaultModel || "flux1-dev-fp8.safetensors", isFlux: true };
 }
 
 /**
@@ -1474,7 +1641,7 @@ export class ComfyUIProvider {
             batchSize: request.batchSize,
           });
 
-      const result = await queuePrompt(workflow, this.config);
+      const result = await queuePrompt(workflow, this.config, { timeout: IMAGE_GENERATION_TIMEOUT });
 
       if (result.error) {
         return {
@@ -1484,11 +1651,7 @@ export class ComfyUIProvider {
         };
       }
 
-      // Construct internal ComfyUI URLs for downloading (not behind Authentik)
-      const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
-      const internalPort = process.env.COMFYUI_PORT || "8189";
-      const internalBaseUrl = `http://${internalHost}:${internalPort}`;
-
+      const internalBaseUrl = getInternalBaseUrl();
       const imageUrls = result.images.map(img =>
         `${internalBaseUrl}/view?filename=${img.filename}&subfolder=${img.subfolder}&type=${img.type}`
       );
@@ -1527,7 +1690,7 @@ export class ComfyUIProvider {
         model: checkpoint,
       });
 
-      const result = await queuePrompt(workflow, this.config);
+      const result = await queuePrompt(workflow, this.config, { timeout: IMAGE_GENERATION_TIMEOUT });
 
       if (result.error) {
         return {
@@ -1537,11 +1700,7 @@ export class ComfyUIProvider {
         };
       }
 
-      // Construct internal ComfyUI URLs for downloading (not behind Authentik)
-      const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
-      const internalPort = process.env.COMFYUI_PORT || "8189";
-      const internalBaseUrl = `http://${internalHost}:${internalPort}`;
-
+      const internalBaseUrl = getInternalBaseUrl();
       const imageUrls = result.images.map(img =>
         `${internalBaseUrl}/view?filename=${img.filename}&subfolder=${img.subfolder}&type=${img.type}`
       );
@@ -1563,25 +1722,21 @@ export class ComfyUIProvider {
   }
 
   async generateVideo(request: VideoGenerationRequest): Promise<VideoGenerationResponse> {
-    // Check if video generation is supported
-    // SVD requires svd_xt_1_1.safetensors model and VHS_VideoCombine custom node
-    console.log('[ComfyUI Video] Checking video generation support...');
+    console.log('[ComfyUI Video] Starting video generation...');
 
     const seed = Math.floor(Math.random() * 2147483647);
     const duration = request.duration || 4;
 
-    // Determine video model to use
     const videoModel = mapVideoModel(request.model) || this.config.defaultVideoModel || "cogvideo";
 
-    // Set appropriate parameters based on model
     const modelConfigs: Record<VideoModel, { fps: number; width: number; height: number; steps: number; maxFrames: number }> = {
       svd: { fps: 8, width: 1024, height: 576, steps: 20, maxFrames: 25 },
       cogvideo: { fps: 8, width: 720, height: 480, steps: 50, maxFrames: 49 },
       "cogvideo-i2v": { fps: 8, width: 720, height: 480, steps: 50, maxFrames: 49 },
       hunyuan: { fps: 24, width: 1280, height: 720, steps: 30, maxFrames: 129 },
       ltx: { fps: 24, width: 768, height: 512, steps: 30, maxFrames: 97 },
-      "wan-t2v": { fps: 16, width: 1280, height: 720, steps: 50, maxFrames: 161 }, // Wan 2.2 T2V: 720p/1080p, 10s @ 16fps
-      "wan-i2v": { fps: 16, width: 1280, height: 720, steps: 50, maxFrames: 161 }, // Wan 2.2 I2V: 720p/1080p, 10s @ 16fps
+      "wan-t2v": { fps: 16, width: 1280, height: 720, steps: 50, maxFrames: 161 },
+      "wan-i2v": { fps: 16, width: 1280, height: 720, steps: 50, maxFrames: 161 },
     };
 
     const modelConfig = modelConfigs[videoModel];
@@ -1592,205 +1747,228 @@ export class ComfyUIProvider {
     const steps = modelConfig.steps;
 
     try {
-      let workflow: Record<string, unknown>;
-
-      // Handle image-to-video vs text-to-video
+      // Handle image-to-video
       if (request.imageUrl) {
-        // Image to video
         const imageData = await this.uploadImageToComfyUI(request.imageUrl);
+        let workflow: Record<string, unknown>;
 
         switch (videoModel) {
           case "wan-i2v":
           case "wan-t2v":
-            // Use SVD for image-to-video (Wan nodes not available)
             console.log('[ComfyUI Video] Using SVD for image-to-video (Wan nodes not installed)');
-            workflow = WORKFLOWS.imageToVideoSVD({
-              imageData,
-              frames,
-              fps,
-              motionBucket: 127,
-              seed,
-            });
+            workflow = WORKFLOWS.imageToVideoSVD({ imageData, frames, fps, motionBucket: 127, seed });
             break;
           case "cogvideo-i2v":
           case "cogvideo":
             workflow = WORKFLOWS.imageToVideoCogVideoX({
-              imageData,
-              prompt: request.prompt || "smooth motion, high quality video",
-              negativePrompt: "blurry, low quality, distorted",
-              frames,
-              fps,
-              steps,
-              seed,
+              imageData, prompt: request.prompt || "smooth motion, high quality video",
+              negativePrompt: "blurry, low quality, distorted", frames, fps, steps, seed,
             });
             break;
           case "svd":
           default:
-            workflow = WORKFLOWS.imageToVideoSVD({
-              imageData,
-              frames,
-              fps,
-              motionBucket: 127,
-              seed,
-            });
+            workflow = WORKFLOWS.imageToVideoSVD({ imageData, frames, fps, motionBucket: 127, seed });
             break;
         }
-      } else {
-        // Text to video
-        switch (videoModel) {
-          case "wan-t2v":
-          case "wan-i2v":
-            // Use SVD-based text-to-video (Wan nodes not available)
-            console.log('[ComfyUI Video] Using SVD-based text-to-video workflow (Wan nodes not installed)');
-            workflow = WORKFLOWS.textToVideoViaSVD({
-              prompt: request.prompt,
-              negativePrompt: "blurry, low quality, distorted, static",
-              frames,
-              fps,
-              seed,
-              checkpoint: this.config.sdxlModel || "sd_xl_base_1.0.safetensors",
-            });
-            break;
-          case "cogvideo":
-          case "cogvideo-i2v":
-            workflow = WORKFLOWS.textToVideoCogVideoX({
-              prompt: request.prompt,
-              negativePrompt: "blurry, low quality, distorted",
-              width,
-              height,
-              frames,
-              fps,
-              steps,
-              seed,
-            });
-            break;
-          case "hunyuan":
-            workflow = WORKFLOWS.textToVideoHunyuan({
-              prompt: request.prompt,
-              negativePrompt: "blurry, low quality, distorted",
-              width,
-              height,
-              frames,
-              fps,
-              steps,
-              seed,
-            });
-            break;
-          case "ltx":
-            workflow = WORKFLOWS.textToVideoLTX({
-              prompt: request.prompt,
-              negativePrompt: "blurry, low quality, distorted",
-              width,
-              height,
-              frames,
-              fps,
-              steps,
-              seed,
-            });
-            break;
-          case "svd":
-          default:
-            // Use SVD-based text-to-video for any unrecognized models
-            console.log('[ComfyUI Video] Using SVD-based text-to-video workflow');
-            workflow = WORKFLOWS.textToVideoViaSVD({
-              prompt: request.prompt,
-              negativePrompt: "blurry, low quality, distorted",
-              frames,
-              fps,
-              seed,
-              checkpoint: this.config.sdxlModel || "sd_xl_base_1.0.safetensors",
-            });
-            break;
-        }
+
+        return this.executeVideoWorkflow(workflow, duration);
       }
 
-      const result = await queuePrompt(workflow, this.config);
+      // Text-to-video: SVD-based models need 2-stage pipeline (image gen → free VRAM → SVD)
+      const needsSVDSplit = videoModel === "svd" || videoModel === "wan-t2v" || videoModel === "wan-i2v";
 
-      if (result.error) {
-        return {
-          id: crypto.randomUUID(),
-          status: "failed",
-          error: result.error,
-        };
+      if (needsSVDSplit) {
+        return this.generateTextToVideoSplit(request, { seed, frames, fps, duration });
       }
 
-      if (result.images.length === 0) {
-        return {
-          id: result.promptId,
-          status: "failed",
-          error: "No video output produced by ComfyUI",
-        };
+      // Single-stage text-to-video (CogVideo, Hunyuan, LTX)
+      let workflow: Record<string, unknown>;
+      switch (videoModel) {
+        case "cogvideo":
+        case "cogvideo-i2v":
+          workflow = WORKFLOWS.textToVideoCogVideoX({
+            prompt: request.prompt, negativePrompt: "blurry, low quality, distorted",
+            width, height, frames, fps, steps, seed,
+          });
+          break;
+        case "hunyuan":
+          workflow = WORKFLOWS.textToVideoHunyuan({
+            prompt: request.prompt, negativePrompt: "blurry, low quality, distorted",
+            width, height, frames, fps, steps, seed,
+          });
+          break;
+        case "ltx":
+          workflow = WORKFLOWS.textToVideoLTX({
+            prompt: request.prompt, negativePrompt: "blurry, low quality, distorted",
+            width, height, frames, fps, steps, seed,
+          });
+          break;
+        default:
+          return this.generateTextToVideoSplit(request, { seed, frames, fps, duration });
       }
 
-      // Download video from ComfyUI and save to local storage
-      try {
-        const savedUrl = await downloadAndSaveImage(result.images[0], this.config, "system");
-        console.log(`[ComfyUI Video] Video saved to local storage: ${savedUrl}`);
-        return {
-          id: result.promptId,
-          status: "completed",
-          videoUrl: savedUrl,
-          duration,
-        };
-      } catch (downloadError) {
-        // Fallback: return internal ComfyUI URL if download fails
-        console.error("[ComfyUI Video] Failed to download video, returning ComfyUI URL:", downloadError);
-        const internalHost = process.env.COMFYUI_HOST || "127.0.0.1";
-        const internalPort = process.env.COMFYUI_PORT || "8189";
-        const internalBaseUrl = `http://${internalHost}:${internalPort}`;
-        const videoUrl = `${internalBaseUrl}/view?filename=${result.images[0].filename}&subfolder=${result.images[0].subfolder}&type=${result.images[0].type}`;
-        return {
-          id: result.promptId,
-          status: "completed",
-          videoUrl,
-          duration,
-        };
-      }
+      return this.executeVideoWorkflow(workflow, duration);
+
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "ComfyUI video generation failed";
+      return this.handleVideoError(error);
+    }
+  }
 
-      // Check for missing nodes
-      if (errorMsg.includes("not found")) {
-        const nodeMatch = errorMsg.match(/(?:Node|class_type) ['"]?(\w+)['"]? (?:not found|is not available)/i);
-        if (nodeMatch) {
-          const nodeName = nodeMatch[1];
-          return {
-            id: crypto.randomUUID(),
-            status: "failed",
-            error: `Missing ComfyUI node: ${nodeName}. Install it via ComfyUI Manager.\n\nFor Wan 2.2: Install 'ComfyUI-WanVideoWrapper' (kijai)\nFor other models: Check the ComfyUI Manager for required custom nodes.`,
-          };
-        }
-      }
+  /**
+   * Split text-to-video: Stage 1 (SDXL image) → free VRAM → Stage 2 (SVD video)
+   * Prevents VRAM exhaustion from loading both SDXL + SVD simultaneously
+   */
+  private async generateTextToVideoSplit(
+    request: VideoGenerationRequest,
+    params: { seed: number; frames: number; fps: number; duration: number }
+  ): Promise<VideoGenerationResponse> {
+    const { seed, frames, fps, duration } = params;
 
-      // Check for missing models
-      if (errorMsg.includes("not in available checkpoints") || errorMsg.includes("model not found") || errorMsg.includes("checkpoint")) {
-        return {
-          id: crypto.randomUUID(),
-          status: "failed",
-          error: `Model not installed. Check ComfyUI models directory.\n\nExpected paths:\n- Wan 2.2 T2V: wan2.2-t2v/Wan2.2-T2V-A14B\n- Wan 2.2 I2V: wan2.2-i2v/Wan2.2-I2V-A14B\n- SVD: svd_xt_1_1.safetensors\n\nInstall missing models in your ComfyUI models directory.`,
-          };
-        }
+    // Stage 1: Generate initial frame with SDXL
+    console.log("[ComfyUI Video] Stage 1/2: Generating initial frame with SDXL...");
+    const imageWorkflow = WORKFLOWS.textToImage({
+      prompt: request.prompt,
+      negativePrompt: "blurry, low quality, distorted, text, watermark",
+      width: 1024,
+      height: 576,
+      steps: 20,
+      cfgScale: 7,
+      seed,
+      model: this.config.sdxlModel || "sd_xl_base_1.0.safetensors",
+      batchSize: 1,
+    });
 
-      // Check for VHS_VideoCombine specifically
-      if (errorMsg.includes("VHS_VideoCombine")) {
-        return {
-          id: crypto.randomUUID(),
-          status: "failed",
-          error: "Missing ComfyUI node: VHS_VideoCombine. Install VideoHelperSuite via ComfyUI Manager.",
-        };
-      }
-
+    const imageResult = await queuePrompt(imageWorkflow, this.config, { timeout: IMAGE_GENERATION_TIMEOUT });
+    if (imageResult.error || imageResult.images.length === 0) {
       return {
         id: crypto.randomUUID(),
         status: "failed",
-        error: errorMsg,
+        error: imageResult.error || "Failed to generate initial frame for video",
       };
     }
+
+    console.log("[ComfyUI Video] Stage 1 complete. Transferring image to input folder...");
+
+    // Download Stage 1 output and re-upload to ComfyUI's input folder
+    // (LoadImage reads from input/, not output/)
+    const internalBaseUrl = getInternalBaseUrl();
+    const stg1 = imageResult.images[0];
+    const stg1Url = `${internalBaseUrl}/view?filename=${stg1.filename}&subfolder=${stg1.subfolder}&type=${stg1.type}`;
+    const uploadedImageName = await this.uploadImageToComfyUI(stg1Url);
+    console.log(`[ComfyUI Video] Image transferred as: ${uploadedImageName}`);
+
+    // Free VRAM between stages — this is the key fix
+    console.log("[ComfyUI Video] Freeing VRAM before SVD...");
+    await freeVRAM(this.config);
+    await new Promise(r => setTimeout(r, 2000)); // Let GPU fully settle
+
+    // Stage 2: Animate with SVD using the uploaded image
+    console.log("[ComfyUI Video] Stage 2/2: Animating with SVD...");
+    const svdWorkflow = WORKFLOWS.imageToVideoSVD({
+      imageData: uploadedImageName,
+      frames,
+      fps,
+      motionBucket: 127,
+      seed: seed + 1,
+    });
+
+    const videoResult = await queuePrompt(svdWorkflow, this.config, {
+      timeout: VIDEO_GENERATION_TIMEOUT,
+      isVideo: true,
+    });
+
+    if (videoResult.error || videoResult.images.length === 0) {
+      return {
+        id: crypto.randomUUID(),
+        status: "failed",
+        error: videoResult.error || "SVD video generation failed",
+      };
+    }
+
+    // Download and save
+    try {
+      const savedUrl = await downloadAndSaveImage(videoResult.images[0], this.config, "system");
+      console.log(`[ComfyUI Video] Video saved: ${savedUrl}`);
+      return { id: videoResult.promptId, status: "completed", videoUrl: savedUrl, duration };
+    } catch (downloadError) {
+      console.error("[ComfyUI Video] Download failed, using internal URL:", downloadError);
+      const internalBaseUrl = getInternalBaseUrl();
+      const v = videoResult.images[0];
+      const videoUrl = `${internalBaseUrl}/view?filename=${v.filename}&subfolder=${v.subfolder}&type=${v.type}`;
+      return { id: videoResult.promptId, status: "completed", videoUrl, duration };
+    }
+  }
+
+  /**
+   * Execute a video workflow and handle download
+   */
+  private async executeVideoWorkflow(
+    workflow: Record<string, unknown>,
+    duration: number
+  ): Promise<VideoGenerationResponse> {
+    const result = await queuePrompt(workflow, this.config, {
+      timeout: VIDEO_GENERATION_TIMEOUT,
+      isVideo: true,
+    });
+
+    if (result.error) {
+      return { id: crypto.randomUUID(), status: "failed", error: result.error };
+    }
+    if (result.images.length === 0) {
+      return { id: result.promptId, status: "failed", error: "No video output produced" };
+    }
+
+    try {
+      const savedUrl = await downloadAndSaveImage(result.images[0], this.config, "system");
+      console.log(`[ComfyUI Video] Video saved: ${savedUrl}`);
+      return { id: result.promptId, status: "completed", videoUrl: savedUrl, duration };
+    } catch (downloadError) {
+      console.error("[ComfyUI Video] Download failed:", downloadError);
+      const internalBaseUrl = getInternalBaseUrl();
+      const v = result.images[0];
+      const videoUrl = `${internalBaseUrl}/view?filename=${v.filename}&subfolder=${v.subfolder}&type=${v.type}`;
+      return { id: result.promptId, status: "completed", videoUrl, duration };
+    }
+  }
+
+  /**
+   * Handle video generation errors with helpful messages
+   */
+  private handleVideoError(error: unknown): VideoGenerationResponse {
+    const errorMsg = error instanceof Error ? error.message : "ComfyUI video generation failed";
+
+    if (errorMsg.includes("not found")) {
+      const nodeMatch = errorMsg.match(/(?:Node|class_type) ['"]?(\w+)['"]? (?:not found|is not available)/i);
+      if (nodeMatch) {
+        return {
+          id: crypto.randomUUID(), status: "failed",
+          error: `Missing ComfyUI node: ${nodeMatch[1]}. Install via ComfyUI Manager.`,
+        };
+      }
+    }
+
+    if (errorMsg.includes("not in available checkpoints") || errorMsg.includes("model not found") || errorMsg.includes("checkpoint")) {
+      return {
+        id: crypto.randomUUID(), status: "failed",
+        error: `Model not installed. Check ComfyUI models directory.`,
+      };
+    }
+
+    if (errorMsg.includes("VHS_VideoCombine")) {
+      return {
+        id: crypto.randomUUID(), status: "failed",
+        error: "Missing ComfyUI node: VHS_VideoCombine. Install VideoHelperSuite via ComfyUI Manager.",
+      };
+    }
+
+    return { id: crypto.randomUUID(), status: "failed", error: errorMsg };
   }
 
   async getStatus(id: string): Promise<GenerationResponse> {
     try {
-      const response = await fetch(`${this.config.baseUrl}/history/${id}`);
+      const response = await fetch(`${this.config.baseUrl}/history/${id}`, {
+        signal: AbortSignal.timeout(HTTP_TIMEOUT),
+      });
       const history = await response.json();
 
       if (!history[id]) {
@@ -1848,7 +2026,7 @@ export class ComfyUIProvider {
     } else {
       // Fetch from external URL
       console.log('[uploadImageToComfyUI] Fetching from URL:', imageUrl);
-      const imageResponse = await fetch(imageUrl);
+      const imageResponse = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
       imageBlob = await imageResponse.blob();
     }
 
@@ -1861,6 +2039,7 @@ export class ComfyUIProvider {
     const uploadResponse = await fetch(`${this.config.baseUrl}/upload/image`, {
       method: "POST",
       body: formData,
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!uploadResponse.ok) {
@@ -1895,7 +2074,7 @@ export class ComfyUIProvider {
       });
 
       // Queue and wait for completion
-      const result = await queuePrompt(workflow, this.config);
+      const result = await queuePrompt(workflow, this.config, { timeout: IMAGE_GENERATION_TIMEOUT });
 
       if (result.error) {
         return {
@@ -1951,7 +2130,7 @@ export class ComfyUIProvider {
       });
 
       // Queue and wait for completion
-      const result = await queuePrompt(workflow, this.config);
+      const result = await queuePrompt(workflow, this.config, { timeout: IMAGE_GENERATION_TIMEOUT });
 
       if (result.error) {
         return {
@@ -1988,4 +2167,6 @@ export class ComfyUIProvider {
   }
 }
 
+// Export utilities for external use
+export { freeVRAM, recoverComfyUI, getInternalBaseUrl };
 export default ComfyUIProvider;
