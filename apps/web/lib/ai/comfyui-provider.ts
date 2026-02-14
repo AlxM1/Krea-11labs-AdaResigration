@@ -10,6 +10,8 @@ import {
   VideoGenerationResponse,
 } from "./providers";
 import { uploadFromUrl } from "../storage/upload";
+import { getModelById, invalidateCache } from "./model-registry";
+import { MODEL_ID_TO_CHECKPOINT } from "../ai-models";
 
 // ComfyUI WebSocket client ID
 let clientId: string | null = null;
@@ -1393,6 +1395,10 @@ async function queuePrompt(
 
       if (!response.ok) {
         const errorText = await response.text();
+        // Invalidate model cache if ComfyUI reports a model not found
+        if (errorText.includes("value_not_in_list") || errorText.includes("ckpt_name")) {
+          invalidateCache();
+        }
         throw new Error(`ComfyUI prompt error: ${errorText}`);
       }
 
@@ -1571,9 +1577,24 @@ async function downloadAndSaveImage(
 }
 
 /**
- * Map Krya model names to ComfyUI checkpoint names
+ * Map Krya model names to ComfyUI checkpoint names.
+ * Tries: 1) model-registry (live discovery), 2) static ID map, 3) hardcoded fallback.
  */
 function mapModelToCheckpoint(model: string, config: ComfyUIConfig): { checkpoint: string; isFlux: boolean } {
+  // 1. Try registry (synchronous lookup — already cached)
+  const registryModel = getModelById(model);
+  if (registryModel) {
+    const isFlux = registryModel.id.includes("flux");
+    return { checkpoint: registryModel.filename, isFlux };
+  }
+
+  // 2. Try static ID map (handles both new and legacy IDs)
+  const staticEntry = MODEL_ID_TO_CHECKPOINT[model];
+  if (staticEntry) {
+    return { checkpoint: staticEntry.filename, isFlux: staticEntry.isFlux };
+  }
+
+  // 3. Legacy string matching fallback
   const modelLower = model?.toLowerCase() || "";
 
   if (modelLower.includes("sdxl") || modelLower.includes("xl")) {

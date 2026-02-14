@@ -10,20 +10,18 @@ export interface AIModel {
 }
 
 export const imageModels: AIModel[] = [
-  // FLUX Krea Dev - Primary model (local GPU, best quality)
   {
-    id: "comfyui-flux",
-    name: "FLUX Krea Dev (Best Quality)",
+    id: "flux-fp8",
+    name: "FLUX Dev fp8 (Best Quality)",
     provider: "ComfyUI",
-    description: "FLUX.1 Krea Dev on RTX 5090 - best quality, free, no API costs",
+    description: "FLUX.1 Dev fp8 on RTX 5090 - best quality, free, no API costs",
     type: "quality",
     defaultSteps: 20,
     maxResolution: 2048,
     isPremium: false,
   },
-  // SDXL - Fallback (local GPU, faster)
   {
-    id: "comfyui-sdxl",
+    id: "sdxl",
     name: "SDXL 1.0 (Fast)",
     provider: "ComfyUI",
     description: "Stable Diffusion XL on RTX 5090 - faster, supports negative prompts",
@@ -35,7 +33,6 @@ export const imageModels: AIModel[] = [
 ];
 
 export const videoModels = [
-  // SVD - Primary video model (confirmed working)
   {
     id: "svd",
     name: "SVD XT 1.1 (Local GPU)",
@@ -44,50 +41,20 @@ export const videoModels = [
     maxDuration: 4,
     resolution: "576p",
   },
-  // Wan 2.2 - Requires native nodes (not available)
-  {
-    id: "wan-2.2-t2v",
-    name: "Wan 2.2 14B (Setup Required)",
-    provider: "ComfyUI",
-    description: "Requires Wan native nodes - falls back to SVD",
-    maxDuration: 10,
-    resolution: "1080p",
-  },
-  // CogVideoX - Not installed
-  {
-    id: "cogvideo-5b",
-    name: "CogVideoX-5B (Setup Required)",
-    provider: "ComfyUI",
-    description: "Text-to-video - Requires CogVideoX custom nodes installation",
-    maxDuration: 6,
-    resolution: "480p",
-  },
-  // fal.ai models (require credits)
-  {
-    id: "kling-2.5",
-    name: "Kling 2.5 (Requires fal.ai Credits)",
-    provider: "Kuaishou",
-    description: "Best for fast motion and action - cloud-based",
-    maxDuration: 10,
-    resolution: "720p",
-  },
-  {
-    id: "runway-gen4",
-    name: "Runway Gen-4 (Requires fal.ai Credits)",
-    provider: "Runway",
-    description: "Character consistency across shots - cloud-based",
-    maxDuration: 16,
-    resolution: "720p",
-  },
-  {
-    id: "luma-ray2",
-    name: "Luma Ray 2 (Requires fal.ai Credits)",
-    provider: "Luma Labs",
-    description: "Cinematic quality videos - cloud-based",
-    maxDuration: 5,
-    resolution: "720p",
-  },
 ];
+
+/**
+ * Map registry model IDs to actual ComfyUI checkpoint filenames.
+ * Used as a hardcoded fallback when the registry is unavailable.
+ */
+export const MODEL_ID_TO_CHECKPOINT: Record<string, { filename: string; isFlux: boolean }> = {
+  // New registry IDs
+  "flux-fp8": { filename: "flux1-dev-fp8.safetensors", isFlux: true },
+  "sdxl": { filename: "sd_xl_base_1.0.safetensors", isFlux: false },
+  // Legacy IDs (backwards compat)
+  "comfyui-flux": { filename: "flux1-dev-fp8.safetensors", isFlux: true },
+  "comfyui-sdxl": { filename: "sd_xl_base_1.0.safetensors", isFlux: false },
+};
 
 export const aspectRatios = [
   { id: "1:1", label: "1:1", width: 1024, height: 1024 },
