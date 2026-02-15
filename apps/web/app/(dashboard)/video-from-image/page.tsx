@@ -5,7 +5,6 @@ import { Video, Upload, Play, Download, Sparkles, RefreshCw, Loader2 } from "luc
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Select } from "@/components/ui/select";
 import { ShareButton } from "@/components/ui/share-button";
@@ -164,201 +163,193 @@ export default function VideoFromImagePage() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-          <Video className="h-8 w-8" />
-          Image to Video
-        </h1>
-        <p className="text-gray-400">
-          Animate your images into video with AI
-        </p>
-      </div>
+    <div className="flex h-full">
+      {/* Left Panel - Controls */}
+      <div className="w-[340px] border-r border-[#1f1f1f] flex flex-col bg-sidebar">
+        <div className="p-4 border-b border-[#1f1f1f]">
+          <h1 className="text-base font-semibold flex items-center gap-2">
+            <Video className="h-5 w-5" />
+            Image to Video
+          </h1>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Controls */}
-        <div className="space-y-6">
-          <Card className="p-6 bg-gray-900 border-gray-800">
-            <div className="space-y-4">
-              {/* Image Upload */}
-              <div>
-                <Label>Source Image</Label>
-                <div
-                  {...getRootProps()}
-                  className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${
-                    isDragActive
-                      ? "border-blue-500 bg-blue-500/10"
-                      : "border-gray-700 hover:border-gray-600"
-                  }`}
-                >
-                  <input {...getInputProps()} />
-                  {imageUrl ? (
-                    <div className="relative w-full h-48">
-                      <Image
-                        src={imageUrl}
-                        alt="Source"
-                        fill
-                        className="object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <Upload className="mx-auto h-12 w-12 text-gray-500 mb-4" />
-                      <p className="text-gray-400">
-                        {isDragActive
-                          ? "Drop image here..."
-                          : "Drag & drop or click to upload"}
-                      </p>
-                      <p className="text-xs text-gray-600 mt-2">
-                        PNG, JPG, JPEG, WebP
-                      </p>
-                    </div>
-                  )}
+        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          {/* Image Upload */}
+          <div>
+            <Label className="text-[13px] text-[#888] mb-2 block">Source Image</Label>
+            <div
+              {...getRootProps()}
+              className={`border border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                isDragActive
+                  ? "border-[#6c5ce7] bg-[#6c5ce7]/5"
+                  : "border-[#2a2a2a] hover:border-[#333]"
+              }`}
+            >
+              <input {...getInputProps()} />
+              {imageUrl ? (
+                <div className="relative w-full h-40">
+                  <Image
+                    src={imageUrl}
+                    alt="Source"
+                    fill
+                    className="object-contain rounded"
+                  />
                 </div>
-              </div>
-
-              {/* Motion Prompt */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label>Motion Prompt (optional)</Label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleEnhancePrompt}
-                    disabled={!prompt.trim() || isEnhancing}
-                    className="h-7 text-xs"
-                  >
-                    {isEnhancing ? (
-                      <>
-                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                        Enhancing...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        Enhance
-                      </>
-                    )}
-                  </Button>
+              ) : (
+                <div>
+                  <Upload className="mx-auto h-10 w-10 text-[#555] mb-3" />
+                  <p className="text-sm text-[#888]">
+                    {isDragActive
+                      ? "Drop image here..."
+                      : "Drag & drop or click to upload"}
+                  </p>
+                  <p className="text-xs text-[#555] mt-1">
+                    PNG, JPG, JPEG, WebP
+                  </p>
                 </div>
-                <Textarea
-                  placeholder="Describe how the image should animate... e.g., 'gentle camera zoom, hair blowing in wind'"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  rows={3}
-                  className="bg-gray-950 border-gray-800"
-                />
-              </div>
+              )}
+            </div>
+          </div>
 
-              {/* Model Selection */}
-              <div>
-                <Label>Model</Label>
-                <Select
-                  value={selectedModel}
-                  onChange={setSelectedModel}
-                  options={models.map((m) => ({
-                    value: m.id,
-                    label: m.name,
-                  }))}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {models.find((m) => m.id === selectedModel)?.description}
-                </p>
-              </div>
-
-              {/* Duration */}
-              <div>
-                <Slider
-                  label="Duration (seconds)"
-                  value={duration}
-                  onChange={setDuration}
-                  min={2}
-                  max={6}
-                />
-              </div>
-
+          {/* Motion Prompt */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <Label className="text-[13px] text-[#888]">Motion Prompt</Label>
               <Button
-                onClick={handleGenerate}
-                disabled={!imageUrl || isGenerating}
-                className="w-full gap-2"
-                size="lg"
-                variant="gradient"
+                variant="ghost"
+                size="sm"
+                onClick={handleEnhancePrompt}
+                disabled={!prompt.trim() || isEnhancing}
+                className="h-7 text-xs"
               >
-                {isGenerating ? (
+                {isEnhancing ? (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Generating Video...
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    Enhancing...
                   </>
                 ) : (
                   <>
-                    <Play className="h-5 w-5" />
-                    Generate Video
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Enhance
                   </>
                 )}
               </Button>
             </div>
-          </Card>
+            <Textarea
+              placeholder="Describe how the image should animate..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={3}
+            />
+          </div>
 
-          <Card className="p-4 bg-gray-900 border-gray-800">
-            <h3 className="font-semibold mb-2">Tips</h3>
-            <ul className="text-sm text-gray-400 space-y-1">
-              <li>- Use clear, well-lit images for best results</li>
-              <li>- Motion prompts guide the animation direction</li>
-              <li>- Keep prompts short and descriptive</li>
-              <li>- Generation takes 2-10 minutes depending on model</li>
+          {/* Model Selection */}
+          <div>
+            <Label className="text-[13px] text-[#888] mb-1.5 block">Model</Label>
+            <Select
+              value={selectedModel}
+              onChange={setSelectedModel}
+              options={models.map((m) => ({
+                value: m.id,
+                label: m.name,
+              }))}
+            />
+            <p className="text-xs text-[#555] mt-1">
+              {models.find((m) => m.id === selectedModel)?.description}
+            </p>
+          </div>
+
+          {/* Duration */}
+          <Slider
+            label="Duration (seconds)"
+            value={duration}
+            onChange={setDuration}
+            min={2}
+            max={6}
+          />
+
+          {/* Tips */}
+          <div className="rounded-lg bg-[#1a1a1a] p-3">
+            <h3 className="text-xs font-medium text-[#888] mb-1.5">Tips</h3>
+            <ul className="text-xs text-[#555] space-y-1">
+              <li>Use clear, well-lit images for best results</li>
+              <li>Motion prompts guide the animation direction</li>
+              <li>Generation takes 2-10 minutes depending on model</li>
             </ul>
-          </Card>
+          </div>
         </div>
 
-        {/* Output */}
-        <div>
-          <Card className="p-6 bg-gray-900 border-gray-800">
-            <Label className="mb-4 block">Result</Label>
-            <div className="aspect-video bg-gray-950 rounded-lg border border-gray-800 flex items-center justify-center overflow-hidden">
-              {isGenerating ? (
-                <div className="text-center">
-                  <div className="relative w-20 h-20 mx-auto mb-4">
-                    <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-                    <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                  </div>
-                  <p className="text-gray-400">Generating your video...</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    This may take a few minutes
-                  </p>
-                </div>
-              ) : videoResult?.videoUrl ? (
-                <video
-                  src={videoResult.videoUrl}
-                  controls
-                  autoPlay
-                  loop
-                  className="w-full h-full rounded-lg"
-                />
-              ) : (
-                <div className="text-center text-gray-500">
-                  <Video className="h-12 w-12 mx-auto mb-4" />
-                  <p>Upload an image to get started</p>
-                </div>
-              )}
-            </div>
-
-            {videoResult?.videoUrl && (
-              <div className="flex gap-2 mt-4 justify-center">
-                <a href={videoResult.videoUrl} download>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </a>
-                <ShareButton
-                  generationId={videoResult.id}
-                  variant="default"
-                  size="sm"
-                />
-              </div>
+        {/* Generate Button */}
+        <div className="p-4 border-t border-[#1f1f1f]">
+          <Button
+            onClick={handleGenerate}
+            disabled={!imageUrl || isGenerating}
+            className="w-full gap-2"
+            size="lg"
+            variant="gradient"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Generating Video...
+              </>
+            ) : (
+              <>
+                <Play className="h-5 w-5" />
+                Generate Video
+              </>
             )}
-          </Card>
+          </Button>
         </div>
+      </div>
+
+      {/* Right Panel - Result */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        {isGenerating ? (
+          <div className="text-center">
+            <div className="relative w-20 h-20 mx-auto mb-4">
+              <div className="absolute inset-0 rounded-full border-4 border-[#2a2a2a]" />
+              <div className="absolute inset-0 rounded-full border-4 border-[#6c5ce7] border-t-transparent animate-spin" />
+            </div>
+            <p className="text-[#888]">Generating your video...</p>
+            <p className="text-sm text-[#555] mt-1">
+              This may take a few minutes
+            </p>
+          </div>
+        ) : videoResult?.videoUrl ? (
+          <div className="w-full max-w-3xl">
+            <div className="aspect-video bg-[#1a1a1a] rounded-lg border border-[#2a2a2a] overflow-hidden">
+              <video
+                src={videoResult.videoUrl}
+                controls
+                autoPlay
+                loop
+                className="w-full h-full"
+              />
+            </div>
+            <div className="flex gap-2 mt-4 justify-center">
+              <a href={videoResult.videoUrl} download>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              </a>
+              <ShareButton
+                generationId={videoResult.id}
+                variant="default"
+                size="sm"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="text-center">
+            <div className="w-24 h-24 rounded-xl bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
+              <Video className="h-10 w-10 text-[#555]" />
+            </div>
+            <h3 className="text-base font-semibold mb-1">No video yet</h3>
+            <p className="text-sm text-[#555]">Upload an image to get started</p>
+          </div>
+        )}
       </div>
     </div>
   );
