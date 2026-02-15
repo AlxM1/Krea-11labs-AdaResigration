@@ -42,6 +42,10 @@ export default function GalleryPage() {
   const [selectedItem, setSelectedItem] = useState<Generation | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ type: "single" | "bulk"; id?: string } | null>(null);
   const limit = 40;
 
   useEffect(() => {
@@ -61,6 +65,50 @@ export default function GalleryPage() {
       toast.error("Failed to load gallery");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/generations/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setGenerations((prev) => prev.filter((g) => g.id !== id));
+      setTotal((prev) => prev - 1);
+      if (selectedItem?.id === id) setSelectedItem(null);
+      toast.success("Generation deleted");
+    } catch {
+      toast.error("Failed to delete");
+    } finally {
+      setDeleting(null);
+      setConfirmDelete(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    setDeleting("bulk");
+    try {
+      await Promise.all(ids.map((id) => fetch(`/api/generations/${id}`, { method: "DELETE" })));
+      setGenerations((prev) => prev.filter((g) => !selectedIds.has(g.id)));
+      setTotal((prev) => prev - ids.length);
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      toast.success(`Deleted ${ids.length} generation${ids.length !== 1 ? "s" : ""}`);
+    } catch {
+      toast.error("Failed to delete some items");
+    } finally {
+      setDeleting(null);
+      setConfirmDelete(null);
     }
   };
 
@@ -94,6 +142,30 @@ export default function GalleryPage() {
             <p className="text-sm text-muted-foreground mt-1">
               {total} generation{total !== 1 ? "s" : ""}
             </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant={selectMode ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => {
+                setSelectMode(!selectMode);
+                setSelectedIds(new Set());
+              }}
+            >
+              {selectMode ? "Cancel" : "Select"}
+            </Button>
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setConfirmDelete({ type: "bulk" })}
+                disabled={deleting === "bulk"}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete {selectedIds.size}
+              </Button>
+            )}
           </div>
 
           {/* Search */}
@@ -158,8 +230,13 @@ export default function GalleryPage() {
                   transition={{ duration: 0.3, delay: index * 0.03 }}
                 >
                   <Card
-                    className="group relative overflow-hidden cursor-pointer rounded-xl border-border/50 hover:border-border transition-colors"
-                    onClick={() => setSelectedItem(gen)}
+                    className={cn(
+                      "group relative overflow-hidden cursor-pointer rounded-xl transition-colors",
+                      selectMode && selectedIds.has(gen.id)
+                        ? "border-primary ring-2 ring-primary"
+                        : "border-border/50 hover:border-border"
+                    )}
+                    onClick={() => selectMode ? toggleSelect(gen.id) : setSelectedItem(gen)}
                   >
                     <div className="aspect-square bg-muted/50">
                       {gen.imageUrl || gen.thumbnailUrl ? (
@@ -198,9 +275,36 @@ export default function GalleryPage() {
                               <Download className="h-3 w-3 text-white" />
                             </a>
                           )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete({ type: "single", id: gen.id });
+                            }}
+                            className="p-1 rounded bg-white/20 hover:bg-red-500/80 transition-colors"
+                          >
+                            <Trash2 className="h-3 w-3 text-white" />
+                          </button>
                         </div>
                       </div>
                     </div>
+
+                    {/* Select mode checkbox */}
+                    {selectMode && (
+                      <div
+                        className={cn(
+                          "absolute top-2 left-2 w-5 h-5 rounded-full border-2 transition-colors",
+                          selectedIds.has(gen.id)
+                            ? "bg-primary border-primary"
+                            : "bg-black/50 border-white/50 opacity-0 group-hover:opacity-100"
+                        )}
+                      >
+                        {selectedIds.has(gen.id) && (
+                          <svg className="w-full h-full text-white" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        )}
+                      </div>
+                    )}
 
                     {/* Status badge */}
                     {gen.status !== "COMPLETED" && (
@@ -287,8 +391,61 @@ export default function GalleryPage() {
                         </Button>
                       </a>
                     )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setConfirmDelete({ type: "single", id: selectedItem.id })}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {confirmDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => !deleting && setConfirmDelete(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card rounded-xl border border-border p-6 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold mb-2">
+                {confirmDelete.type === "single" ? "Delete generation?" : `Delete ${selectedIds.size} generations?`}
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">This cannot be undone.</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setConfirmDelete(null)} disabled={!!deleting}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={!!deleting}
+                  onClick={() => {
+                    if (confirmDelete.type === "single" && confirmDelete.id) {
+                      handleDelete(confirmDelete.id);
+                    } else {
+                      handleBulkDelete();
+                    }
+                  }}
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </Button>
               </div>
             </motion.div>
           </motion.div>
