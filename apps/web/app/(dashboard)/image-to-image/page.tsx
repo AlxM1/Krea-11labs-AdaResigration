@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
 import { Select } from '@/components/ui/select'
 import { DownloadButton } from '@/components/ui/download-button'
-import { Loader2, Upload } from 'lucide-react'
+import { Loader2, Upload, Sparkles, RefreshCw } from 'lucide-react'
 import Image from 'next/image'
 import { useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
@@ -23,6 +23,28 @@ export default function ImageToImagePage() {
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [isEnhancing, setIsEnhancing] = useState(false)
+
+  const handleEnhancePrompt = async () => {
+    if (!prompt.trim()) return
+    setIsEnhancing(true)
+    try {
+      const res = await fetch('/api/llm/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      })
+      const data = await res.json()
+      if (data.enhanced) {
+        setPrompt(data.enhanced)
+        toast.success('Prompt enhanced!')
+      }
+    } catch {
+      toast.error('Failed to enhance prompt')
+    } finally {
+      setIsEnhancing(false)
+    }
+  }
 
   // Auto-select best model
   if (bestModel && !selectedModel) {
@@ -154,7 +176,28 @@ export default function ImageToImagePage() {
               </div>
 
               <div>
-                <Label htmlFor="prompt">Transformation Prompt</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="prompt">Transformation Prompt</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleEnhancePrompt}
+                    disabled={!prompt.trim() || isEnhancing}
+                    className="h-7 text-xs"
+                  >
+                    {isEnhancing ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Enhancing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Enhance
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <Textarea
                   id="prompt"
                   placeholder="Describe how to transform the image... e.g., 'make it look like a watercolor painting' or 'add dramatic sunset lighting'"

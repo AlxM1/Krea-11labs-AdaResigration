@@ -629,7 +629,7 @@ export function initializeWorkers(): void {
   const videoWorker = createWorker<VideoGenerationJob, { id: string; videoUrl?: string; status: string; error?: string }>(
     QueueNames.VIDEO_GENERATION,
     processVideoGeneration,
-    { concurrency: 2, lockDuration: 600000 }
+    { concurrency: 2, lockDuration: 2400000 }
   );
 
   const enhanceWorker = createWorker<ImageEnhancementJob>(

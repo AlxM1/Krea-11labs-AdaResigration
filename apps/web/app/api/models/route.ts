@@ -1,78 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { z } from "zod";
+import { refreshRegistry, getRegistrySnapshot } from "@/lib/ai/model-registry";
 
-const querySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(20),
-  offset: z.coerce.number().min(0).default(0),
-  type: z.enum(["all", "LORA", "DREAMBOOTH", "TEXTUAL_INVERSION"]).default("all"),
-  status: z.enum(["all", "COMPLETED", "TRAINING", "PENDING", "FAILED"]).default("all"),
-  includePublic: z.coerce.boolean().default(false),
-});
-
-// Get user's trained models
+// Get auto-discovered models from ComfyUI
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth(req);
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Force refresh on first call, then use cached data
+    await refreshRegistry();
+    const snapshot = getRegistrySnapshot();
 
     const { searchParams } = new URL(req.url);
-    const query = querySchema.parse({
-      limit: searchParams.get("limit") ?? undefined,
-      offset: searchParams.get("offset") ?? undefined,
-      type: searchParams.get("type") ?? undefined,
-      status: searchParams.get("status") ?? undefined,
-      includePublic: searchParams.get("includePublic") ?? undefined,
-    });
+    const task = searchParams.get("task"); // e.g. "text-to-image", "text-to-video"
 
-    // Build where clause
-    const where: Record<string, unknown> = query.includePublic
-      ? {
-          OR: [
-            { userId: session.user.id },
-            { isPublic: true },
-          ],
-        }
-      : { userId: session.user.id };
-
-    if (query.type !== "all") {
-      where.type = query.type;
+    let models = snapshot.models;
+    if (task) {
+      models = models.filter((m) => m.tasks.includes(task as never));
     }
-
-    if (query.status !== "all") {
-      where.status = query.status;
-    }
-
-    const models = await prisma.trainedModel.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: query.limit,
-      skip: query.offset,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-      },
-    });
-
-    const total = await prisma.trainedModel.count({ where });
 
     return NextResponse.json({
-      models: models.map((m: typeof models[number]) => ({
-        ...m,
-        isOwner: m.userId === session.user.id,
+      models: models.map((m) => ({
+        id: m.id,
+        name: m.name,
+        filename: m.filename,
+        provider: m.provider,
+        tasks: m.tasks,
+        description: m.description,
+        isAvailable: m.isAvailable,
+        priority: m.priority,
+        config: m.config,
       })),
-      total,
-      limit: query.limit,
-      offset: query.offset,
+      total: models.length,
+      comfyuiOnline: snapshot.comfyuiOnline,
+      lastRefresh: snapshot.lastRefresh,
     });
   } catch (error) {
     console.error("Error fetching models:", error);
@@ -83,7 +41,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Get available base models
+// Get available base models for training
 export async function OPTIONS(req: NextRequest) {
   const baseModels = [
     {

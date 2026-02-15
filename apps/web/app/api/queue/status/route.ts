@@ -1,116 +1,96 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getQueue, QueueNames } from '@/lib/queue'
+import { NextResponse } from "next/server";
+import { getQueue, QueueNames, type QueueName } from "@/lib/queue";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const userId = request.headers.get('x-user-id') || 'personal-user'
+    const queueDefs: { key: string; name: QueueName; type: string }[] = [
+      { key: "image", name: QueueNames.IMAGE_GENERATION, type: "image" },
+      { key: "video", name: QueueNames.VIDEO_GENERATION, type: "video" },
+      { key: "enhancement", name: QueueNames.IMAGE_ENHANCEMENT, type: "enhancement" },
+      { key: "logo", name: QueueNames.LOGO_GENERATION, type: "logo" },
+      { key: "style", name: QueueNames.STYLE_TRANSFER, type: "style-transfer" },
+      { key: "bgRemoval", name: QueueNames.BACKGROUND_REMOVAL, type: "bg-removal" },
+    ];
 
-    const imageQueue = getQueue(QueueNames.IMAGE_GENERATION)
-    const videoQueue = getQueue(QueueNames.VIDEO_GENERATION)
+    const queuesResult: Record<
+      string,
+      { active: number; waiting: number; completed: number; failed: number }
+    > = {};
+    const activeJobs: {
+      id: string | number;
+      type: string;
+      prompt: string;
+      progress?: number;
+      timestamp: number;
+    }[] = [];
+    const waitingJobs: {
+      id: string | number;
+      type: string;
+      prompt: string;
+      timestamp: number;
+    }[] = [];
 
-    if (!imageQueue || !videoQueue) {
-      return NextResponse.json({
-        queues: {
-          image: { active: 0, waiting: 0, completed: 0, failed: 0 },
-          video: { active: 0, waiting: 0, completed: 0, failed: 0 },
-        },
-        userJobs: { active: [], waiting: [] },
+    await Promise.all(
+      queueDefs.map(async ({ key, name, type }) => {
+        const queue = getQueue(name);
+        if (!queue) {
+          queuesResult[key] = { active: 0, waiting: 0, completed: 0, failed: 0 };
+          return;
+        }
+
+        const [activeCount, waitingCount, completedCount, failedCount, active, waiting] =
+          await Promise.all([
+            queue.getActiveCount(),
+            queue.getWaitingCount(),
+            queue.getCompletedCount(),
+            queue.getFailedCount(),
+            queue.getActive(0, 10),
+            queue.getWaiting(0, 10),
+          ]);
+
+        queuesResult[key] = {
+          active: activeCount,
+          waiting: waitingCount,
+          completed: completedCount,
+          failed: failedCount,
+        };
+
+        for (const job of active) {
+          activeJobs.push({
+            id: job.id ?? "",
+            type,
+            prompt: job.data?.prompt || job.data?.companyName || "Processing...",
+            progress: typeof job.progress === "number" ? job.progress : undefined,
+            timestamp: job.timestamp,
+          });
+        }
+
+        for (const job of waiting) {
+          waitingJobs.push({
+            id: job.id ?? "",
+            type,
+            prompt: job.data?.prompt || job.data?.companyName || "Queued...",
+            timestamp: job.timestamp,
+          });
+        }
       })
-    }
-
-    // Get queue counts
-    const [
-      imageActive,
-      imageWaiting,
-      imageCompleted,
-      imageFailed,
-      videoActive,
-      videoWaiting,
-      videoCompleted,
-      videoFailed,
-    ] = await Promise.all([
-      imageQueue.getActiveCount(),
-      imageQueue.getWaitingCount(),
-      imageQueue.getCompletedCount(),
-      imageQueue.getFailedCount(),
-      videoQueue.getActiveCount(),
-      videoQueue.getWaitingCount(),
-      videoQueue.getCompletedCount(),
-      videoQueue.getFailedCount(),
-    ])
-
-    // Get active jobs for current user
-    const [imageActiveJobs, videoActiveJobs] = await Promise.all([
-      imageQueue.getActive(),
-      videoQueue.getActive(),
-    ])
-
-    // Filter by user
-    const userImageJobs = imageActiveJobs.filter(job => job.data.userId === userId)
-    const userVideoJobs = videoActiveJobs.filter(job => job.data.userId === userId)
-
-    // Get waiting jobs for current user
-    const [imageWaitingJobs, videoWaitingJobs] = await Promise.all([
-      imageQueue.getWaiting(),
-      videoQueue.getWaiting(),
-    ])
-
-    const userImageWaiting = imageWaitingJobs.filter(job => job.data.userId === userId)
-    const userVideoWaiting = videoWaitingJobs.filter(job => job.data.userId === userId)
+    );
 
     return NextResponse.json({
-      queues: {
-        image: {
-          active: imageActive,
-          waiting: imageWaiting,
-          completed: imageCompleted,
-          failed: imageFailed,
-        },
-        video: {
-          active: videoActive,
-          waiting: videoWaiting,
-          completed: videoCompleted,
-          failed: videoFailed,
-        },
-      },
+      queues: queuesResult,
       userJobs: {
-        active: [
-          ...userImageJobs.map(job => ({
-            id: job.id,
-            type: 'image',
-            prompt: job.data.prompt,
-            progress: job.progress,
-            timestamp: job.timestamp,
-          })),
-          ...userVideoJobs.map(job => ({
-            id: job.id,
-            type: 'video',
-            prompt: job.data.prompt,
-            progress: job.progress,
-            timestamp: job.timestamp,
-          })),
-        ],
-        waiting: [
-          ...userImageWaiting.map(job => ({
-            id: job.id,
-            type: 'image',
-            prompt: job.data.prompt,
-            timestamp: job.timestamp,
-          })),
-          ...userVideoWaiting.map(job => ({
-            id: job.id,
-            type: 'video',
-            prompt: job.data.prompt,
-            timestamp: job.timestamp,
-          })),
-        ],
+        active: activeJobs,
+        waiting: waitingJobs,
       },
-    })
+    });
   } catch (error) {
-    console.error('Queue status error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch queue status' },
-      { status: 500 }
-    )
+    console.error("Queue status error:", error);
+    return NextResponse.json({
+      queues: {
+        image: { active: 0, waiting: 0, completed: 0, failed: 0 },
+        video: { active: 0, waiting: 0, completed: 0, failed: 0 },
+      },
+      userJobs: { active: [], waiting: [] },
+    });
   }
 }

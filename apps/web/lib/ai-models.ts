@@ -34,10 +34,18 @@ export const imageModels: AIModel[] = [
 
 export const videoModels = [
   {
-    id: "svd",
-    name: "SVD XT 1.1 (Local GPU)",
+    id: "wan-t2v",
+    name: "Wan 2.2 14B MoE (Best Quality)",
     provider: "ComfyUI",
-    description: "Free text/image-to-video on RTX 5090 - confirmed working",
+    description: "Wan 2.2 MoE text-to-video on RTX 5090 - highest quality, free",
+    maxDuration: 5,
+    resolution: "480p",
+  },
+  {
+    id: "svd",
+    name: "SVD XT 1.1 (Fast)",
+    provider: "ComfyUI",
+    description: "Stable Video Diffusion - fast image-to-video, confirmed working",
     maxDuration: 4,
     resolution: "576p",
   },

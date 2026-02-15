@@ -6,8 +6,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { DownloadButton } from '@/components/ui/download-button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Sparkles, RefreshCw } from 'lucide-react'
 import Image from 'next/image'
+import toast from 'react-hot-toast'
 
 const PATTERN_STYLES = [
   { id: 'geometric', name: 'Geometric', description: 'Clean lines and shapes' },
@@ -30,6 +31,28 @@ export default function PatternsPage() {
   const [tileSize, setTileSize] = useState(1024)
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<string | null>(null)
+  const [isEnhancing, setIsEnhancing] = useState(false)
+
+  const handleEnhancePrompt = async () => {
+    if (!prompt.trim()) return
+    setIsEnhancing(true)
+    try {
+      const res = await fetch('/api/llm/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      })
+      const data = await res.json()
+      if (data.enhanced) {
+        setPrompt(data.enhanced)
+        toast.success('Prompt enhanced!')
+      }
+    } catch {
+      toast.error('Failed to enhance prompt')
+    } finally {
+      setIsEnhancing(false)
+    }
+  }
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return
@@ -76,7 +99,28 @@ export default function PatternsPage() {
           <Card className="p-6 bg-gray-900 border-gray-800">
             <div className="space-y-4">
               <div>
-                <Label htmlFor="prompt">Pattern Description</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="prompt">Pattern Description</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleEnhancePrompt}
+                    disabled={!prompt.trim() || isEnhancing}
+                    className="h-7 text-xs"
+                  >
+                    {isEnhancing ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Enhancing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Enhance
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <Textarea
                   id="prompt"
                   placeholder="Describe your pattern... e.g., 'golden art deco waves with emerald accents'"

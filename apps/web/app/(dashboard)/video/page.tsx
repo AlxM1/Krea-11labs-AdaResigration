@@ -86,6 +86,24 @@ export default function VideoGenerationPage() {
     toast.success("Video generation started!");
 
     try {
+      // Upload image first if in image-to-video mode
+      let serverImageUrl: string | undefined;
+      if (generationType === "image" && uploadedFile) {
+        const formData = new FormData();
+        formData.append("file", uploadedFile);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok || !uploadData.url) {
+          toast.error(uploadData.error || "Failed to upload image");
+          setIsGenerating(false);
+          return;
+        }
+        serverImageUrl = uploadData.url;
+      }
+
       const res = await fetch("/api/generate/video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -94,7 +112,7 @@ export default function VideoGenerationPage() {
           model: selectedModel,
           duration,
           aspectRatio,
-          imageUrl: generationType === "image" ? inputImage : undefined,
+          imageUrl: serverImageUrl,
           async: true,
         }),
       });
@@ -155,9 +173,12 @@ export default function VideoGenerationPage() {
     }
   };
 
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setUploadedFile(file);
       const reader = new FileReader();
       reader.onload = (event) => {
         setInputImage(event.target?.result as string);

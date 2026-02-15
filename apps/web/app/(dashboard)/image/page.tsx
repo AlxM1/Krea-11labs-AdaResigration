@@ -267,6 +267,30 @@ export default function ImageGenerationPage() {
             />
           </div>
 
+          {/* Variations */}
+          <div>
+            <LabelWithTooltip
+              label="Variations"
+              tooltip="Generate multiple versions with different results. Each variation uses a different random seed."
+            />
+            <div className="flex gap-2">
+              {[1, 2, 4].map((count) => (
+                <button
+                  key={count}
+                  onClick={() => setParams({ batchSize: count })}
+                  className={cn(
+                    "flex-1 py-2 text-sm rounded-lg border transition-colors",
+                    params.batchSize === count
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  {count === 1 ? "1 image" : `${count} variations`}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Advanced Settings */}
           <div>
             <button

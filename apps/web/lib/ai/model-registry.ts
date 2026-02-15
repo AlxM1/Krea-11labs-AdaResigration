@@ -116,6 +116,7 @@ function buildModelsFromDiscovery(
   videoCheckpoints: string[],
   vaeModels: string[],
   customNodes: Record<string, boolean>,
+  wanVideoModels: string[] = [],
 ): ModelInfo[] {
   const models: ModelInfo[] = [];
 
@@ -176,37 +177,46 @@ function buildModelsFromDiscovery(
 
   const hasWanVideo = customNodes["WanVideoSampler"] === true;
 
-  // Check GGUF models and also WanVideoModelLoader-compatible models
-  const allWanModels = [...new Set([...ggufModels, ...diffusionModels])];
+  // Check all sources for Wan models: GGUF, UNETLoader, and WanVideoModelLoader
+  const allWanModels = [...new Set([...ggufModels, ...diffusionModels, ...wanVideoModels])];
   const hasWanT2v = allWanModels.some((m) => m.includes("wan2.2_t2v_high")) &&
     allWanModels.some((m) => m.includes("wan2.2_t2v_low"));
   if (hasWanT2v && hasWanVideo) {
+    // Prefer fp8_scaled safetensors over GGUF (faster loading, native precision)
+    const highModel = allWanModels.find((m) => m.includes("wan2.2_t2v_high") && m.endsWith(".safetensors"))
+      || allWanModels.find((m) => m.includes("wan2.2_t2v_high"))!;
+    const lowModel = allWanModels.find((m) => m.includes("wan2.2_t2v_low") && m.endsWith(".safetensors"))
+      || allWanModels.find((m) => m.includes("wan2.2_t2v_low"))!;
     models.push({
       id: "wan-t2v",
       name: "Wan 2.2 14B T2V",
-      filename: "wan2.2_t2v_high_noise_14B_Q8_0.gguf",
+      filename: highModel,
       provider: "comfyui",
       tasks: ["text-to-video"],
       description: "Wan 2.2 MoE text-to-video - highest quality, local GPU",
       isAvailable: true,
       priority: 1,
-      config: { fps: 16, width: 832, height: 480, steps: 30, cfg: 5.0, shift: 5.0, scheduler: "unipc", maxFrames: 81 },
+      config: { fps: 16, width: 832, height: 480, steps: 30, cfg: 5.0, shift: 5.0, scheduler: "unipc", maxFrames: 81, lowNoiseModel: lowModel },
     });
   }
 
   const hasWanI2v = allWanModels.some((m) => m.includes("wan2.2_i2v_high")) &&
     allWanModels.some((m) => m.includes("wan2.2_i2v_low"));
   if (hasWanI2v && hasWanVideo) {
+    const highModel = allWanModels.find((m) => m.includes("wan2.2_i2v_high") && m.endsWith(".safetensors"))
+      || allWanModels.find((m) => m.includes("wan2.2_i2v_high"))!;
+    const lowModel = allWanModels.find((m) => m.includes("wan2.2_i2v_low") && m.endsWith(".safetensors"))
+      || allWanModels.find((m) => m.includes("wan2.2_i2v_low"))!;
     models.push({
       id: "wan-i2v",
       name: "Wan 2.2 14B I2V",
-      filename: "wan2.2_i2v_high_noise_14B_Q8_0.gguf",
+      filename: highModel,
       provider: "comfyui",
       tasks: ["image-to-video"],
       description: "Wan 2.2 MoE image-to-video - highest quality, local GPU",
       isAvailable: true,
       priority: 1,
-      config: { fps: 16, width: 832, height: 480, steps: 30, cfg: 5.0, shift: 5.0, scheduler: "unipc", maxFrames: 81 },
+      config: { fps: 16, width: 832, height: 480, steps: 30, cfg: 5.0, shift: 5.0, scheduler: "unipc", maxFrames: 81, lowNoiseModel: lowModel },
     });
   }
 
@@ -282,7 +292,7 @@ export async function refreshRegistry(): Promise<void> {
       }
 
       // Discover all model types in parallel
-      const [checkpoints, diffusionModels, ggufModels, upscaleModels, videoCheckpoints, vaeModels] =
+      const [checkpoints, diffusionModels, ggufModels, upscaleModels, videoCheckpoints, vaeModels, wanVideoModels] =
         await Promise.all([
           fetchObjectInfo("CheckpointLoaderSimple"),
           fetchObjectInfo("UNETLoader"),
@@ -290,6 +300,7 @@ export async function refreshRegistry(): Promise<void> {
           fetchObjectInfo("UpscaleModelLoader"),
           fetchObjectInfo("ImageOnlyCheckpointLoader"),
           fetchObjectInfo("VAELoader"),
+          fetchObjectInfo("WanVideoModelLoader"),
         ]);
 
       // Probe custom node availability in parallel
@@ -314,6 +325,7 @@ export async function refreshRegistry(): Promise<void> {
         upscaleModels: upscaleModels.length,
         videoCheckpoints: videoCheckpoints.length,
         vaeModels: vaeModels.length,
+        wanVideoModels: wanVideoModels.length,
         customNodes,
       });
 
@@ -325,6 +337,7 @@ export async function refreshRegistry(): Promise<void> {
         videoCheckpoints,
         vaeModels,
         customNodes,
+        wanVideoModels,
       );
 
       registry = {

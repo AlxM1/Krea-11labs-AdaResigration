@@ -10,7 +10,7 @@ import {
   VideoGenerationResponse,
 } from "./providers";
 import { uploadFromUrl } from "../storage/upload";
-import { getModelById, invalidateCache } from "./model-registry";
+import { getModelById, getBestModel, invalidateCache } from "./model-registry";
 import { MODEL_ID_TO_CHECKPOINT } from "../ai-models";
 
 // ComfyUI WebSocket client ID
@@ -28,7 +28,7 @@ const QUEUE_TIMEOUT = 15000; // 15s
 const IMAGE_GENERATION_TIMEOUT = 180000; // 3 minutes
 
 /** Default timeout for video generation polling */
-const VIDEO_GENERATION_TIMEOUT = 600000; // 10 minutes
+const VIDEO_GENERATION_TIMEOUT = 2400000; // 40 minutes (Wan 2.2 14B MoE needs ~25min)
 
 /** How long with no progress before declaring a job stuck */
 const STUCK_DETECTION_THRESHOLD = 90000; // 90 seconds
@@ -923,11 +923,13 @@ const WORKFLOWS = {
     fps: number;
     steps: number;
     seed: number;
+    highNoiseModel?: string;
+    lowNoiseModel?: string;
   }) => ({
     // Low noise expert (extra model for MoE)
     "1": {
       inputs: {
-        extra_model: "wan2.2_t2v_low_noise_14B_Q8_0.gguf",
+        extra_model: params.lowNoiseModel || "wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors",
       },
       class_type: "WanVideoExtraModelSelect",
     },
@@ -943,7 +945,7 @@ const WORKFLOWS = {
     // High noise expert (primary model, takes extra_model + block_swap)
     "3": {
       inputs: {
-        model: "wan2.2_t2v_high_noise_14B_Q8_0.gguf",
+        model: params.highNoiseModel || "wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors",
         base_precision: "bf16",
         quantization: "disabled",
         load_device: "main_device",
@@ -1059,11 +1061,13 @@ const WORKFLOWS = {
     fps: number;
     steps: number;
     seed: number;
+    highNoiseModel?: string;
+    lowNoiseModel?: string;
   }) => ({
     // Low noise expert (extra model for MoE)
     "1": {
       inputs: {
-        extra_model: "wan2.2_i2v_low_noise_14B_Q8_0.gguf",
+        extra_model: params.lowNoiseModel || "wan2.2_i2v_low_noise_14B_Q8_0.gguf",
       },
       class_type: "WanVideoExtraModelSelect",
     },
@@ -1079,7 +1083,7 @@ const WORKFLOWS = {
     // High noise expert (primary i2v model)
     "3": {
       inputs: {
-        model: "wan2.2_i2v_high_noise_14B_Q8_0.gguf",
+        model: params.highNoiseModel || "wan2.2_i2v_high_noise_14B_Q8_0.gguf",
         base_precision: "bf16",
         quantization: "disabled",
         load_device: "main_device",
@@ -1147,7 +1151,12 @@ const WORKFLOWS = {
     "9": {
       inputs: {
         clip_vision: ["8", 0],
-        image: ["7", 0],
+        image_1: ["7", 0],
+        strength_1: 1.0,
+        strength_2: 1.0,
+        crop: "center",
+        combine_embeds: "average",
+        force_offload: true,
       },
       class_type: "WanVideoClipVisionEncode",
     },
@@ -1827,7 +1836,24 @@ export class ComfyUIProvider {
     const seed = Math.floor(Math.random() * 2147483647);
     const duration = request.duration || 4;
 
-    const videoModel = mapVideoModel(request.model) || this.config.defaultVideoModel || "cogvideo";
+    // Auto-detect best video model from registry if not specified or "svd" default
+    let videoModel = mapVideoModel(request.model) || this.config.defaultVideoModel || "svd";
+    if (videoModel === "svd" && !request.imageUrl) {
+      // Check if Wan T2V is available (higher quality than SVD)
+      const wanModel = getModelById("wan-t2v");
+      if (wanModel?.isAvailable) {
+        videoModel = "wan-t2v";
+        console.log('[ComfyUI Video] Auto-selected Wan 2.2 T2V (higher quality than SVD)');
+      }
+    }
+    if (videoModel === "svd" && request.imageUrl) {
+      // Check if Wan I2V is available
+      const wanI2vModel = getModelById("wan-i2v");
+      if (wanI2vModel?.isAvailable) {
+        videoModel = "wan-i2v";
+        console.log('[ComfyUI Video] Auto-selected Wan 2.2 I2V (higher quality than SVD)');
+      }
+    }
 
     const modelConfigs: Record<VideoModel, { fps: number; width: number; height: number; steps: number; maxFrames: number }> = {
       svd: { fps: 8, width: 1024, height: 576, steps: 20, maxFrames: 25 },
@@ -1852,6 +1878,10 @@ export class ComfyUIProvider {
       await freeVRAM(this.config);
       await new Promise(r => setTimeout(r, 2000));
 
+      // Resolve Wan model filenames from registry
+      const wanT2vRegistry = getModelById("wan-t2v");
+      const wanI2vRegistry = getModelById("wan-i2v");
+
       // Handle image-to-video
       if (request.imageUrl) {
         const imageData = await this.uploadImageToComfyUI(request.imageUrl);
@@ -1863,6 +1893,8 @@ export class ComfyUIProvider {
             workflow = WORKFLOWS.imageToVideoWan({
               imageData, prompt: request.prompt, frames, fps, steps, seed,
               width, height,
+              highNoiseModel: wanI2vRegistry?.filename,
+              lowNoiseModel: (wanI2vRegistry?.config?.lowNoiseModel as string) || undefined,
             });
             break;
           case "cogvideo-i2v":
@@ -1890,6 +1922,8 @@ export class ComfyUIProvider {
           workflow = WORKFLOWS.textToVideoWan({
             prompt: request.prompt, negativePrompt: "blurry, low quality, distorted",
             width, height, frames, fps, steps, seed,
+            highNoiseModel: wanT2vRegistry?.filename,
+            lowNoiseModel: (wanT2vRegistry?.config?.lowNoiseModel as string) || undefined,
           });
           return this.executeVideoWorkflow(workflow, duration);
         case "svd":

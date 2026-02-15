@@ -10,7 +10,7 @@ import { randomUUID } from "crypto";
 const videoGenerateSchema = z.object({
   prompt: z.string().min(1).max(2000),
   imageUrl: z.string().url().optional(),
-  model: z.string().default("svd"), // Default to SVD (Stable Video Diffusion) - confirmed working
+  model: z.string().default("wan-t2v"), // Default to Wan 2.2 MoE (highest quality), falls back to SVD
   duration: z.number().min(2).max(10).default(6),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
   // Provider selection (google for Veo 3.1, fal for Runway, comfyui for Wan/CogVideo/SVD)
@@ -122,9 +122,9 @@ export async function POST(req: NextRequest) {
 
     // Synchronous fallback: generate directly with timeout
     // SVD text-to-video involves two stages (image gen + SVD), each ~72s, plus model loading
-    const timeoutMs = 600000; // 600 seconds (10 minutes) timeout for video generation
+    const timeoutMs = 2400000; // 40 minutes timeout for video generation (Wan 2.2 14B MoE needs ~25min)
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Video generation timed out after 600 seconds")), timeoutMs)
+      setTimeout(() => reject(new Error("Video generation timed out after 2400 seconds")), timeoutMs)
     );
 
     const result = await Promise.race([

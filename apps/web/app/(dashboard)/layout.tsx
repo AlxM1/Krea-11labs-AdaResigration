@@ -1,5 +1,6 @@
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
+import { GenerationQueueFloat } from "@/components/generation-queue-float";
 
 // For personal use: No authentication required
 export default async function DashboardLayout({
@@ -14,6 +15,7 @@ export default async function DashboardLayout({
         <Sidebar />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
+      <GenerationQueueFloat />
     </div>
   );
 }

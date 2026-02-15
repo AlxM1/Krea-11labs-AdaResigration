@@ -12,6 +12,7 @@ import {
   Sun,
   Moon,
   Sparkles,
+  RefreshCw,
   Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,28 @@ export default function ThreeDPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasResult, setHasResult] = useState(false);
   const [isRotating, setIsRotating] = useState(true);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+
+  const handleEnhancePrompt = async () => {
+    if (!prompt.trim()) return;
+    setIsEnhancing(true);
+    try {
+      const res = await fetch("/api/llm/enhance-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      if (data.enhanced) {
+        setPrompt(data.enhanced);
+        toast.success("Prompt enhanced!");
+      }
+    } catch {
+      toast.error("Failed to enhance prompt");
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
   const [lighting, setLighting] = useState("studio");
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -213,6 +236,27 @@ export default function ThreeDPage() {
             </TabsContent>
 
             <TabsContent value="text" className="mt-4">
+              <div className="flex items-center justify-end mb-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleEnhancePrompt}
+                  disabled={!prompt.trim() || isEnhancing}
+                  className="h-7 text-xs"
+                >
+                  {isEnhancing ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      Enhancing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Enhance
+                    </>
+                  )}
+                </Button>
+              </div>
               <Textarea
                 placeholder="Describe the 3D object you want to create..."
                 value={prompt}
