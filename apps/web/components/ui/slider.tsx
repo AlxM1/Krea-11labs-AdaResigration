@@ -35,7 +35,7 @@ const Slider = forwardRef<HTMLInputElement, SliderProps>(
             max={max}
             step={step}
             className={cn(
-              "w-full h-2 bg-secondary rounded-full appearance-none cursor-pointer",
+              "w-full h-2 rounded-full appearance-none cursor-pointer bg-[#2a2a2a]",
               "[&::-webkit-slider-thumb]:appearance-none",
               "[&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4",
               "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary",
@@ -46,7 +46,7 @@ const Slider = forwardRef<HTMLInputElement, SliderProps>(
               "[&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
             )}
             style={{
-              background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${percentage}%, hsl(var(--secondary)) ${percentage}%, hsl(var(--secondary)) 100%)`,
+              background: `linear-gradient(to right, #6c5ce7 0%, #6c5ce7 ${percentage}%, #2a2a2a ${percentage}%, #2a2a2a 100%)`,
             }}
             {...props}
           />

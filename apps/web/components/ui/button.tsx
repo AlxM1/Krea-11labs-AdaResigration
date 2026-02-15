@@ -19,7 +19,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       outline: "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
       ghost: "hover:bg-accent hover:text-accent-foreground",
       destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-      gradient: "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700",
+      gradient: "btn-gradient",
       link: "text-primary underline-offset-4 hover:underline",
     };
 

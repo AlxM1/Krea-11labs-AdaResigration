@@ -77,7 +77,7 @@ export default function FeedPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+    <div className="flex flex-col h-full">
       {/* Header */}
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between mb-4">

@@ -231,7 +231,7 @@ export default function LogoGenerationPage() {
   const completedResults = results.filter((r) => r.status === "completed" && r.imageUrl);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
+    <div className="flex h-full">
       {/* Left Panel - Controls */}
       <div className="w-96 border-r border-border flex flex-col">
         <div className="p-4 border-b border-border">
