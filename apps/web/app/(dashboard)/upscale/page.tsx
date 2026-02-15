@@ -115,13 +115,13 @@ export default function UpscalePage() {
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Image Upscaling</h1>
-        <p className="text-gray-400">Enhance and enlarge your images with AI</p>
+        <p className="text-[#888]">Enhance and enlarge your images with AI</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Controls */}
         <div className="space-y-6">
-          <Card className="p-6 bg-gray-900 border-gray-800">
+          <Card className="p-6 bg-[#1a1a1a] border-[#2a2a2a]">
             <div className="space-y-4">
               <div>
                 <Label>Upload Image</Label>
@@ -129,8 +129,8 @@ export default function UpscalePage() {
                   {...getRootProps()}
                   className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${
                     isDragActive
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-gray-700 hover:border-gray-600'
+                      ? 'border-[#6c5ce7] bg-[#6c5ce7]/10'
+                      : 'border-[#2a2a2a] hover:border-[#333]'
                   }`}
                 >
                   <input {...getInputProps()} />
@@ -144,19 +144,19 @@ export default function UpscalePage() {
                           className="object-contain"
                         />
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-[#555]">
                         {originalDimensions.width} × {originalDimensions.height} px
                       </p>
                     </div>
                   ) : (
                     <div>
-                      <Upload className="mx-auto h-12 w-12 text-gray-500 mb-4" />
-                      <p className="text-gray-400">
+                      <Upload className="mx-auto h-12 w-12 text-[#555] mb-4" />
+                      <p className="text-[#888]">
                         {isDragActive
                           ? 'Drop image here...'
                           : 'Drag & drop or click to upload'}
                       </p>
-                      <p className="text-xs text-gray-600 mt-2">
+                      <p className="text-xs text-[#555] mt-2">
                         PNG, JPG, JPEG, WebP
                       </p>
                     </div>
@@ -173,8 +173,8 @@ export default function UpscalePage() {
                       onClick={() => setScale(factor.value)}
                       className={`p-3 rounded-lg border text-center transition ${
                         scale === factor.value
-                          ? 'border-blue-500 bg-blue-500/10'
-                          : 'border-gray-800 bg-gray-950 hover:border-gray-700'
+                          ? 'border-[#6c5ce7] bg-[#6c5ce7]/10'
+                          : 'border-[#2a2a2a] bg-[#1a1a1a] hover:border-[#333]'
                       }`}
                     >
                       {factor.label}
@@ -182,7 +182,7 @@ export default function UpscalePage() {
                   ))}
                 </div>
                 {originalDimensions.width > 0 && (
-                  <p className="text-xs text-gray-500 mt-2 text-center">
+                  <p className="text-xs text-[#555] mt-2 text-center">
                     Output: {upscaledDimensions.width} × {upscaledDimensions.height} px
                   </p>
                 )}
@@ -197,12 +197,12 @@ export default function UpscalePage() {
                       onClick={() => setModel(upscaleModel.id)}
                       className={`w-full p-3 rounded-lg border text-left transition ${
                         model === upscaleModel.id
-                          ? 'border-blue-500 bg-blue-500/10'
-                          : 'border-gray-800 bg-gray-950 hover:border-gray-700'
+                          ? 'border-[#6c5ce7] bg-[#6c5ce7]/10'
+                          : 'border-[#2a2a2a] bg-[#1a1a1a] hover:border-[#333]'
                       }`}
                     >
                       <div className="font-medium">{upscaleModel.name}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-[#555]">
                         {upscaleModel.description}
                       </div>
                     </button>
@@ -228,9 +228,9 @@ export default function UpscalePage() {
             </div>
           </Card>
 
-          <Card className="p-4 bg-gray-900 border-gray-800">
+          <Card className="p-4 bg-[#1a1a1a] border-[#2a2a2a]">
             <h3 className="font-semibold mb-2">Tips</h3>
-            <ul className="text-sm text-gray-400 space-y-1">
+            <ul className="text-sm text-[#888] space-y-1">
               {upscaleModels.map((m) => (
                 <li key={m.id}>• {m.name}: {m.description}</li>
               ))}
@@ -241,14 +241,14 @@ export default function UpscalePage() {
 
         {/* Preview */}
         <div>
-          <Card className="p-6 bg-gray-900 border-gray-800">
+          <Card className="p-6 bg-[#1a1a1a] border-[#2a2a2a]">
             <Label className="mb-4 block">Upscaled Result</Label>
-            <div className="aspect-square bg-gray-950 rounded-lg border border-gray-800 flex items-center justify-center overflow-hidden">
+            <div className="aspect-square bg-[#1a1a1a] rounded-lg border border-[#2a2a2a] flex items-center justify-center overflow-hidden">
               {generating ? (
                 <div className="text-center">
-                  <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
-                  <p className="text-gray-400">Upscaling image...</p>
-                  <p className="text-xs text-gray-500 mt-2">This may take a moment</p>
+                  <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-[#6c5ce7]" />
+                  <p className="text-[#888]">Upscaling image...</p>
+                  <p className="text-xs text-[#555] mt-2">This may take a moment</p>
                 </div>
               ) : result ? (
                 <div className="relative w-full h-full">
@@ -260,7 +260,7 @@ export default function UpscalePage() {
                   />
                 </div>
               ) : (
-                <div className="text-center text-gray-500">
+                <div className="text-center text-[#555]">
                   <p>Upload an image to begin upscaling</p>
                   <p className="text-sm mt-2">Enhance resolution and quality</p>
                 </div>

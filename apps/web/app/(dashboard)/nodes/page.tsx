@@ -36,7 +36,7 @@ interface Node {
 }
 
 const nodeTypes = [
-  { id: "text-input", label: "Text Input", icon: Type, category: "input", color: "bg-blue-500" },
+  { id: "text-input", label: "Text Input", icon: Type, category: "input", color: "bg-[#6c5ce7]" },
   { id: "image-input", label: "Image Upload", icon: ImageIcon, category: "input", color: "bg-green-500" },
   { id: "image-gen", label: "Image Generation", icon: ImageIcon, category: "ai", color: "bg-purple-500" },
   { id: "video-gen", label: "Video Generation", icon: Video, category: "ai", color: "bg-pink-500" },

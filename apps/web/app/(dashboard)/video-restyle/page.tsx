@@ -18,11 +18,11 @@ import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 const stylePresets = [
-  { id: "anime", label: "Anime", preview: "bg-gradient-to-br from-pink-500 to-purple-600" },
-  { id: "pixar", label: "Pixar", preview: "bg-gradient-to-br from-blue-500 to-cyan-400" },
+  { id: "anime", label: "Anime", preview: "bg-gradient-to-br from-[#ec4899] to-[#9333ea]" },
+  { id: "pixar", label: "Pixar", preview: "bg-gradient-to-br from-[#3b82f6] to-[#22d3ee]" },
   { id: "oil-paint", label: "Oil Paint", preview: "bg-gradient-to-br from-amber-500 to-orange-600" },
   { id: "watercolor", label: "Watercolor", preview: "bg-gradient-to-br from-teal-400 to-blue-500" },
-  { id: "cyberpunk", label: "Cyberpunk", preview: "bg-gradient-to-br from-purple-600 to-pink-500" },
+  { id: "cyberpunk", label: "Cyberpunk", preview: "bg-gradient-to-br from-[#9333ea] to-[#ec4899]" },
   { id: "vintage", label: "Vintage", preview: "bg-gradient-to-br from-amber-700 to-yellow-600" },
 ];
 

@@ -229,7 +229,7 @@ export default function GalleryPage() {
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                 filter === f.id
                   ? "bg-white/10 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
+                  : "text-[#888] hover:text-white hover:bg-white/5"
               )}
             >
               <f.icon className="h-3.5 w-3.5" />

@@ -31,7 +31,7 @@ const stylePresets = [
   {
     id: "anime",
     label: "Anime",
-    preview: "bg-gradient-to-br from-pink-500 to-purple-600",
+    preview: "bg-gradient-to-br from-[#ec4899] to-[#9333ea]",
   },
   {
     id: "pencil-sketch",

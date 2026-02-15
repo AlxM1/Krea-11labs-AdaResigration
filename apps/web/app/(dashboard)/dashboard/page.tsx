@@ -34,14 +34,14 @@ const quickActions = [
     label: "Generate Image",
     description: "Create images from text",
     icon: ImageIcon,
-    color: "from-blue-500 to-cyan-500",
+    color: "from-[#3b82f6] to-[#22d3ee]",
   },
   {
     href: "/video",
     label: "Create Video",
     description: "Generate AI videos",
     icon: Video,
-    color: "from-purple-500 to-pink-500",
+    color: "from-[#a855f7] to-[#ec4899]",
   },
   {
     href: "/enhancer",

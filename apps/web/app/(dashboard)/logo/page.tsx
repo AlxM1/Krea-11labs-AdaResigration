@@ -561,8 +561,8 @@ export default function LogoGenerationPage() {
                         />
                       ) : (
                         <div className="text-center">
-                          <Hexagon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                          <p className="text-xs text-gray-400">
+                          <Hexagon className="h-8 w-8 text-[#555] mx-auto mb-2" />
+                          <p className="text-xs text-[#888]">
                             {result.error || "Failed"}
                           </p>
                         </div>
