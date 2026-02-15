@@ -124,7 +124,7 @@ export default function EditorPage() {
                     "p-3 rounded-lg border text-left transition-colors",
                     editMode === mode.id
                       ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/50"
+                      : "border-[#2a2a2a] hover:border-[#333]"
                   )}
                 >
                   <mode.icon className={cn(
@@ -310,12 +310,12 @@ export default function EditorPage() {
               </div>
             ) : (
               <div
-                className="border-2 border-dashed border-border rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                className="border-2 border-dashed border-[#2a2a2a] rounded-xl p-12 text-center cursor-pointer hover:border-[#333] transition-colors"
                 onClick={() => document.getElementById("editor-upload")?.click()}
               >
-                <Scissors className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <Scissors className="h-12 w-12 text-[#333] mx-auto mb-4" strokeWidth={1.5} />
                 <h3 className="text-lg font-semibold mb-2">Upload an image to edit</h3>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-[#555] text-sm">
                   Supports JPG, PNG, WebP
                 </p>
               </div>

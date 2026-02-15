@@ -141,9 +141,9 @@ export default function EnhancerPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full p-4 gap-4">
       {/* Left Panel - Controls */}
-      <div className="w-80 border-r border-border flex flex-col">
+      <div className="w-80 shrink-0 flex flex-col bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
         <div className="p-4 border-b border-border">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Wand2 className="h-5 w-5" />
@@ -163,7 +163,7 @@ export default function EnhancerPage() {
               onChange={setSelectedModel}
               options={enhancerModels.map((m) => ({ value: m.id, label: m.name }))}
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-[#555] mt-1">
               {enhancerModels.find((m) => m.id === selectedModel)?.description}
             </p>
           </div>
@@ -177,10 +177,10 @@ export default function EnhancerPage() {
                   key={option.value}
                   onClick={() => setScale(option.value)}
                   className={cn(
-                    "py-3 rounded-lg border text-center transition-colors",
+                    "py-3 rounded-lg border text-center transition-all duration-150",
                     scale === option.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50"
+                      ? "border-transparent bg-[#6c5ce7] text-white"
+                      : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                   )}
                 >
                   <div className="text-lg font-bold">{option.label}</div>
@@ -302,20 +302,20 @@ export default function EnhancerPage() {
         <div className="flex-1 p-6 overflow-auto">
           {!inputImage ? (
             <div
-              className="h-full border-2 border-dashed border-border rounded-xl flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+              className="h-full border-2 border-dashed border-[#2a2a2a] rounded-xl flex items-center justify-center cursor-pointer hover:border-[#333] transition-colors"
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
               onClick={() => document.getElementById("image-upload")?.click()}
             >
               <div className="text-center">
                 <div className="w-20 h-20 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <Upload className="h-8 w-8 text-[#333]" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Upload an image</h3>
-                <p className="text-muted-foreground text-sm mb-4">
+                <p className="text-[#555] text-sm mb-4">
                   Drag and drop or click to browse
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#555]">
                   Supports JPG, PNG, WebP up to 10MB
                 </p>
               </div>
@@ -357,7 +357,7 @@ export default function EnhancerPage() {
                     />
                   ) : (
                     <div className="w-64 h-64 bg-muted flex items-center justify-center">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                      <ImageIcon className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
                     </div>
                   )}
                 </div>

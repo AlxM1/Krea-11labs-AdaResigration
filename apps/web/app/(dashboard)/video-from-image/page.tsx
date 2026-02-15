@@ -163,9 +163,9 @@ export default function VideoFromImagePage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full p-4 gap-4">
       {/* Left Panel - Controls */}
-      <div className="w-[340px] border-r border-[#1f1f1f] flex flex-col bg-sidebar">
+      <div className="w-[340px] shrink-0 flex flex-col bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
         <div className="p-4 border-b border-[#1f1f1f]">
           <h1 className="text-base font-semibold flex items-center gap-2">
             <Video className="h-5 w-5" />
@@ -344,7 +344,7 @@ export default function VideoFromImagePage() {
         ) : (
           <div className="text-center">
             <div className="w-24 h-24 rounded-xl bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
-              <Video className="h-10 w-10 text-[#555]" />
+              <Video className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
             </div>
             <h3 className="text-base font-semibold mb-1">No video yet</h3>
             <p className="text-sm text-[#555]">Upload an image to get started</p>

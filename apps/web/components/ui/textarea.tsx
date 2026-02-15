@@ -13,11 +13,11 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       <div className="relative">
         <textarea
           className={cn(
-            "flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm",
-            "ring-offset-background placeholder:text-muted-foreground",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "flex min-h-[80px] w-full rounded-lg border border-[#2a2a2a] bg-background px-3 py-2 text-sm",
+            "placeholder:text-muted-foreground",
+            "focus-visible:outline-none focus-visible:border-[#6c5ce7] focus-visible:shadow-[0_0_0_2px_rgba(108,92,231,0.15)]",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            "transition-all duration-200 resize-none",
+            "transition-all duration-200 resize-y",
             error && "border-destructive focus-visible:ring-destructive",
             className
           )}

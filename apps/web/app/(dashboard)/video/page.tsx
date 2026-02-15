@@ -190,9 +190,9 @@ export default function VideoGenerationPage() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-full">
+      <div className="flex h-full p-4 gap-4">
         {/* Left Panel - Controls */}
-        <div className="w-96 border-r border-border flex flex-col">
+        <div className="w-96 shrink-0 flex flex-col bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
           <div className="p-4 border-b border-border">
             <h1 className="text-xl font-bold flex items-center gap-2">
               <Video className="h-5 w-5" />
@@ -268,7 +268,7 @@ export default function VideoGenerationPage() {
                   <label className="text-sm font-medium mb-2 block">First Frame</label>
                   <div
                     className={cn(
-                      "border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors",
+                      "border-2 border-dashed border-[#2a2a2a] rounded-lg p-4 text-center cursor-pointer hover:border-[#333] transition-colors",
                       inputImage && "border-primary"
                     )}
                     onClick={() => document.getElementById("image-upload")?.click()}
@@ -321,7 +321,7 @@ export default function VideoGenerationPage() {
                 label: model.name,
               }))}
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-[#555] mt-1">
               {videoModels.find((m) => m.id === selectedModel)?.description}
             </p>
           </div>
@@ -351,10 +351,10 @@ export default function VideoGenerationPage() {
                     <button
                       onClick={() => setAspectRatio(ratio)}
                       className={cn(
-                        "flex-1 py-2 text-sm rounded-lg border transition-colors",
+                        "flex-1 py-2 text-sm rounded-lg border transition-all duration-150",
                         aspectRatio === ratio
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:border-primary/50"
+                          ? "border-transparent bg-[#6c5ce7] text-white"
+                          : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                       )}
                     >
                       {ratio}
@@ -443,8 +443,8 @@ export default function VideoGenerationPage() {
                     <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
                     <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
                   </div>
-                  <p className="text-muted-foreground">Generating your video...</p>
-                  <p className="text-sm text-muted-foreground mt-1">This may take a few minutes</p>
+                  <p className="text-[#555]">Generating your video...</p>
+                  <p className="text-sm text-[#555] mt-1">This may take a few minutes</p>
                 </div>
               ) : videoResult?.videoUrl ? (
                 <div className="w-full max-w-2xl">
@@ -472,10 +472,10 @@ export default function VideoGenerationPage() {
               ) : (
                 <div className="text-center">
                   <div className="w-32 h-32 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                    <Video className="h-12 w-12 text-muted-foreground" />
+                    <Video className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">No video yet</h3>
-                  <p className="text-muted-foreground max-w-md">
+                  <p className="text-[#555] max-w-md">
                     Enter a prompt or upload an image, then click Generate to create your video
                   </p>
                 </div>
@@ -485,8 +485,8 @@ export default function VideoGenerationPage() {
 
           <TabsContent value="history" className="flex-1 p-4 overflow-y-auto">
             <div className="text-center py-12">
-              <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Your video history will appear here</p>
+              <Clock className="h-12 w-12 text-[#333] mx-auto mb-4" strokeWidth={1.5} />
+              <p className="text-[#555]">Your video history will appear here</p>
             </div>
           </TabsContent>
         </Tabs>

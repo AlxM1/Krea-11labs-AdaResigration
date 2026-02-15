@@ -168,9 +168,9 @@ export default function ThreeDPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full p-4 gap-4">
       {/* Left Panel - Controls */}
-      <div className="w-80 border-r border-border flex flex-col">
+      <div className="w-80 shrink-0 flex flex-col bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
         <div className="p-4 border-b border-border">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Box className="h-5 w-5" />
@@ -207,7 +207,7 @@ export default function ThreeDPage() {
               <div
                 className={cn(
                   "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-                  inputImage ? "border-primary" : "border-border hover:border-primary/50"
+                  inputImage ? "border-primary" : "border-[#2a2a2a] hover:border-[#333]"
                 )}
                 onClick={() => document.getElementById("3d-upload")?.click()}
               >
@@ -274,7 +274,7 @@ export default function ThreeDPage() {
               onChange={setSelectedModel}
               options={models3D.map((m) => ({ value: m.value, label: m.label }))}
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-[#555] mt-1">
               {models3D.find((m) => m.value === selectedModel)?.description}
             </p>
           </div>
@@ -288,10 +288,10 @@ export default function ThreeDPage() {
                   key={format.value}
                   onClick={() => setExportFormat(format.value)}
                   className={cn(
-                    "py-2 rounded-lg border text-sm font-medium transition-colors",
+                    "py-2 rounded-lg border text-sm font-medium transition-all duration-150",
                     exportFormat === format.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50"
+                      ? "border-transparent bg-[#6c5ce7] text-white"
+                      : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                   )}
                 >
                   {format.label}
@@ -395,14 +395,14 @@ export default function ThreeDPage() {
                 <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
                 <Box className="absolute inset-0 m-auto h-10 w-10 text-primary animate-pulse" />
               </div>
-              <p className="text-muted-foreground">Generating 3D model...</p>
-              <p className="text-sm text-muted-foreground mt-1">This may take a minute</p>
+              <p className="text-[#555]">Generating 3D model...</p>
+              <p className="text-sm text-[#555] mt-1">This may take a minute</p>
             </div>
           ) : hasResult && modelUrl ? (
             <Suspense fallback={
               <div className="text-center">
-                <Box className="h-16 w-16 text-muted-foreground mx-auto mb-4 animate-spin" />
-                <p className="text-sm text-muted-foreground">Loading 3D viewer...</p>
+                <Box className="h-12 w-12 text-[#333] mx-auto mb-4 animate-spin" strokeWidth={1.5} />
+                <p className="text-sm text-[#555]">Loading 3D viewer...</p>
               </div>
             }>
               <ThreeDViewer
@@ -419,9 +419,9 @@ export default function ThreeDPage() {
             </Suspense>
           ) : (
             <div className="text-center">
-              <Box className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <Box className="h-12 w-12 text-[#333] mx-auto mb-4" strokeWidth={1.5} />
               <h3 className="text-lg font-semibold mb-2">No 3D model yet</h3>
-              <p className="text-muted-foreground text-sm max-w-md">
+              <p className="text-[#555] text-sm max-w-md">
                 Upload an image or enter a text prompt, then click Generate to create a 3D model
               </p>
             </div>

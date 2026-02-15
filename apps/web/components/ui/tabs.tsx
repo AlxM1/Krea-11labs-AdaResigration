@@ -54,7 +54,7 @@ export function TabsList({ children, className }: TabsListProps) {
   return (
     <div
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground",
+        "inline-flex h-10 items-center gap-1",
         className
       )}
     >
@@ -77,22 +77,16 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
     <button
       onClick={() => setActiveTab(value)}
       className={cn(
-        "relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium",
-        "ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "inline-flex items-center justify-center whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md",
+        "transition-all duration-150",
         "disabled:pointer-events-none disabled:opacity-50",
+        isActive
+          ? "bg-[#1a1a1a] text-white"
+          : "text-[#888] hover:text-white",
         className
       )}
     >
-      {isActive && (
-        <motion.div
-          layoutId="activeTab"
-          className="absolute inset-0 bg-background rounded-md shadow-sm"
-          transition={{ type: "spring", duration: 0.3 }}
-        />
-      )}
-      <span className={cn("relative z-10", isActive && "text-foreground")}>
-        {children}
-      </span>
+      {children}
     </button>
   );
 }

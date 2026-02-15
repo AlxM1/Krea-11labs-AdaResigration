@@ -163,7 +163,7 @@ export default function HistoryPage() {
                 key={item.id}
                 className={cn(
                   "group relative rounded-xl border bg-card overflow-hidden cursor-pointer transition-all",
-                  isSelected ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/50"
+                  isSelected ? "border-primary ring-2 ring-primary" : "border-[#2a2a2a] hover:border-[#333]"
                 )}
                 onClick={() => toggleSelect(item.id)}
               >
@@ -228,9 +228,9 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="text-center py-16">
-          <Clock className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <Clock className="h-12 w-12 text-[#333] mx-auto mb-4" strokeWidth={1.5} />
           <h3 className="text-lg font-semibold mb-2">No history found</h3>
-          <p className="text-muted-foreground">
+          <p className="text-[#555]">
             {searchQuery ? "Try a different search term" : "Start generating to see your history"}
           </p>
         </div>

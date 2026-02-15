@@ -250,9 +250,9 @@ export default function GalleryPage() {
         ) : filteredGenerations.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
-              <ImageIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <ImageIcon className="h-12 w-12 text-[#333] mx-auto mb-4" strokeWidth={1.5} />
               <h3 className="text-lg font-semibold mb-2">No generations yet</h3>
-              <p className="text-muted-foreground">
+              <p className="text-[#555]">
                 {searchQuery ? "No results match your search" : "Start creating to fill your gallery"}
               </p>
             </div>
@@ -269,10 +269,10 @@ export default function GalleryPage() {
                 >
                   <Card
                     className={cn(
-                      "group relative overflow-hidden cursor-pointer rounded-xl transition-colors",
+                      "group relative overflow-hidden cursor-pointer rounded-xl transition-all duration-150",
                       selectMode && selectedIds.has(gen.id)
                         ? "border-primary ring-2 ring-primary"
-                        : "border-border/50 hover:border-border"
+                        : "border-transparent hover:border-[#2a2a2a] hover:scale-[1.02]"
                     )}
                     onClick={() => selectMode ? toggleSelect(gen.id) : setSelectedItem(gen)}
                   >

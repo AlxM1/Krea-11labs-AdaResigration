@@ -190,9 +190,9 @@ export default function StyleTransferPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full p-4 gap-4">
       {/* Left Panel - Controls */}
-      <div className="w-96 border-r border-border flex flex-col">
+      <div className="w-96 shrink-0 flex flex-col bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
         <div className="p-4 border-b border-border">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Paintbrush className="h-5 w-5" />
@@ -216,7 +216,7 @@ export default function StyleTransferPage() {
                   ? "border-primary bg-primary/5"
                   : contentImage
                     ? "border-primary"
-                    : "border-border hover:border-primary/50"
+                    : "border-[#2a2a2a] hover:border-[#333]"
               )}
               onClick={() =>
                 document.getElementById("content-image-upload")?.click()
@@ -298,7 +298,7 @@ export default function StyleTransferPage() {
                 "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
                 styleSource === "reference" && styleReferenceImage
                   ? "border-primary"
-                  : "border-border hover:border-primary/50"
+                  : "border-[#2a2a2a] hover:border-[#333]"
               )}
               onClick={() =>
                 document.getElementById("style-ref-upload")?.click()
@@ -399,10 +399,10 @@ export default function StyleTransferPage() {
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="w-32 h-32 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <Paintbrush className="h-12 w-12 text-muted-foreground" />
+                  <Paintbrush className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">No image yet</h3>
-                <p className="text-muted-foreground max-w-md">
+                <p className="text-[#555] max-w-md">
                   Upload a content image and choose a style to transform it with
                   AI-powered style transfer
                 </p>
@@ -455,7 +455,7 @@ export default function StyleTransferPage() {
                     />
                   ) : (
                     <div className="w-64 h-64 bg-muted flex items-center justify-center">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                      <ImageIcon className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
                     </div>
                   )}
                 </div>

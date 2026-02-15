@@ -270,10 +270,10 @@ export default function LogoGenerationPage() {
                     onClick={() => setLogoType(type.id)}
                     title={type.description}
                     className={cn(
-                      "flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-center",
+                      "flex flex-col items-center gap-1 p-2 rounded-lg border transition-all duration-150 text-center",
                       logoType === type.id
-                        ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
-                        : "border-border hover:border-primary/50"
+                        ? "border-transparent bg-[#6c5ce7] text-white"
+                        : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -332,10 +332,10 @@ export default function LogoGenerationPage() {
                     key={font.id}
                     onClick={() => setFontStyle(font.id)}
                     className={cn(
-                      "p-2 rounded-lg border transition-all text-center",
+                      "p-2 rounded-lg border transition-all duration-150 text-center",
                       fontStyle === font.id
-                        ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
-                        : "border-border hover:border-primary/50"
+                        ? "border-transparent bg-[#6c5ce7] text-white"
+                        : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                     )}
                   >
                     <span className={cn("text-xs", font.fontClass)}>{font.label}</span>
@@ -376,10 +376,10 @@ export default function LogoGenerationPage() {
                     key={pos}
                     onClick={() => setTextPosition(pos)}
                     className={cn(
-                      "py-2 text-sm rounded-lg border transition-colors capitalize",
+                      "py-2 text-sm rounded-lg border transition-all duration-150 capitalize",
                       textPosition === pos
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:border-primary/50"
+                        ? "border-transparent bg-[#6c5ce7] text-white"
+                        : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                     )}
                   >
                     {pos}
@@ -405,10 +405,10 @@ export default function LogoGenerationPage() {
                       setUseCustomColor(false);
                     }}
                     className={cn(
-                      "flex flex-col items-center gap-1 p-2 rounded-lg border transition-all",
+                      "flex flex-col items-center gap-1 p-2 rounded-lg border transition-all duration-150",
                       !useCustomColor && selectedPalette === palette.id
-                        ? "border-primary bg-primary/10 ring-1 ring-primary"
-                        : "border-border hover:border-primary/50"
+                        ? "border-transparent bg-[#6c5ce7] text-white"
+                        : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                     )}
                   >
                     <div className="flex gap-0.5">
@@ -432,10 +432,10 @@ export default function LogoGenerationPage() {
                 <button
                   onClick={() => setUseCustomColor(!useCustomColor)}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border transition-colors",
+                    "flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border transition-all duration-150",
                     useCustomColor
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50"
+                      ? "border-transparent bg-[#6c5ce7] text-white"
+                      : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                   )}
                 >
                   Custom
@@ -469,17 +469,17 @@ export default function LogoGenerationPage() {
                   key={num}
                   onClick={() => setCount(num)}
                   className={cn(
-                    "py-2 text-sm rounded-lg border transition-colors",
+                    "py-2 text-sm rounded-lg border transition-all duration-150",
                     count === num
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50"
+                      ? "border-transparent bg-[#6c5ce7] text-white"
+                      : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                   )}
                 >
                   {num}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-[#555] mt-1">
               Each variation uses a different visual style
             </p>
           </div>
@@ -633,10 +633,10 @@ export default function LogoGenerationPage() {
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="w-32 h-32 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <Hexagon className="h-12 w-12 text-muted-foreground" />
+                  <Hexagon className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">No logos yet</h3>
-                <p className="text-muted-foreground max-w-md">
+                <p className="text-[#555] max-w-md">
                   Enter your company name, choose a type and style, then click
                   Generate to create unique logo variations with text compositing
                 </p>

@@ -112,9 +112,9 @@ export default function RealtimePage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full p-4 gap-4">
       {/* Left Toolbar */}
-      <div className="w-64 border-r border-border p-4 space-y-4 overflow-y-auto">
+      <div className="w-64 shrink-0 bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-4 space-y-4 overflow-y-auto">
         <Toolbar
           onClear={handleClear}
           onDownload={handleDownload}

@@ -139,9 +139,9 @@ export default function ImageGenerationPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full p-4 gap-4">
       {/* Left Panel - Generation Controls */}
-      <div className="w-96 border-r border-border flex flex-col">
+      <div className="w-96 shrink-0 flex flex-col bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
         <div className="p-4 border-b border-border">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <ImageIcon className="h-5 w-5" />
@@ -181,7 +181,7 @@ export default function ImageGenerationPage() {
               placeholder="Describe what you want to create..."
               value={params.prompt}
               onChange={(e) => setParams({ prompt: e.target.value })}
-              className="min-h-[120px] resize-none"
+              className="min-h-[120px]"
             />
           </div>
 
@@ -196,7 +196,7 @@ export default function ImageGenerationPage() {
               placeholder="What to avoid in the image..."
               value={params.negativePrompt}
               onChange={(e) => setParams({ negativePrompt: e.target.value })}
-              className="min-h-[60px] resize-none"
+              className="min-h-[80px]"
             />
           </div>
 
@@ -222,7 +222,7 @@ export default function ImageGenerationPage() {
                 label: model.name,
               }))}
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-[#555] mt-1">
               {imageModels.find((m) => m.id === params.model)?.description}
             </p>
           </div>
@@ -239,10 +239,10 @@ export default function ImageGenerationPage() {
                   key={aspect.id}
                   onClick={() => handleAspectChange(aspect.id)}
                   className={cn(
-                    "px-3 py-1.5 text-sm rounded-lg border transition-colors",
+                    "px-3 py-1.5 text-sm rounded-lg border transition-all duration-150",
                     selectedAspect === aspect.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50"
+                      ? "border-transparent bg-[#6c5ce7] text-white"
+                      : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                   )}
                 >
                   {aspect.label}
@@ -279,10 +279,10 @@ export default function ImageGenerationPage() {
                   key={count}
                   onClick={() => setParams({ batchSize: count })}
                   className={cn(
-                    "flex-1 py-2 text-sm rounded-lg border transition-colors",
+                    "flex-1 py-2 text-sm rounded-lg border transition-all duration-150",
                     params.batchSize === count
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50"
+                      ? "border-transparent bg-[#6c5ce7] text-white"
+                      : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                   )}
                 >
                   {count === 1 ? "1 image" : `${count} variations`}
@@ -379,10 +379,10 @@ export default function ImageGenerationPage() {
                         key={size}
                         onClick={() => setParams({ batchSize: size })}
                         className={cn(
-                          "py-2 text-sm rounded-lg border transition-colors",
+                          "py-2 text-sm rounded-lg border transition-all duration-150",
                           params.batchSize === size
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border hover:border-primary/50"
+                            ? "border-transparent bg-[#6c5ce7] text-white"
+                            : "border-[#2a2a2a] text-[#888] hover:border-[#333]"
                         )}
                       >
                         {size}
@@ -479,11 +479,11 @@ export default function ImageGenerationPage() {
                 </div>
               ) : (
                 <div className="text-center">
-                  <div className="w-32 h-32 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                    <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                  <div className="w-24 h-24 rounded-2xl bg-[#111] flex items-center justify-center mx-auto mb-4">
+                    <ImageIcon className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">No image yet</h3>
-                  <p className="text-muted-foreground max-w-md">
+                  <p className="text-[#555] max-w-md">
                     Enter a prompt and click Generate to create your first image
                   </p>
                 </div>

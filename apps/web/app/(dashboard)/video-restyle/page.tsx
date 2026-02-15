@@ -66,9 +66,9 @@ export default function VideoRestylePage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full p-4 gap-4">
       {/* Left Panel */}
-      <div className="w-80 border-r border-border flex flex-col">
+      <div className="w-80 shrink-0 flex flex-col bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
         <div className="p-4 border-b border-border">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Palette className="h-5 w-5" />
@@ -86,7 +86,7 @@ export default function VideoRestylePage() {
             <div
               className={cn(
                 "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-                videoFile ? "border-primary" : "border-border hover:border-primary/50"
+                videoFile ? "border-primary" : "border-[#2a2a2a] hover:border-[#333]"
               )}
               onClick={() => document.getElementById("restyle-video")?.click()}
             >
@@ -159,7 +159,7 @@ export default function VideoRestylePage() {
               <div
                 className={cn(
                   "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-                  referenceImage ? "border-primary" : "border-border hover:border-primary/50"
+                  referenceImage ? "border-primary" : "border-[#2a2a2a] hover:border-[#333]"
                 )}
                 onClick={() => document.getElementById("style-ref")?.click()}
               >
@@ -247,9 +247,9 @@ export default function VideoRestylePage() {
           ) : videoFile ? (
             <video src={videoFile} className="max-h-[70vh] rounded-lg" controls />
           ) : (
-            <div className="text-center text-muted-foreground">
-              <Palette className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p>Upload a video to preview</p>
+            <div className="text-center">
+              <Palette className="h-12 w-12 text-[#333] mx-auto mb-4" strokeWidth={1.5} />
+              <p className="text-[#555]">Upload a video to preview</p>
             </div>
           )}
         </div>

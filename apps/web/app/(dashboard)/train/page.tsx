@@ -157,7 +157,7 @@ export default function TrainPage() {
                     "p-3 rounded-lg border text-left transition-colors",
                     trainingType === type.id
                       ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/50"
+                      : "border-[#2a2a2a] hover:border-[#333]"
                   )}
                 >
                   <type.icon className={cn(
@@ -314,18 +314,18 @@ export default function TrainPage() {
         <div className="flex-1 p-4 overflow-auto">
           {images.length === 0 ? (
             <div
-              className="h-full border-2 border-dashed border-border rounded-xl flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+              className="h-full border-2 border-dashed border-[#2a2a2a] rounded-xl flex items-center justify-center cursor-pointer hover:border-[#333] transition-colors"
               onClick={() => document.getElementById("train-upload")?.click()}
             >
               <div className="text-center">
                 <div className="w-20 h-20 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  <ImageIcon className="h-8 w-8 text-[#333]" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Upload training images</h3>
-                <p className="text-muted-foreground text-sm mb-2">
+                <p className="text-[#555] text-sm mb-2">
                   Drag and drop or click to browse
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#555]">
                   Upload 10-50 images for best results
                 </p>
               </div>
@@ -354,7 +354,7 @@ export default function TrainPage() {
               {/* Add more button */}
               <button
                 onClick={() => document.getElementById("train-upload")?.click()}
-                className="aspect-square rounded-lg border-2 border-dashed border-border flex items-center justify-center hover:border-primary/50 transition-colors"
+                className="aspect-square rounded-lg border-2 border-dashed border-[#2a2a2a] flex items-center justify-center hover:border-[#333] transition-colors"
               >
                 <Plus className="h-8 w-8 text-muted-foreground" />
               </button>

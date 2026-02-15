@@ -122,9 +122,9 @@ export default function BackgroundRemovalPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full p-4 gap-4">
       {/* Left Panel - Controls */}
-      <div className="w-96 border-r border-border flex flex-col">
+      <div className="w-96 shrink-0 flex flex-col bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
         <div className="p-4 border-b border-border">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Eraser className="h-5 w-5" />
@@ -148,7 +148,7 @@ export default function BackgroundRemovalPage() {
                   ? "border-primary bg-primary/5"
                   : uploadedImage
                     ? "border-primary"
-                    : "border-border hover:border-primary/50"
+                    : "border-[#2a2a2a] hover:border-[#333]"
               )}
               onClick={() =>
                 document.getElementById("bg-removal-upload")?.click()
@@ -259,12 +259,12 @@ export default function BackgroundRemovalPage() {
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="w-32 h-32 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <Eraser className="h-12 w-12 text-muted-foreground" />
+                  <Eraser className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">
                   No image uploaded
                 </h3>
-                <p className="text-muted-foreground max-w-md">
+                <p className="text-[#555] max-w-md">
                   Upload an image to remove its background and get a transparent
                   PNG
                 </p>
@@ -323,7 +323,7 @@ export default function BackgroundRemovalPage() {
                     </motion.div>
                   ) : (
                     <div className="w-64 h-64 bg-muted flex items-center justify-center">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                      <ImageIcon className="h-12 w-12 text-[#333]" strokeWidth={1.5} />
                     </div>
                   )}
                 </div>
