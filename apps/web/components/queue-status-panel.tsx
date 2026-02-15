@@ -102,13 +102,13 @@ export function QueueStatusPanel() {
           <span className="text-sm text-muted-foreground">Waiting Jobs</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-2xl font-bold text-green-500">
+          <span className="text-2xl font-bold text-[hsl(var(--success))]">
             {status.queues.image.completed + status.queues.video.completed}
           </span>
           <span className="text-sm text-muted-foreground">Completed</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-2xl font-bold text-red-500">
+          <span className="text-2xl font-bold text-destructive">
             {status.queues.image.failed + status.queues.video.failed}
           </span>
           <span className="text-sm text-muted-foreground">Failed</span>

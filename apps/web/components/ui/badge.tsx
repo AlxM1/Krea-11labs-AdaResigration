@@ -16,8 +16,8 @@ export function Badge({
     default: "bg-primary text-primary-foreground",
     secondary: "bg-secondary text-secondary-foreground",
     outline: "border border-border text-foreground bg-transparent",
-    success: "bg-green-500/20 text-green-400 border border-green-500/30",
-    warning: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
+    success: "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] border border-[hsl(var(--success))]/30",
+    warning: "bg-[hsl(var(--warning))]/20 text-[hsl(var(--warning))] border border-[hsl(var(--warning))]/30",
     destructive: "bg-destructive/20 text-destructive border border-destructive/30",
   };
 

@@ -32,12 +32,12 @@ interface QueueStatus {
 }
 
 const typeConfig: Record<string, { icon: typeof ImageIcon; label: string; color: string }> = {
-  image: { icon: ImageIcon, label: "Image", color: "text-blue-400" },
-  video: { icon: Video, label: "Video", color: "text-purple-400" },
-  enhancement: { icon: Wand2, label: "Enhance", color: "text-emerald-400" },
-  logo: { icon: Palette, label: "Logo", color: "text-amber-400" },
-  "style-transfer": { icon: Palette, label: "Style", color: "text-pink-400" },
-  "bg-removal": { icon: Scissors, label: "BG Remove", color: "text-cyan-400" },
+  image: { icon: ImageIcon, label: "Image", color: "text-[#888]" },
+  video: { icon: Video, label: "Video", color: "text-[#888]" },
+  enhancement: { icon: Wand2, label: "Enhance", color: "text-[#888]" },
+  logo: { icon: Palette, label: "Logo", color: "text-[#888]" },
+  "style-transfer": { icon: Palette, label: "Style", color: "text-[#888]" },
+  "bg-removal": { icon: Scissors, label: "BG Remove", color: "text-[#888]" },
 };
 
 function formatElapsed(timestamp: number): string {
