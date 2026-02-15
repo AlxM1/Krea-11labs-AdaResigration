@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Grid2X2,
@@ -33,6 +33,31 @@ interface Generation {
 }
 
 type FilterType = "all" | "images" | "videos" | "upscales" | "logos";
+
+function SelectAllCheckbox({ selectedCount, totalCount, onToggle }: { selectedCount: number; totalCount: number; onToggle: () => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const allSelected = selectedCount === totalCount;
+  const partial = selectedCount > 0 && !allSelected;
+
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = partial;
+  }, [partial]);
+
+  return (
+    <label className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={allSelected}
+        onChange={onToggle}
+        className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
+      />
+      {selectedCount === 0
+        ? `Select All (${totalCount})`
+        : `${selectedCount} of ${totalCount} selected`}
+    </label>
+  );
+}
 
 export default function GalleryPage() {
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -155,6 +180,19 @@ export default function GalleryPage() {
             >
               {selectMode ? "Cancel" : "Select"}
             </Button>
+            {selectMode && filteredGenerations.length > 0 && (
+              <SelectAllCheckbox
+                selectedCount={selectedIds.size}
+                totalCount={filteredGenerations.length}
+                onToggle={() => {
+                  if (selectedIds.size === filteredGenerations.length) {
+                    setSelectedIds(new Set());
+                  } else {
+                    setSelectedIds(new Set(filteredGenerations.map((g) => g.id)));
+                  }
+                }}
+              />
+            )}
             {selectedIds.size > 0 && (
               <Button
                 variant="destructive"
