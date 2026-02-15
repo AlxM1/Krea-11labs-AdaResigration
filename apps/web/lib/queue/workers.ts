@@ -135,10 +135,14 @@ async function processVideoGeneration(job: Job<VideoGenerationJob>): Promise<{ i
       data: { status: "PROCESSING" },
     });
 
+    await job.updateProgress(10);
+
     const result = await generateVideo(
       { prompt: prompt || "", imageUrl, duration, aspectRatio, model },
       provider
     );
+
+    await job.updateProgress(80);
 
     if (result.status === "failed") {
       await prisma.video.update({
@@ -199,6 +203,7 @@ async function processVideoGeneration(job: Job<VideoGenerationJob>): Promise<{ i
       } satisfies NotificationJob);
     }
 
+    await job.updateProgress(100);
     return { id: videoId, videoUrl: finalVideoUrl, status: result.status || "completed" };
   } catch (error) {
     emitJobComplete(userId, {

@@ -1563,21 +1563,14 @@ async function waitForCompletion(
 
         for (const nodeId in outputs) {
           const nodeOutput = outputs[nodeId];
-          if (nodeOutput.images) {
-            for (const image of nodeOutput.images) {
+          // Check all known output keys: images, gifs, videos (VHS_VideoCombine)
+          const outputArrays = [nodeOutput.images, nodeOutput.gifs, nodeOutput.videos].filter(Boolean);
+          for (const arr of outputArrays) {
+            for (const item of arr) {
               images.push({
-                filename: image.filename,
-                subfolder: image.subfolder || "",
-                type: image.type || "output",
-              });
-            }
-          }
-          if (nodeOutput.gifs) {
-            for (const gif of nodeOutput.gifs) {
-              images.push({
-                filename: gif.filename,
-                subfolder: gif.subfolder || "",
-                type: gif.type || "output",
+                filename: item.filename,
+                subfolder: item.subfolder || "",
+                type: item.type || "output",
               });
             }
           }
@@ -1587,6 +1580,14 @@ async function waitForCompletion(
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
           console.log(`[ComfyUI] Generation complete in ${elapsed}s (${images.length} outputs)`);
           return images;
+        }
+
+        // History exists and status is not error, but no outputs extracted — job completed with no output
+        const statusStr = history[promptId].status?.status_str;
+        if (statusStr === "success" || statusStr === "complete") {
+          const outputKeys = Object.values(outputs).flatMap(o => Object.keys(o as Record<string, unknown>));
+          console.error(`[ComfyUI] Job completed but no outputs extracted. Output keys found: ${outputKeys.join(", ")}`);
+          throw new Error(`ComfyUI workflow completed but produced no extractable output (keys: ${outputKeys.join(", ")})`);
         }
       }
 
@@ -1603,7 +1604,7 @@ async function waitForCompletion(
           }
 
           // Stuck detection: queue shows no jobs running AND no pending, but no output yet
-          if (queueStatus.running === 0 && queueStatus.pending === 0 && !history[promptId]) {
+          if (queueStatus.running === 0 && queueStatus.pending === 0) {
             const stuckDuration = Date.now() - lastProgressTime;
             if (stuckDuration > STUCK_DETECTION_THRESHOLD) {
               console.error(`[ComfyUI] Job appears stuck: no queue activity for ${(stuckDuration / 1000).toFixed(0)}s`);
@@ -1625,6 +1626,8 @@ async function waitForCompletion(
       if (error instanceof Error && (
         error.message.includes("failed") ||
         error.message.includes("stuck") ||
+        error.message.includes("stalled") ||
+        error.message.includes("completed but") ||
         error.message.includes("unresponsive")
       )) {
         throw error;
