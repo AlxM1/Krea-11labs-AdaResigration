@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { generateImage, AIProvider, enhancePrompt, generateNegativePrompt } from "@/lib/ai/providers";
+import { generateImage, AIProvider, enhancePrompt, generateNegativePrompt, GenerationRequest } from "@/lib/ai/providers";
+import { executeImageChain } from "@/lib/ai/provider-chain";
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { addJob, isQueueAvailable, QueueNames, ImageGenerationJob } from "@/lib/queue";
 import { z } from "zod";
@@ -145,23 +146,43 @@ export async function POST(req: NextRequest) {
       data: { status: "PROCESSING" },
     });
 
-    // Call AI provider
-    const aiResponse = await generateImage(
-      {
-        prompt: finalPrompt,
-        negativePrompt: finalNegativePrompt,
-        width: params.width,
-        height: params.height,
-        steps: params.steps,
-        cfgScale: params.cfgScale,
-        seed: params.seed > 0 ? params.seed : undefined,
-        model: actualModel,
-        batchSize: params.batchSize,
-      },
-      provider
+    // Determine feature type for the provider chain
+    const chainFeature = params.model?.includes("img2img") ? "image-to-image" : "text-to-image";
+
+    const genRequest: GenerationRequest = {
+      prompt: finalPrompt,
+      negativePrompt: finalNegativePrompt,
+      width: params.width,
+      height: params.height,
+      steps: params.steps,
+      cfgScale: params.cfgScale,
+      seed: params.seed > 0 ? params.seed : undefined,
+      model: actualModel,
+      batchSize: params.batchSize,
+    };
+
+    // Use provider chain for automatic failover across providers
+    // If an explicit provider was requested (and it's not the default), try it first directly
+    // then fall back to the chain if it fails
+    const chainResult = await executeImageChain(
+      chainFeature,
+      genRequest,
+      async (chainProvider, chainRequest) => {
+        return generateImage(chainRequest, chainProvider);
+      }
     );
 
-    if (aiResponse.status === "failed" || !aiResponse.imageUrl) {
+    // Log failover attempts for observability
+    if (chainResult.attempts.length > 1) {
+      console.log(
+        `[Failover] Image generation required ${chainResult.attempts.length} attempts:`,
+        chainResult.attempts.map(a => `${a.provider}(${a.success ? 'ok' : 'fail'}${a.duration ? ` ${a.duration}ms` : ''}${a.error ? `: ${a.error}` : ''})`).join(' → ')
+      );
+    }
+
+    const aiResponse = chainResult.result as import("@/lib/ai/providers").GenerationResponse | undefined;
+
+    if (!chainResult.success || !aiResponse || (aiResponse.status === "failed") || !aiResponse.imageUrl) {
       // Update generation as failed
       await prisma.generation.update({
         where: { id: generation.id },
@@ -169,16 +190,20 @@ export async function POST(req: NextRequest) {
           status: "FAILED",
           parameters: {
             ...(generation.parameters as object),
-            error: aiResponse.error || "Generation failed",
+            error: chainResult.finalError || aiResponse?.error || "Generation failed",
+            failoverAttempts: chainResult.attempts.map(a => ({ provider: a.provider, success: a.success, error: a.error, duration: a.duration })),
           },
         },
       });
 
       return NextResponse.json(
-        { error: aiResponse.error || "Generation failed", id: generation.id },
+        { error: chainResult.finalError || aiResponse?.error || "Generation failed", id: generation.id },
         { status: 500 }
       );
     }
+
+    // Track which provider actually succeeded
+    const successfulProvider = chainResult.attempts.find(a => a.success)?.provider || provider;
 
     // Upload generated images to storage (handles batch generation)
     const imageUrls = aiResponse.images || [aiResponse.imageUrl];
@@ -219,9 +244,12 @@ export async function POST(req: NextRequest) {
       imageUrl: primaryImageUrl,
       images: finalImageUrls, // Return all batch images
       seed: aiResponse.seed,
-      provider: provider,
+      provider: successfulProvider,
       prompt: finalPrompt,
       enhancedPrompt: params.enhancePrompt && finalPrompt !== params.prompt,
+      failover: chainResult.attempts.length > 1 ? {
+        attempts: chainResult.attempts.map(a => ({ provider: a.provider, success: a.success, duration: a.duration })),
+      } : undefined,
     });
   } catch (error) {
     console.error("Generation error:", error);
