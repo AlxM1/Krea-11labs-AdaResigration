@@ -5,6 +5,8 @@ import { generateVideo, AIProvider, VideoGenerationRequest } from "@/lib/ai/prov
 import { executeVideoChain } from "@/lib/ai/provider-chain";
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { addJob, isQueueAvailable, QueueNames, VideoGenerationJob } from "@/lib/queue";
+import { getCortexClient } from "@/lib/integrations/cortex-client";
+import { rateLimit, rateLimitConfigs, rateLimitResponse, getClientIdentifier } from "@/lib/rate-limit";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
@@ -24,6 +26,13 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth(req);
     const userId = session?.user?.id || "personal-user";
+
+    // Apply rate limiting (video is more expensive, use stricter limits)
+    const identifier = getClientIdentifier(req, userId);
+    const rateLimitResult = await rateLimit(identifier, rateLimitConfigs.expensive);
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
 
     const body = await req.json();
     const validated = videoGenerateSchema.safeParse(body);
@@ -96,6 +105,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Synchronous fallback: use provider chain with automatic failover
+    const cortex = getCortexClient();
+    const startTime = Date.now();
+    
+    await cortex.trackVideoGeneration(video.id, 'started', {
+      model: params.model,
+      provider: provider,
+      duration: params.duration,
+      aspectRatio: params.aspectRatio,
+      type: params.imageUrl ? 'image-to-video' : 'text-to-video',
+    });
+
     const videoRequest: VideoGenerationRequest = {
       prompt: params.prompt,
       imageUrl: params.imageUrl,
@@ -130,6 +150,9 @@ export async function POST(req: NextRequest) {
     const result = chainResult.result as import("@/lib/ai/providers").VideoGenerationResponse | undefined;
 
     if (!chainResult.success || !result) {
+      const duration = Date.now() - startTime;
+      const errorMsg = chainResult.finalError || "Video generation failed";
+
       await prisma.video.update({
         where: { id: video.id },
         data: {
@@ -141,8 +164,16 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Report failure to Cortex
+      await cortex.trackVideoGeneration(video.id, 'failed', {
+        model: params.model,
+        provider: provider,
+        duration,
+        failoverAttempts: chainResult.attempts.length,
+      }, errorMsg);
+
       return NextResponse.json(
-        { error: chainResult.finalError || "Video generation failed" },
+        { error: errorMsg },
         { status: 500 }
       );
     }
@@ -162,6 +193,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const duration = Date.now() - startTime;
+
     await prisma.video.update({
       where: { id: video.id },
       data: {
@@ -169,6 +202,25 @@ export async function POST(req: NextRequest) {
         videoUrl: finalVideoUrl,
       },
     });
+
+    // Report completion to Cortex
+    await cortex.trackVideoGeneration(video.id, result.status === "completed" ? 'completed' : 'processing', {
+      model: params.model,
+      provider: successfulProvider,
+      duration,
+      failoverAttempts: chainResult.attempts.length,
+    });
+
+    // Also report metrics for analytics
+    if (result.status === "completed") {
+      await cortex.reportMetrics({
+        service: 'krya',
+        operation: 'video-generation',
+        provider: successfulProvider,
+        duration,
+        success: true,
+      });
+    }
 
     return NextResponse.json({
       id: video.id,

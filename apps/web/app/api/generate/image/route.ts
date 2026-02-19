@@ -5,6 +5,8 @@ import { generateImage, AIProvider, enhancePrompt, generateNegativePrompt, Gener
 import { executeImageChain } from "@/lib/ai/provider-chain";
 import { uploadFromUrl } from "@/lib/storage/upload";
 import { addJob, isQueueAvailable, QueueNames, ImageGenerationJob } from "@/lib/queue";
+import { getCortexClient } from "@/lib/integrations/cortex-client";
+import { rateLimit, rateLimitConfigs, rateLimitResponse, getClientIdentifier } from "@/lib/rate-limit";
 import { z } from "zod";
 import { getModelById } from "@/lib/ai/model-registry";
 import { MODEL_ID_TO_CHECKPOINT } from "@/lib/ai-models";
@@ -32,6 +34,13 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth(req);
     const userId = session?.user?.id || "personal-user";
+
+    // Apply rate limiting
+    const identifier = getClientIdentifier(req, userId);
+    const rateLimitResult = await rateLimit(identifier, rateLimitConfigs.generation);
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
 
     const body = await req.json();
     const validated = generateSchema.safeParse(body);
@@ -146,6 +155,16 @@ export async function POST(req: NextRequest) {
       data: { status: "PROCESSING" },
     });
 
+    // Report to Cortex
+    const cortex = getCortexClient();
+    const startTime = Date.now();
+    await cortex.trackImageGeneration(generation.id, 'started', {
+      model: params.model,
+      provider: provider,
+      dimensions: `${params.width}x${params.height}`,
+      batchSize: params.batchSize,
+    });
+
     // Determine feature type for the provider chain
     const chainFeature = params.model?.includes("img2img") ? "image-to-image" : "text-to-image";
 
@@ -183,6 +202,9 @@ export async function POST(req: NextRequest) {
     const aiResponse = chainResult.result as import("@/lib/ai/providers").GenerationResponse | undefined;
 
     if (!chainResult.success || !aiResponse || (aiResponse.status === "failed") || !aiResponse.imageUrl) {
+      const duration = Date.now() - startTime;
+      const errorMsg = chainResult.finalError || aiResponse?.error || "Generation failed";
+
       // Update generation as failed
       await prisma.generation.update({
         where: { id: generation.id },
@@ -190,14 +212,22 @@ export async function POST(req: NextRequest) {
           status: "FAILED",
           parameters: {
             ...(generation.parameters as object),
-            error: chainResult.finalError || aiResponse?.error || "Generation failed",
+            error: errorMsg,
             failoverAttempts: chainResult.attempts.map(a => ({ provider: a.provider, success: a.success, error: a.error, duration: a.duration })),
           },
         },
       });
 
+      // Report failure to Cortex
+      await cortex.trackImageGeneration(generation.id, 'failed', {
+        model: params.model,
+        provider: provider,
+        duration,
+        failoverAttempts: chainResult.attempts.length,
+      }, errorMsg);
+
       return NextResponse.json(
-        { error: chainResult.finalError || aiResponse?.error || "Generation failed", id: generation.id },
+        { error: errorMsg, id: generation.id },
         { status: 500 }
       );
     }
@@ -223,6 +253,8 @@ export async function POST(req: NextRequest) {
 
     const primaryImageUrl = finalImageUrls[0] || aiResponse.imageUrl;
 
+    const duration = Date.now() - startTime;
+
     // Update generation record with result
     await prisma.generation.update({
       where: { id: generation.id },
@@ -236,6 +268,24 @@ export async function POST(req: NextRequest) {
           allImages: finalImageUrls, // Store all batch images
         },
       },
+    });
+
+    // Report completion to Cortex
+    await cortex.trackImageGeneration(generation.id, 'completed', {
+      model: params.model,
+      provider: successfulProvider,
+      duration,
+      imagesGenerated: finalImageUrls.length,
+      failoverAttempts: chainResult.attempts.length,
+    });
+
+    // Also report metrics for analytics
+    await cortex.reportMetrics({
+      service: 'krya',
+      operation: 'image-generation',
+      provider: successfulProvider,
+      duration,
+      success: true,
     });
 
     return NextResponse.json({

@@ -64,8 +64,19 @@ export async function middleware(request: NextRequest) {
   // Add CORS headers for API routes
   if (pathname.startsWith("/api")) {
     const origin = request.headers.get("origin");
-    if (origin) {
+    const allowedOrigins = [
+      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3100",
+      "http://localhost:3000",
+      "http://localhost:3100",
+    ];
+
+    // Only allow credentials from trusted origins
+    if (origin && allowedOrigins.includes(origin)) {
       response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.set("Access-Control-Allow-Credentials", "true");
+    } else if (!origin) {
+      // Same-origin requests (no origin header)
+      response.headers.set("Access-Control-Allow-Origin", allowedOrigins[0]);
     }
 
     response.headers.set(
@@ -74,9 +85,8 @@ export async function middleware(request: NextRequest) {
     );
     response.headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization"
+      "Content-Type, Authorization, X-Authentik-Email, X-Authentik-Name, X-Authentik-Uid"
     );
-    response.headers.set("Access-Control-Allow-Credentials", "true");
   }
 
   return response;

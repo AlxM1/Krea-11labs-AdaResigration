@@ -57,8 +57,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Generate unique filename
-      const ext = file.name.split(".").pop() || "bin";
+      // Generate unique filename with validated extension
+      const allowedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'svg'];
+      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+      
+      if (!allowedExtensions.includes(ext)) {
+        return NextResponse.json(
+          { error: "File type not allowed. Allowed types: " + allowedExtensions.join(", ") },
+          { status: 400 }
+        );
+      }
+      
       const filename = `${randomUUID()}.${ext}`;
 
       // Save to temp directory for immediate use (e.g., img2img reference images)
