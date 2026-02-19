@@ -50,7 +50,7 @@ export class CortexClient {
       };
 
       if (this.apiKey) {
-        headers['Authorization'] = `Bearer ${this.apiKey}`;
+        headers['X-API-Key'] = this.apiKey;
       }
 
       const response = await fetch(`${this.baseUrl}/api/tasks/activity`, {
@@ -84,7 +84,7 @@ export class CortexClient {
       };
 
       if (this.apiKey) {
-        headers['Authorization'] = `Bearer ${this.apiKey}`;
+        headers['X-API-Key'] = this.apiKey;
       }
 
       const response = await fetch(`${this.baseUrl}/api/metrics`, {
