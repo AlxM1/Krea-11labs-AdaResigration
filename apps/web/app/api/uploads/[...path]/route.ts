@@ -40,13 +40,22 @@ export async function GET(
     const ext = path.extname(resolved).toLowerCase();
     const contentType = CONTENT_TYPES[ext] || "application/octet-stream";
 
-    return new NextResponse(file, {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "Content-Length": String(file.length),
-      },
-    });
+    // Security: Serve SVG files as downloads to prevent stored XSS
+    // SVGs can contain JavaScript that executes when rendered inline
+    const headers: Record<string, string> = {
+      "Content-Length": String(file.length),
+      "Cache-Control": "public, max-age=31536000, immutable",
+    };
+
+    if (ext === ".svg") {
+      // Force download for SVG files
+      headers["Content-Type"] = "application/octet-stream";
+      headers["Content-Disposition"] = `attachment; filename="${path.basename(resolved)}"`;
+    } else {
+      headers["Content-Type"] = contentType;
+    }
+
+    return new NextResponse(file, { headers });
   } catch (error) {
     console.error("[Uploads] Error serving file:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
