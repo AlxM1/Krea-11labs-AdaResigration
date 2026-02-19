@@ -6,22 +6,33 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db';
 import { executeImageChain } from '@/lib/ai/provider-chain';
 import { generateImage } from '@/lib/ai/providers';
 import { getNewsletterClient } from '@/lib/integrations/newsletter-client';
+import { validateUrl } from '@/lib/security';
 
 // Internal API key authentication
 function validateInternalApiKey(req: NextRequest): boolean {
   const apiKey = req.headers.get('X-Internal-API-Key');
   const expectedKey = process.env.INTERNAL_API_KEY;
 
-  if (!expectedKey) {
-    console.warn('INTERNAL_API_KEY not configured');
+  if (!expectedKey || !apiKey) {
+    console.warn('INTERNAL_API_KEY not configured or missing from request');
     return false;
   }
 
-  return apiKey === expectedKey;
+  // Use timing-safe comparison to prevent timing attacks
+  try {
+    return timingSafeEqual(
+      Buffer.from(apiKey),
+      Buffer.from(expectedKey)
+    );
+  } catch {
+    // timingSafeEqual throws if buffer lengths differ
+    return false;
+  }
 }
 
 const generateRequestSchema = z.object({
@@ -58,6 +69,14 @@ export async function POST(req: NextRequest) {
     }
 
     const params = validated.data;
+
+    // Validate callbackUrl to prevent SSRF attacks
+    if (params.callbackUrl && !validateUrl(params.callbackUrl)) {
+      return NextResponse.json(
+        { error: 'Invalid callback URL. URL must be HTTPS and cannot point to private networks or cloud metadata endpoints.' },
+        { status: 400 }
+      );
+    }
 
     // Create generation record
     const generation = await prisma.generation.create({
