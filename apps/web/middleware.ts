@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
     "connect-src 'self' https://*.fal.ai https://*.replicate.com wss://*",
     "media-src 'self' blob: https://*.fal.media https://*.replicate.delivery",
     "frame-src 'self'",
-    "frame-ancestors 'none'",
+    "frame-ancestors 'self' http://localhost:3020",
     "base-uri 'self'",
     "form-action 'self'",
     "upgrade-insecure-requests",
